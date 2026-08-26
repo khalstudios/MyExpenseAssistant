@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Expense Assistant</string>
+    <string name="notification_listener_label">Expense Assistant — payment notifications</string>
+    <string name="accessibility_service_label">Expense Assistant — payment screens</string>
+    <string name="accessibility_service_description">Reads the amount and merchant from payment success screens in UPI apps so expenses can be recorded automatically. No data leaves your device.</string>
+</resources>
