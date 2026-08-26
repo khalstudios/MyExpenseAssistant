@@ -1,5 +1,6 @@
 package com.expenseassistant.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Ignore
 import androidx.room.Index
@@ -31,7 +32,9 @@ data class TransactionEntity(
     val referenceId: String?,
     val occurredAt: Long,
     val createdAt: Long = System.currentTimeMillis(),
-    val note: String? = null,
+    @ColumnInfo(name = "note") val description: String? = null,
+    val tags: List<String> = emptyList(),
+    val paymentMode: PaymentMode = PaymentMode.UNKNOWN,
     val userCorrected: Boolean = false,
     val dedupeKey: String,
 ) {

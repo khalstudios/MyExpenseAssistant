@@ -27,8 +27,23 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE occurredAt >= :from ORDER BY occurredAt DESC")
     fun observeSince(from: Long): Flow<List<TransactionEntity>>
 
+    @Query("SELECT * FROM transactions WHERE occurredAt >= :from AND occurredAt < :to ORDER BY occurredAt DESC")
+    fun observeBetween(from: Long, to: Long): Flow<List<TransactionEntity>>
+
+    @Query("SELECT COUNT(*) FROM transactions")
+    fun observeCount(): Flow<Int>
+
+    @Query("SELECT MIN(occurredAt) FROM transactions")
+    suspend fun earliestTimestamp(): Long?
+
+    @Query("DELETE FROM transactions")
+    suspend fun deleteAll()
+
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun findById(id: Long): TransactionEntity?
+
+    @Query("SELECT * FROM transactions WHERE id = :id")
+    fun observeById(id: Long): Flow<TransactionEntity?>
 
     @Query("SELECT * FROM transactions WHERE dedupeKey = :key LIMIT 1")
     suspend fun findByDedupeKey(key: String): TransactionEntity?

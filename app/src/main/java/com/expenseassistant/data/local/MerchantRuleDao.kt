@@ -17,4 +17,7 @@ interface MerchantRuleDao {
 
     @Query("SELECT * FROM merchant_rules")
     suspend fun all(): List<MerchantRule>
+
+    @Query("DELETE FROM merchant_rules")
+    suspend fun deleteAll()
 }

@@ -5,10 +5,14 @@ import com.expenseassistant.categorize.Categorizer
 import com.expenseassistant.data.local.TransactionDao
 import com.expenseassistant.data.model.CaptureSource
 import com.expenseassistant.data.model.Category
+import com.expenseassistant.data.model.Direction
+import com.expenseassistant.data.model.PaymentMode
 import com.expenseassistant.data.model.TransactionEntity
 import com.expenseassistant.parser.ParsedPayment
+import com.expenseassistant.parser.PaymentModeDetector
 import kotlinx.coroutines.flow.Flow
 import java.security.MessageDigest
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class TransactionRepository(
@@ -19,6 +23,51 @@ class TransactionRepository(
     fun observeAll(): Flow<List<TransactionEntity>> = transactionDao.observeAll()
 
     fun observeSince(from: Long): Flow<List<TransactionEntity>> = transactionDao.observeSince(from)
+
+    fun observeBetween(from: Long, to: Long): Flow<List<TransactionEntity>> =
+        transactionDao.observeBetween(from, to)
+
+    fun observeCount(): Flow<Int> = transactionDao.observeCount()
+
+    suspend fun earliestTimestamp(): Long? = transactionDao.earliestTimestamp()
+
+    suspend fun deleteAll() = transactionDao.deleteAll()
+
+    suspend fun clearLearnedRules() = categorizer.forgetAll()
+
+    /** Adds a transaction the capture services could not see, such as cash or a card swipe. */
+    suspend fun addManual(
+        amountMinor: Long,
+        direction: Direction,
+        merchant: String,
+        category: Category,
+        paymentMode: PaymentMode,
+        occurredAt: Long,
+        description: String?,
+        tags: List<String>,
+    ): Long {
+        val entity = TransactionEntity(
+            amountMinor = amountMinor,
+            direction = direction,
+            merchantRaw = merchant,
+            merchant = merchant,
+            category = category,
+            categoryConfidence = 1f,
+            sourcePackage = null,
+            sourceApp = "Added manually",
+            captureSource = CaptureSource.MANUAL,
+            rawText = description.orEmpty(),
+            referenceId = null,
+            occurredAt = occurredAt,
+            description = description?.takeIf { it.isNotBlank() },
+            tags = tags,
+            paymentMode = paymentMode,
+            userCorrected = true,
+            dedupeKey = "manual:${UUID.randomUUID()}",
+        )
+        categorizer.learn(merchant, category)
+        return transactionDao.insert(entity)
+    }
 
     /**
      * Stores a captured payment. Returns the new row id, or null when it was a duplicate
@@ -55,10 +104,13 @@ class TransactionRepository(
             rawText = payment.rawText,
             referenceId = payment.referenceId,
             occurredAt = payment.occurredAt,
+            paymentMode = PaymentModeDetector.detect(payment.rawText, payment.sourcePackage),
             dedupeKey = dedupeKey,
         )
         return transactionDao.insert(entity).takeIf { it > 0 }
     }
+
+    fun observeById(id: Long): Flow<TransactionEntity?> = transactionDao.observeById(id)
 
     suspend fun recategorize(id: Long, category: Category) {
         val existing = transactionDao.findById(id) ?: return
@@ -68,9 +120,22 @@ class TransactionRepository(
         categorizer.learn(existing.merchantRaw ?: existing.merchant, category)
     }
 
-    suspend fun updateNote(id: Long, note: String?) {
+    suspend fun updateDescription(id: Long, description: String?) {
         val existing = transactionDao.findById(id) ?: return
-        transactionDao.update(existing.copy(note = note?.takeIf { it.isNotBlank() }))
+        transactionDao.update(existing.copy(description = description?.takeIf { it.isNotBlank() }))
+    }
+
+    suspend fun updateTags(id: Long, tags: List<String>) {
+        val existing = transactionDao.findById(id) ?: return
+        val cleaned = tags.map { it.trim().removePrefix("#") }
+            .filter { it.isNotEmpty() }
+            .distinctBy { it.lowercase() }
+        transactionDao.update(existing.copy(tags = cleaned))
+    }
+
+    suspend fun updatePaymentMode(id: Long, mode: PaymentMode) {
+        val existing = transactionDao.findById(id) ?: return
+        transactionDao.update(existing.copy(paymentMode = mode))
     }
 
     suspend fun delete(id: Long) = transactionDao.delete(id)

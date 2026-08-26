@@ -59,6 +59,8 @@ class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
         )
     }
 
+    suspend fun forgetAll() = merchantRuleDao.deleteAll()
+
     private fun confidenceFor(matchLength: Int, exactField: Boolean): Float {
         val base = if (exactField) 0.75f else 0.6f
         val lengthBonus = (matchLength.coerceAtMost(15) / 15f) * 0.2f

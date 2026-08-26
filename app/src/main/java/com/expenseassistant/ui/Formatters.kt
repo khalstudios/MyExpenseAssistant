@@ -16,3 +16,7 @@ private val dateFormat = SimpleDateFormat("d MMM, h:mm a", Locale.getDefault())
 fun formatMinor(amountMinor: Long): String = currencyFormat.format(amountMinor / 100.0)
 
 fun formatTimestamp(epochMillis: Long): String = dateFormat.format(Date(epochMillis))
+
+/** Parses user-typed rupee amounts such as "250" or "1250.75" into paise. */
+fun String.toMinorUnits(): Long =
+    trim().toBigDecimalOrNull()?.movePointRight(2)?.toLong()?.coerceAtLeast(0) ?: 0L
