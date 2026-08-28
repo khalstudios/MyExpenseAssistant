@@ -33,16 +33,20 @@ import androidx.compose.ui.unit.dp
 import com.expenseassistant.ui.budget.BudgetSummaryCard
 import com.expenseassistant.ui.category.CategoryBadge
 import com.expenseassistant.ui.formatMinor
+import com.expenseassistant.data.model.Category
+import com.expenseassistant.recurring.RecurringExpense
 import kotlin.math.abs
 
 @Composable
 fun InsightsScreen(
     state: AnalyticsUiState,
+    recurring: List<RecurringExpense>,
     onRangeChange: (AnalyticsRange) -> Unit,
     onShiftPeriod: (Int) -> Unit,
     onJumpTo: (year: Int, monthIndex: Int) -> Unit,
     onResetToCurrent: () -> Unit,
     onManageBudgets: () -> Unit,
+    onOpenCategory: (Category) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -64,7 +68,7 @@ fun InsightsScreen(
         }
         item { SpendChartCard(state) }
         if (state.slices.isNotEmpty()) {
-            item { CategoryListCard(state) }
+            item { CategoryListCard(state, onOpenCategory) }
         }
         if (state.range == AnalyticsRange.MONTH) {
             item {
@@ -77,6 +81,9 @@ fun InsightsScreen(
         }
         item { StatGrid(state) }
         item { ComparisonCard(state) }
+        if (recurring.isNotEmpty()) {
+            item { RecurringCard(recurring) }
+        }
         state.topMerchant?.let { (merchant, amount) ->
             item { TopMerchantCard(merchant, amount) }
         }
@@ -99,7 +106,11 @@ fun InsightsScreen(
 
 @Composable
 private fun SpendChartCard(state: AnalyticsUiState) {
-    Card(Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+    ) {
         Column(
             Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -123,8 +134,12 @@ private fun SpendChartCard(state: AnalyticsUiState) {
 }
 
 @Composable
-private fun CategoryListCard(state: AnalyticsUiState) {
-    Card(Modifier.fillMaxWidth()) {
+private fun CategoryListCard(state: AnalyticsUiState, onOpenCategory: (Category) -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 Modifier.fillMaxWidth(),
@@ -142,7 +157,7 @@ private fun CategoryListCard(state: AnalyticsUiState) {
                 )
             }
             HorizontalDivider()
-            CategorySpendList(state.slices)
+            CategorySpendList(state.slices, onOpenCategory)
         }
     }
 }
@@ -190,7 +205,7 @@ private fun StatTile(
 ) {
     Card(
         modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))

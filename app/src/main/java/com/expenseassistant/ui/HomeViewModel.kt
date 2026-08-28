@@ -12,6 +12,8 @@ import com.expenseassistant.data.model.Direction
 import com.expenseassistant.data.model.PaymentMode
 import com.expenseassistant.data.model.TransactionEntity
 import com.expenseassistant.di.ServiceLocator
+import com.expenseassistant.recurring.RecurringDetector
+import com.expenseassistant.recurring.RecurringExpense
 import com.expenseassistant.ui.insights.AnalyticsRange
 import com.expenseassistant.ui.insights.AnalyticsUiState
 import com.expenseassistant.ui.insights.BudgetProgress
@@ -69,9 +71,21 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         .map { it.toHomeState() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
+    private val currentMonth = PeriodSelection.now(AnalyticsRange.MONTH)
+
+    val recentState: StateFlow<HomeUiState> = repository
+        .observeSince(Periods.start(currentMonth))
+        .map { transactions -> transactions.toRecentHomeState() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+
     val analytics: StateFlow<AnalyticsUiState> = snapshot
         .map { it.toAnalytics() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AnalyticsUiState())
+
+    val recurring: StateFlow<List<RecurringExpense>> =
+        repository.observeSince(sixMonthsAgo())
+            .map { RecurringDetector.detect(it) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun setRange(range: AnalyticsRange) {
         _period.value = Periods.withRange(_period.value, range)
@@ -110,6 +124,19 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
+    private fun List<TransactionEntity>.toRecentHomeState(): HomeUiState {
+        val debits = filter { it.direction == Direction.DEBIT }
+        return HomeUiState(
+            transactions = this,
+            spendMinor = debits.sumOf { it.amountMinor },
+            incomeMinor = filter { it.direction == Direction.CREDIT }.sumOf { it.amountMinor },
+            spendByCategory = debits.groupBy { it.category }
+                .map { (category, items) -> category to items.sumOf { it.amountMinor } }
+                .sortedByDescending { it.second },
+            needsReviewCount = count { !it.userCorrected && it.categoryConfidence < 0.6f },
+        )
+    }
+
     private fun PeriodSnapshot.toAnalytics(): AnalyticsUiState {
         val start = Periods.start(selection)
         val current = currentTransactions()
@@ -128,6 +155,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
         return AnalyticsUiState(
             selection = selection,
+            transactions = current,
             periodLabel = Periods.label(selection),
             canGoForward = Periods.canGoForward(selection),
             isCurrentPeriod = Periods.isCurrent(selection),
@@ -210,6 +238,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         Calendar.getInstance().apply { timeInMillis = epochMillis }.let {
             it.get(Calendar.YEAR) * 1000 + it.get(Calendar.DAY_OF_YEAR)
         }
+
+    private fun sixMonthsAgo(): Long =
+        Calendar.getInstance().apply { add(Calendar.MONTH, -6) }.timeInMillis
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {

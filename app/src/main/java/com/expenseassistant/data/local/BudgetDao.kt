@@ -19,6 +19,9 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets")
     fun observeAll(): Flow<List<BudgetEntity>>
 
+    @Query("SELECT * FROM budgets")
+    suspend fun allOnce(): List<BudgetEntity>
+
     @Query("DELETE FROM budgets")
     suspend fun deleteAll()
 }

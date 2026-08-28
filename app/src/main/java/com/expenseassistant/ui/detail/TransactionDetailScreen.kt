@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.expenseassistant.data.model.Category
@@ -63,6 +64,7 @@ fun TransactionDetailScreen(
     var pickingCategory by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = Color(0xFFF6F2EF),
         topBar = {
             TopAppBar(
                 title = { Text("Transaction") },
@@ -111,9 +113,15 @@ fun TransactionDetailScreen(
 @Composable
 private fun AmountHeader(transaction: TransactionEntity, onEditCategory: () -> Unit) {
     val isDebit = transaction.direction == Direction.DEBIT
-    Card(Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+    ) {
         Column(
-            Modifier.padding(20.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -124,7 +132,11 @@ private fun AmountHeader(transaction: TransactionEntity, onEditCategory: () -> U
                 fontWeight = FontWeight.Bold,
                 color = if (isDebit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
             )
-            Text(transaction.merchant, style = MaterialTheme.typography.titleMedium)
+            Text(
+                transaction.merchant,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
             Text(
                 "${if (isDebit) "Spend" else "Income"} · ${formatTimestamp(transaction.occurredAt)}",
                 style = MaterialTheme.typography.bodySmall,
@@ -261,7 +273,8 @@ private fun MetaRow(label: String, value: String) {
 private fun SectionCard(title: String, content: @Composable () -> Unit) {
     Card(
         Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)

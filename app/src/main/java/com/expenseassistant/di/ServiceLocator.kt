@@ -6,6 +6,7 @@ import com.expenseassistant.data.local.AppDatabase
 import com.expenseassistant.data.prefs.UserPreferences
 import com.expenseassistant.data.repo.BudgetRepository
 import com.expenseassistant.data.repo.TransactionRepository
+import com.expenseassistant.notify.BudgetNotifier
 
 object ServiceLocator {
 
@@ -16,8 +17,15 @@ object ServiceLocator {
     fun repository(context: Context): TransactionRepository = repository ?: synchronized(this) {
         repository ?: run {
             val db = AppDatabase.get(context)
-            TransactionRepository(db.transactionDao(), Categorizer(db.merchantRuleDao()))
-                .also { repository = it }
+            TransactionRepository(
+                transactionDao = db.transactionDao(),
+                categorizer = Categorizer(db.merchantRuleDao()),
+                budgetNotifier = BudgetNotifier(
+                    context.applicationContext,
+                    db.transactionDao(),
+                    db.budgetDao(),
+                ),
+            ).also { repository = it }
         }
     }
 

@@ -3,6 +3,7 @@ package com.expenseassistant.ui.insights
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -84,11 +85,15 @@ fun CategoryPieChart(
 }
 
 @Composable
-fun CategorySpendList(slices: List<PieSlice>, modifier: Modifier = Modifier) {
+fun CategorySpendList(
+    slices: List<PieSlice>,
+    onClick: (Category) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         slices.forEach { slice ->
             Row(
-                Modifier.fillMaxWidth(),
+                Modifier.fillMaxWidth().clickable { onClick(slice.category) },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {

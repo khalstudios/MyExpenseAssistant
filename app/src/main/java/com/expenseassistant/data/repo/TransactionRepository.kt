@@ -8,6 +8,7 @@ import com.expenseassistant.data.model.Category
 import com.expenseassistant.data.model.Direction
 import com.expenseassistant.data.model.PaymentMode
 import com.expenseassistant.data.model.TransactionEntity
+import com.expenseassistant.notify.BudgetNotifier
 import com.expenseassistant.parser.ParsedPayment
 import com.expenseassistant.parser.PaymentModeDetector
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +19,7 @@ import java.util.concurrent.TimeUnit
 class TransactionRepository(
     private val transactionDao: TransactionDao,
     private val categorizer: Categorizer,
+    private val budgetNotifier: BudgetNotifier? = null,
 ) {
 
     fun observeAll(): Flow<List<TransactionEntity>> = transactionDao.observeAll()
@@ -28,6 +30,8 @@ class TransactionRepository(
         transactionDao.observeBetween(from, to)
 
     fun observeCount(): Flow<Int> = transactionDao.observeCount()
+
+    suspend fun allTransactions(): List<TransactionEntity> = transactionDao.allOnce()
 
     suspend fun earliestTimestamp(): Long? = transactionDao.earliestTimestamp()
 
@@ -66,7 +70,9 @@ class TransactionRepository(
             dedupeKey = "manual:${UUID.randomUUID()}",
         )
         categorizer.learn(merchant, category)
-        return transactionDao.insert(entity)
+        return transactionDao.insert(entity).also { id ->
+            budgetNotifier?.onTransactionRecorded(entity.copy(id = id))
+        }
     }
 
     /**
@@ -108,6 +114,7 @@ class TransactionRepository(
             dedupeKey = dedupeKey,
         )
         return transactionDao.insert(entity).takeIf { it > 0 }
+            ?.also { id -> budgetNotifier?.onTransactionRecorded(entity.copy(id = id)) }
     }
 
     fun observeById(id: Long): Flow<TransactionEntity?> = transactionDao.observeById(id)

@@ -1,5 +1,7 @@
 package com.expenseassistant.ui.account
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Savings
@@ -30,6 +33,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -38,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +62,7 @@ import com.expenseassistant.service.PermissionStatus
 import com.expenseassistant.ui.formatMinor
 import com.expenseassistant.ui.formatTimestamp
 import com.expenseassistant.ui.toMinorUnits
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +81,21 @@ fun AccountScreen(
     var confirmingClear by remember { mutableStateOf(false) }
     var notificationAccess by remember { mutableStateOf(PermissionStatus.isNotificationAccessGranted(context)) }
     var accessibility by remember { mutableStateOf(PermissionStatus.isAccessibilityGranted(context)) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        viewModel.exportCsv(uri) { exported ->
+            scope.launch {
+                snackbarHostState.showMessage(
+                    if (exported >= 0) "Exported $exported transactions" else "Export failed"
+                )
+            }
+        }
+    }
 
     // System settings can change while we are backgrounded, so re-read on every resume.
     LaunchedEffect(lifecycleOwner) {
@@ -94,6 +116,7 @@ fun AccountScreen(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(
             Modifier
@@ -133,6 +156,13 @@ fun AccountScreen(
                 InfoRow("Transactions recorded", count.toString())
                 InfoRow("Tracking since", earliest?.let { formatTimestamp(it) } ?: "No data yet")
                 InfoRow("Stored", "On this device only")
+                SettingRow(
+                    icon = Icons.Filled.Download,
+                    title = "Export to CSV",
+                    subtitle = "Save every transaction as a spreadsheet file",
+                    actionLabel = "Export",
+                    onClick = { exportLauncher.launch(viewModel.suggestedFileName()) },
+                )
                 SettingRow(
                     icon = Icons.Filled.DeleteForever,
                     title = "Delete all transactions",
@@ -201,7 +231,10 @@ private fun ClearDataDialog(onDismiss: () -> Unit, onConfirm: (Boolean) -> Unit)
 
 @Composable
 private fun ProfileHeader(profile: UserProfile, onEdit: () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+    ) {
         Row(
             Modifier.padding(20.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -301,7 +334,7 @@ private fun ProfileDialog(
 private fun SectionCard(title: String, content: @Composable () -> Unit) {
     Card(
         Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
@@ -311,7 +344,13 @@ private fun SectionCard(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun SettingRow(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+private fun SettingRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    actionLabel: String = "Open",
+    onClick: () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -326,8 +365,13 @@ private fun SettingRow(icon: ImageVector, title: String, subtitle: String, onCli
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        TextButton(onClick = onClick) { Text("Open") }
+        TextButton(onClick = onClick) { Text(actionLabel) }
     }
+}
+
+private suspend fun SnackbarHostState.showMessage(message: String) {
+    currentSnackbarData?.dismiss()
+    showSnackbar(message)
 }
 
 @Composable

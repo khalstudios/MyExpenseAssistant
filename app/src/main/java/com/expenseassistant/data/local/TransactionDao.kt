@@ -24,6 +24,25 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY occurredAt DESC")
     fun observeAll(): Flow<List<TransactionEntity>>
 
+    @Query("SELECT * FROM transactions ORDER BY occurredAt DESC")
+    suspend fun allOnce(): List<TransactionEntity>
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(amountMinor), 0) FROM transactions
+        WHERE direction = 'DEBIT' AND occurredAt >= :from AND occurredAt < :to
+        """
+    )
+    suspend fun spendBetween(from: Long, to: Long): Long
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(amountMinor), 0) FROM transactions
+        WHERE direction = 'DEBIT' AND category = :category AND occurredAt >= :from AND occurredAt < :to
+        """
+    )
+    suspend fun categorySpendBetween(category: Category, from: Long, to: Long): Long
+
     @Query("SELECT * FROM transactions WHERE occurredAt >= :from ORDER BY occurredAt DESC")
     fun observeSince(from: Long): Flow<List<TransactionEntity>>
 

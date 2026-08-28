@@ -36,23 +36,18 @@ import com.expenseassistant.data.model.TransactionEntity
 import com.expenseassistant.ui.category.CategoryBadge
 import com.expenseassistant.ui.category.CategoryDot
 import com.expenseassistant.ui.category.CategoryPickerSheet
-import com.expenseassistant.ui.insights.AnalyticsRange
-import com.expenseassistant.ui.insights.AnalyticsUiState
-import com.expenseassistant.ui.insights.PeriodNavigator
 
 @Composable
 fun HomeScreen(
     state: HomeUiState,
-    analytics: AnalyticsUiState,
     notificationAccessGranted: Boolean,
     accessibilityGranted: Boolean,
     onCategoryChange: (Long, Category) -> Unit,
     onDelete: (Long) -> Unit,
     onOpenTransaction: (Long) -> Unit,
-    onRangeChange: (AnalyticsRange) -> Unit,
-    onShiftPeriod: (Int) -> Unit,
-    onJumpTo: (year: Int, monthIndex: Int) -> Unit,
-    onResetToCurrent: () -> Unit,
+    categoryFilter: Category? = null,
+    onClearCategoryFilter: () -> Unit = {},
+    transactionOverride: List<TransactionEntity>? = null,
     modifier: Modifier = Modifier,
 ) {
     var editing by remember { mutableStateOf<TransactionEntity?>(null) }
@@ -65,19 +60,7 @@ fun HomeScreen(
         item {
             PermissionsCard(notificationAccessGranted, accessibilityGranted)
         }
-        item {
-            PeriodNavigator(
-                label = analytics.periodLabel,
-                range = analytics.range,
-                canGoForward = analytics.canGoForward,
-                isCurrentPeriod = analytics.isCurrentPeriod,
-                onRangeChange = onRangeChange,
-                onShift = onShiftPeriod,
-                onJumpTo = onJumpTo,
-                onResetToCurrent = onResetToCurrent,
-            )
-        }
-        item { SummaryCard(state, analytics.periodLabel) }
+        item { SummaryCard(state) }
 
         if (state.spendByCategory.isNotEmpty()) {
             item { CategoryBreakdown(state.spendByCategory) }
@@ -85,7 +68,7 @@ fun HomeScreen(
 
         item {
             Text(
-                "Transactions",
+                if (categoryFilter == null) "Recent transactions" else "${categoryFilter.displayName} transactions",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -94,19 +77,27 @@ fun HomeScreen(
         if (state.transactions.isEmpty()) {
             item {
                 Text(
-                    "No transactions in this period.",
+                    if (categoryFilter == null) "No transactions this month." else "No transactions in this category.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }
 
-        items(state.transactions, key = { it.id }) { transaction ->
+        items((transactionOverride ?: state.transactions).filter { categoryFilter == null || it.category == categoryFilter }, key = { it.id }) { transaction ->
             TransactionRow(
                 transaction = transaction,
                 onEditCategory = { editing = transaction },
                 onDelete = { onDelete(transaction.id) },
                 onClick = { onOpenTransaction(transaction.id) },
             )
+        }
+
+        if (categoryFilter != null) {
+            item {
+                TextButton(onClick = onClearCategoryFilter, modifier = Modifier.fillMaxWidth()) {
+                    Text("Show all recent transactions")
+                }
+            }
         }
     }
 
@@ -124,10 +115,14 @@ fun HomeScreen(
 }
 
 @Composable
-private fun SummaryCard(state: HomeUiState, periodLabel: String) {
-    Card(Modifier.fillMaxWidth()) {
+private fun SummaryCard(state: HomeUiState) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Spent in $periodLabel", style = MaterialTheme.typography.labelMedium)
+            Text("Spent this month", style = MaterialTheme.typography.labelMedium)
             Text(formatMinor(state.spendMinor), style = MaterialTheme.typography.headlineMedium)
             Text(
                 "Received ${formatMinor(state.incomeMinor)} \u00b7 ${state.transactions.size} transactions",
@@ -146,7 +141,11 @@ private fun SummaryCard(state: HomeUiState, periodLabel: String) {
 
 @Composable
 private fun CategoryBreakdown(breakdown: List<Pair<Category, Long>>) {
-    Card(Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Where it went", style = MaterialTheme.typography.titleSmall)
             breakdown.take(6).forEach { (category, amount) ->
@@ -179,7 +178,8 @@ private fun TransactionRow(
 
     Card(
         Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(

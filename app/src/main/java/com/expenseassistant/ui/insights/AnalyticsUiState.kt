@@ -18,6 +18,7 @@ data class BudgetProgress(
 
 data class AnalyticsUiState(
     val selection: PeriodSelection = PeriodSelection.now(AnalyticsRange.MONTH),
+    val transactions: List<TransactionEntity> = emptyList(),
     val periodLabel: String = "",
     val canGoForward: Boolean = false,
     val isCurrentPeriod: Boolean = true,

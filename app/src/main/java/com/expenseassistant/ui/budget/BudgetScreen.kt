@@ -138,7 +138,7 @@ private fun BudgetEditRow(
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
     ) {
         Row(
             Modifier.padding(14.dp).fillMaxWidth(),
