@@ -53,11 +53,13 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.expenseassistant.service.PermissionStatus
 import com.expenseassistant.data.model.Category
+import com.expenseassistant.data.model.TransactionEntity
 import com.expenseassistant.ui.account.AccountScreen
 import com.expenseassistant.ui.add.AddTransactionScreen
 import com.expenseassistant.ui.budget.BudgetScreen
 import com.expenseassistant.ui.detail.TransactionDetailScreen
 import com.expenseassistant.ui.insights.InsightsScreen
+import com.expenseassistant.ui.tag.TagScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -83,6 +85,7 @@ private sealed interface Route {
     data object Account : Route
     data class Detail(val id: Long) : Route
     data class CategoryTransactions(val category: Category) : Route
+    data class TagTransactions(val tag: String) : Route
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,6 +95,8 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     val recentState by viewModel.recentState.collectAsStateWithLifecycle()
     val analytics by viewModel.analytics.collectAsStateWithLifecycle()
     val recurring by viewModel.recurring.collectAsStateWithLifecycle()
+    val tagSuggestions by viewModel.tagSuggestions.collectAsStateWithLifecycle()
+    val tagUsage by viewModel.tagUsage.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var tab by remember { mutableStateOf(Tab.TRANSACTIONS) }
@@ -166,10 +171,15 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     onDescriptionChange = { viewModel.updateDescription(transaction.id, it) },
                     onTagsChange = { viewModel.updateTags(transaction.id, it) },
                     onPaymentModeChange = { viewModel.updatePaymentMode(transaction.id, it) },
+                    onCoreChange = { amountMinor, direction, merchant, occurredAt ->
+                        viewModel.updateCore(transaction.id, amountMinor, direction, merchant, occurredAt)
+                    },
                     onDelete = {
                         viewModel.delete(transaction.id)
                         route = Route.Main
                     },
+                    tagSuggestions = tagSuggestions,
+                    onOpenTag = { tag -> route = Route.TagTransactions(tag) },
                 )
                 return
             }
@@ -185,8 +195,23 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 onOpenTransaction = { id -> route = Route.Detail(id) },
                 categoryFilter = current.category,
                 transactionOverride = analytics.transactions,
-                onClearCategoryFilter = { route = Route.Main },
+                onClearFilter = { route = Route.Main },
             )
+            return
+        }
+
+        is Route.TagTransactions -> {
+            var tagTransactions by remember(current.tag) { mutableStateOf<List<TransactionEntity>?>(null) }
+            LaunchedEffect(current.tag) { tagTransactions = viewModel.transactionsForTag(current.tag) }
+            val list = tagTransactions
+            if (list != null) {
+                TagScreen(
+                    tag = current.tag,
+                    transactions = list,
+                    onBack = { route = Route.Main },
+                    onOpenTransaction = { id -> route = Route.Detail(id) },
+                )
+            }
             return
         }
 
@@ -253,12 +278,14 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
             Tab.INSIGHTS -> InsightsScreen(
                 state = analytics,
                 recurring = recurring,
+                tagUsage = tagUsage,
                 onRangeChange = viewModel::setRange,
                 onShiftPeriod = viewModel::shiftPeriod,
                 onJumpTo = viewModel::jumpTo,
                 onResetToCurrent = viewModel::resetToCurrent,
                 onManageBudgets = { route = Route.Budgets },
                 onOpenCategory = { route = Route.CategoryTransactions(it) },
+                onOpenTag = { tag -> route = Route.TagTransactions(tag) },
                 modifier = Modifier.padding(padding),
             )
         }

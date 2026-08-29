@@ -1,5 +1,6 @@
 package com.expenseassistant.ui.budget
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -40,6 +41,7 @@ import com.expenseassistant.data.model.BudgetEntity
 import com.expenseassistant.data.model.Category
 import com.expenseassistant.ui.category.CategoryBadge
 import com.expenseassistant.ui.formatMinor
+import com.expenseassistant.ui.rememberSoftGradient
 import com.expenseassistant.ui.toMinorUnits
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -138,10 +140,12 @@ private fun BudgetEditRow(
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
     ) {
         Row(
-            Modifier.padding(14.dp).fillMaxWidth(),
+            Modifier
+                .background(rememberSoftGradient())
+                .padding(14.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {

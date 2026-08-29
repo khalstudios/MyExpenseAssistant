@@ -12,9 +12,12 @@ import com.expenseassistant.notify.BudgetNotifier
 import com.expenseassistant.parser.ParsedPayment
 import com.expenseassistant.parser.PaymentModeDetector
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+
+data class TagUsage(val tag: String, val count: Int)
 
 class TransactionRepository(
     private val transactionDao: TransactionDao,
@@ -32,6 +35,24 @@ class TransactionRepository(
     fun observeCount(): Flow<Int> = transactionDao.observeCount()
 
     suspend fun allTransactions(): List<TransactionEntity> = transactionDao.allOnce()
+
+    suspend fun transactionsForTag(tag: String): List<TransactionEntity> =
+        allTransactions().filter { tx -> tx.tags.any { it.equals(tag, ignoreCase = true) } }
+
+    /** Every tag in use, most-used first, for the "browse by tag" widget. */
+    fun observeTagUsage(): Flow<List<TagUsage>> = transactionDao.observeAll().map { transactions ->
+        val counts = LinkedHashMap<String, Int>()
+        transactions.forEach { tx ->
+            tx.tags.forEach { tag ->
+                val key = tag.trim()
+                if (key.isNotEmpty()) counts[key] = (counts[key] ?: 0) + 1
+            }
+        }
+        counts.entries.sortedByDescending { it.value }.map { TagUsage(it.key, it.value) }
+    }
+
+    /** Tags ordered by how often they're used, so recent/common ones surface first as suggestions. */
+    fun observeTagSuggestions(): Flow<List<String>> = observeTagUsage().map { usages -> usages.map { it.tag } }
 
     suspend fun earliestTimestamp(): Long? = transactionDao.earliestTimestamp()
 
@@ -143,6 +164,27 @@ class TransactionRepository(
     suspend fun updatePaymentMode(id: Long, mode: PaymentMode) {
         val existing = transactionDao.findById(id) ?: return
         transactionDao.update(existing.copy(paymentMode = mode))
+    }
+
+    /** Lets the user correct anything the capture pipeline got wrong, including manual entries. */
+    suspend fun updateCore(
+        id: Long,
+        amountMinor: Long,
+        direction: Direction,
+        merchant: String,
+        occurredAt: Long,
+    ) {
+        val existing = transactionDao.findById(id) ?: return
+        transactionDao.update(
+            existing.copy(
+                amountMinor = amountMinor,
+                direction = direction,
+                merchant = merchant,
+                merchantRaw = merchant,
+                occurredAt = occurredAt,
+                userCorrected = true,
+            )
+        )
     }
 
     suspend fun delete(id: Long) = transactionDao.delete(id)

@@ -1,5 +1,6 @@
 package com.expenseassistant.ui.insights
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.expenseassistant.recurring.RecurringExpense
 import com.expenseassistant.ui.category.CategoryBadge
 import com.expenseassistant.ui.formatMinor
+import com.expenseassistant.ui.rememberSoftGradient
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -29,7 +31,12 @@ private val nextDueFormat = SimpleDateFormat("d MMM", Locale.getDefault())
 @Composable
 fun RecurringCard(items: List<RecurringExpense>, modifier: Modifier = Modifier) {
     Card(modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(
+            Modifier
+                .background(rememberSoftGradient())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Autorenew, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Text(

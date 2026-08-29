@@ -11,6 +11,7 @@ import com.expenseassistant.data.model.Category
 import com.expenseassistant.data.model.Direction
 import com.expenseassistant.data.model.PaymentMode
 import com.expenseassistant.data.model.TransactionEntity
+import com.expenseassistant.data.repo.TagUsage
 import com.expenseassistant.di.ServiceLocator
 import com.expenseassistant.recurring.RecurringDetector
 import com.expenseassistant.recurring.RecurringExpense
@@ -86,6 +87,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         repository.observeSince(sixMonthsAgo())
             .map { RecurringDetector.detect(it) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val tagSuggestions: StateFlow<List<String>> = repository.observeTagSuggestions()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val tagUsage: StateFlow<List<TagUsage>> = repository.observeTagUsage()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    suspend fun transactionsForTag(tag: String): List<TransactionEntity> = repository.transactionsForTag(tag)
 
     fun setRange(range: AnalyticsRange) {
         _period.value = Periods.withRange(_period.value, range)
@@ -211,6 +220,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun updatePaymentMode(id: Long, mode: PaymentMode) = viewModelScope.launch {
         repository.updatePaymentMode(id, mode)
     }
+
+    fun updateCore(id: Long, amountMinor: Long, direction: Direction, merchant: String, occurredAt: Long) =
+        viewModelScope.launch {
+            repository.updateCore(id, amountMinor, direction, merchant, occurredAt)
+        }
 
     fun addManualTransaction(
         amountMinor: Long,

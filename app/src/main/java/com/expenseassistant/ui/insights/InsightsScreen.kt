@@ -1,7 +1,10 @@
 package com.expenseassistant.ui.insights
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.NorthEast
@@ -18,6 +22,7 @@ import androidx.compose.material.icons.filled.SouthEast
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Card
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -33,7 +38,9 @@ import androidx.compose.ui.unit.dp
 import com.expenseassistant.ui.budget.BudgetSummaryCard
 import com.expenseassistant.ui.category.CategoryBadge
 import com.expenseassistant.ui.formatMinor
+import com.expenseassistant.ui.rememberSoftGradient
 import com.expenseassistant.data.model.Category
+import com.expenseassistant.data.repo.TagUsage
 import com.expenseassistant.recurring.RecurringExpense
 import kotlin.math.abs
 
@@ -41,12 +48,14 @@ import kotlin.math.abs
 fun InsightsScreen(
     state: AnalyticsUiState,
     recurring: List<RecurringExpense>,
+    tagUsage: List<TagUsage>,
     onRangeChange: (AnalyticsRange) -> Unit,
     onShiftPeriod: (Int) -> Unit,
     onJumpTo: (year: Int, monthIndex: Int) -> Unit,
     onResetToCurrent: () -> Unit,
     onManageBudgets: () -> Unit,
     onOpenCategory: (Category) -> Unit,
+    onOpenTag: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -84,6 +93,9 @@ fun InsightsScreen(
         if (recurring.isNotEmpty()) {
             item { RecurringCard(recurring) }
         }
+        if (tagUsage.isNotEmpty()) {
+            item { TagsCard(tagUsage, onOpenTag) }
+        }
         state.topMerchant?.let { (merchant, amount) ->
             item { TopMerchantCard(merchant, amount) }
         }
@@ -104,15 +116,51 @@ fun InsightsScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TagsCard(tags: List<TagUsage>, onOpenTag: (String) -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(
+            Modifier
+                .background(rememberSoftGradient())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Text(
+                    "  Tags",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Text(
+                "Tap a tag to see everything tagged with it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                tags.forEach { usage ->
+                    AssistChip(
+                        onClick = { onOpenTag(usage.tag) },
+                        label = { Text("#${usage.tag} \u00b7 ${usage.count}") },
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SpendChartCard(state: AnalyticsUiState) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
     ) {
         Column(
-            Modifier.padding(16.dp),
+            Modifier
+                .background(rememberSoftGradient())
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -137,10 +185,14 @@ private fun SpendChartCard(state: AnalyticsUiState) {
 private fun CategoryListCard(state: AnalyticsUiState, onOpenCategory: (Category) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(
+            Modifier
+                .background(rememberSoftGradient())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -203,11 +255,13 @@ private fun StatTile(
     label: String,
     value: String,
 ) {
-    Card(
-        modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-    ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Card(modifier) {
+        Column(
+            Modifier
+                .background(rememberSoftGradient())
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             Text(label, style = MaterialTheme.typography.labelSmall)
             Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -223,7 +277,10 @@ private fun ComparisonCard(state: AnalyticsUiState) {
 
     Card(Modifier.fillMaxWidth()) {
         Row(
-            Modifier.padding(16.dp).fillMaxWidth(),
+            Modifier
+                .background(rememberSoftGradient())
+                .padding(16.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
@@ -273,7 +330,10 @@ private fun HighlightCard(
 ) {
     Card(Modifier.fillMaxWidth()) {
         Row(
-            Modifier.padding(16.dp).fillMaxWidth(),
+            Modifier
+                .background(rememberSoftGradient())
+                .padding(16.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {

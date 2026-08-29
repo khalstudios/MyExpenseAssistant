@@ -23,6 +23,20 @@ class PaymentTextParserTest {
     }
 
     @Test
+    fun `parses a four digit amount with no comma without dropping a digit`() {
+        val result = PaymentTextParser.parse("You paid ₹2300 to IOCL PETROL PUMP successfully", gpay)
+        assertNotNull(result)
+        assertEquals(230000L, result!!.amountMinor)
+    }
+
+    @Test
+    fun `parses a five digit amount with no comma without dropping a digit`() {
+        val result = PaymentTextParser.parse("Payment successful. You paid ₹12345 to Big Bazaar", gpay)
+        assertNotNull(result)
+        assertEquals(1234500L, result!!.amountMinor)
+    }
+
+    @Test
     fun `parses bank debit sms with reference`() {
         val text = "Rs.1,250.00 debited from A/c XX1234 to UBER INDIA on 12-05-25. UPI Ref No 512345678901"
         val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")

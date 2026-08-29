@@ -10,8 +10,10 @@ import java.util.concurrent.TimeUnit
  */
 object PaymentTextParser {
 
+    // Unified digit run first, so a plain 4+ digit amount like "2300" is never
+    // truncated by an alternative that only expected comma-grouped digits.
     private val AMOUNT = Regex(
-        """(?:₹|rs\.?|inr)\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)""",
+        """(?:₹|rs\.?|inr)\s*([0-9]+(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?)""",
         RegexOption.IGNORE_CASE,
     )
 

@@ -1,5 +1,6 @@
 package com.expenseassistant.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
@@ -46,11 +48,14 @@ fun HomeScreen(
     onDelete: (Long) -> Unit,
     onOpenTransaction: (Long) -> Unit,
     categoryFilter: Category? = null,
-    onClearCategoryFilter: () -> Unit = {},
+    tagFilter: String? = null,
+    onClearFilter: () -> Unit = {},
     transactionOverride: List<TransactionEntity>? = null,
     modifier: Modifier = Modifier,
 ) {
     var editing by remember { mutableStateOf<TransactionEntity?>(null) }
+    val hasFilter = categoryFilter != null || tagFilter != null
+    val filterLabel = categoryFilter?.displayName ?: tagFilter?.let { "#$it" }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -68,7 +73,7 @@ fun HomeScreen(
 
         item {
             Text(
-                if (categoryFilter == null) "Recent transactions" else "${categoryFilter.displayName} transactions",
+                if (filterLabel == null) "Recent transactions" else "$filterLabel transactions",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -77,13 +82,19 @@ fun HomeScreen(
         if (state.transactions.isEmpty()) {
             item {
                 Text(
-                    if (categoryFilter == null) "No transactions this month." else "No transactions in this category.",
+                    if (filterLabel == null) "No transactions this month." else "No transactions found.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }
 
-        items((transactionOverride ?: state.transactions).filter { categoryFilter == null || it.category == categoryFilter }, key = { it.id }) { transaction ->
+        items(
+            (transactionOverride ?: state.transactions).filter { tx ->
+                (categoryFilter == null || tx.category == categoryFilter) &&
+                    (tagFilter == null || tx.tags.any { it.equals(tagFilter, ignoreCase = true) })
+            },
+            key = { it.id },
+        ) { transaction ->
             TransactionRow(
                 transaction = transaction,
                 onEditCategory = { editing = transaction },
@@ -92,9 +103,9 @@ fun HomeScreen(
             )
         }
 
-        if (categoryFilter != null) {
+        if (hasFilter) {
             item {
-                TextButton(onClick = onClearCategoryFilter, modifier = Modifier.fillMaxWidth()) {
+                TextButton(onClick = onClearFilter, modifier = Modifier.fillMaxWidth()) {
                     Text("Show all recent transactions")
                 }
             }
@@ -116,23 +127,40 @@ fun HomeScreen(
 
 @Composable
 private fun SummaryCard(state: HomeUiState) {
+    val hero = rememberHeroGradient()
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Spent this month", style = MaterialTheme.typography.labelMedium)
-            Text(formatMinor(state.spendMinor), style = MaterialTheme.typography.headlineMedium)
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(hero.brush)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                "Spent this month",
+                style = MaterialTheme.typography.labelMedium,
+                color = hero.onGradientMuted,
+            )
+            Text(
+                formatMinor(state.spendMinor),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = hero.onGradient,
+            )
             Text(
                 "Received ${formatMinor(state.incomeMinor)} \u00b7 ${state.transactions.size} transactions",
                 style = MaterialTheme.typography.bodySmall,
+                color = hero.onGradientMuted,
             )
             if (state.needsReviewCount > 0) {
                 Text(
                     "${state.needsReviewCount} need a category check",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    color = hero.onGradient,
                 )
             }
         }
@@ -143,10 +171,14 @@ private fun SummaryCard(state: HomeUiState) {
 private fun CategoryBreakdown(breakdown: List<Pair<Category, Long>>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            Modifier
+                .background(rememberSoftGradient())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Text("Where it went", style = MaterialTheme.typography.titleSmall)
             breakdown.take(6).forEach { (category, amount) ->
                 Row(
@@ -178,10 +210,14 @@ private fun TransactionRow(
 
     Card(
         Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(
+            Modifier
+                .background(rememberSoftGradient())
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,

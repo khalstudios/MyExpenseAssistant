@@ -1,5 +1,6 @@
 package com.expenseassistant.ui.budget
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.expenseassistant.ui.category.CategoryBadge
 import com.expenseassistant.ui.formatMinor
 import com.expenseassistant.ui.insights.BudgetProgress
+import com.expenseassistant.ui.rememberSoftGradient
 
 private val onTrackColor = Color(0xFF2E7D32)
 private val warningColor = Color(0xFFEF6C00)
@@ -37,10 +39,14 @@ fun BudgetSummaryCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(
+            Modifier
+                .background(rememberSoftGradient())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,

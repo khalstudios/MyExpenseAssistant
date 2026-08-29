@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -47,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +63,8 @@ import com.expenseassistant.data.prefs.UserProfile
 import com.expenseassistant.service.PermissionStatus
 import com.expenseassistant.ui.formatMinor
 import com.expenseassistant.ui.formatTimestamp
+import com.expenseassistant.ui.rememberHeroGradient
+import com.expenseassistant.ui.rememberSoftGradient
 import com.expenseassistant.ui.toMinorUnits
 import kotlinx.coroutines.launch
 
@@ -231,25 +235,30 @@ private fun ClearDataDialog(onDismiss: () -> Unit, onConfirm: (Boolean) -> Unit)
 
 @Composable
 private fun ProfileHeader(profile: UserProfile, onEdit: () -> Unit) {
+    val hero = rememberHeroGradient()
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
     ) {
         Row(
-            Modifier.padding(20.dp).fillMaxWidth(),
+            Modifier
+                .background(hero.brush)
+                .padding(20.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Box(
                 Modifier
                     .size(64.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                    .background(Color.White.copy(alpha = 0.25f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.Filled.Person,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = hero.onGradient,
                     modifier = Modifier.size(32.dp),
                 )
             }
@@ -258,19 +267,20 @@ private fun ProfileHeader(profile: UserProfile, onEdit: () -> Unit) {
                     profile.name.ifBlank { "Set up your profile" },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
+                    color = hero.onGradient,
                 )
                 if (profile.email.isNotBlank()) {
-                    Text(profile.email, style = MaterialTheme.typography.bodySmall)
+                    Text(profile.email, style = MaterialTheme.typography.bodySmall, color = hero.onGradientMuted)
                 }
                 if (profile.monthlyIncomeMinor > 0) {
                     Text(
                         "Monthly income ${formatMinor(profile.monthlyIncomeMinor)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = hero.onGradientMuted,
                     )
                 }
             }
-            TextButton(onClick = onEdit) { Text("Edit") }
+            TextButton(onClick = onEdit) { Text("Edit", color = hero.onGradient) }
         }
     }
 }
@@ -332,11 +342,13 @@ private fun ProfileDialog(
 
 @Composable
 private fun SectionCard(title: String, content: @Composable () -> Unit) {
-    Card(
-        Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(
+            Modifier
+                .background(rememberSoftGradient())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             content()
         }
