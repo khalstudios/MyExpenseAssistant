@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -49,6 +50,7 @@ import androidx.compose.material3.AlertDialog
 import com.expenseassistant.data.model.Category
 import com.expenseassistant.data.model.Direction
 import com.expenseassistant.data.model.PaymentMode
+import com.expenseassistant.data.repo.CustomCategoryOption
 import com.expenseassistant.ui.category.CategoryBadge
 import com.expenseassistant.ui.category.CategoryPickerSheet
 import com.expenseassistant.ui.formatTimestamp
@@ -60,6 +62,9 @@ data class ManualTransactionInput(
     val direction: Direction,
     val merchant: String,
     val category: Category,
+    val customCategoryName: String? = null,
+    val customCategoryColor: String? = null,
+    val customCategoryIcon: String? = null,
     val paymentMode: PaymentMode,
     val occurredAt: Long,
     val description: String,
@@ -68,11 +73,18 @@ data class ManualTransactionInput(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun AddTransactionScreen(onBack: () -> Unit, onSave: (ManualTransactionInput) -> Unit) {
+fun AddTransactionScreen(
+    onBack: () -> Unit,
+    onSave: (ManualTransactionInput) -> Unit,
+    customCategories: List<CustomCategoryOption> = emptyList(),
+) {
     var amount by remember { mutableStateOf("") }
     var direction by remember { mutableStateOf(Direction.DEBIT) }
     var merchant by remember { mutableStateOf("") }
     var category by remember { mutableStateOf(Category.OTHER) }
+    var customCategoryName by remember { mutableStateOf<String?>(null) }
+    var customCategoryColor by remember { mutableStateOf<String?>(null) }
+    var customCategoryIcon by remember { mutableStateOf<String?>(null) }
     var paymentMode by remember { mutableStateOf(PaymentMode.CASH) }
     var occurredAt by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var description by remember { mutableStateOf("") }
@@ -139,8 +151,20 @@ fun AddTransactionScreen(onBack: () -> Unit, onSave: (ManualTransactionInput) ->
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    CategoryBadge(category, size = 32.dp)
-                    Text(category.displayName)
+                    if (customCategoryName != null) {
+                        val customColor = runCatching {
+                            androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(customCategoryColor))
+                        }.getOrDefault(MaterialTheme.colorScheme.primary)
+                        Icon(
+                            com.expenseassistant.ui.category.CategoryIconCatalog.iconFor(customCategoryIcon),
+                            contentDescription = null,
+                            tint = customColor,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    } else {
+                        CategoryBadge(category, size = 32.dp)
+                    }
+                    Text(customCategoryName ?: category.displayName)
                 }
             }
 
@@ -190,6 +214,9 @@ fun AddTransactionScreen(onBack: () -> Unit, onSave: (ManualTransactionInput) ->
                             direction = direction,
                             merchant = merchant.trim(),
                             category = category,
+                            customCategoryName = customCategoryName,
+                            customCategoryColor = customCategoryColor,
+                            customCategoryIcon = customCategoryIcon,
                             paymentMode = paymentMode,
                             occurredAt = occurredAt,
                             description = description,
@@ -209,8 +236,20 @@ fun AddTransactionScreen(onBack: () -> Unit, onSave: (ManualTransactionInput) ->
         CategoryPickerSheet(
             merchant = merchant.ifBlank { "this transaction" },
             selected = category,
+            selectedCustomName = customCategoryName,
+            customCategories = customCategories,
             onSelect = {
                 category = it
+                customCategoryName = null
+                customCategoryColor = null
+                customCategoryIcon = null
+                pickingCategory = false
+            },
+            onSelectCustom = { name, colorHex, iconKey ->
+                category = Category.OTHER
+                customCategoryName = name
+                customCategoryColor = colorHex
+                customCategoryIcon = iconKey
                 pickingCategory = false
             },
             onDismiss = { pickingCategory = false },

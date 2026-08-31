@@ -61,6 +61,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expenseassistant.data.prefs.UserProfile
 import com.expenseassistant.service.PermissionStatus
+import com.expenseassistant.ui.CardElevation
 import com.expenseassistant.ui.formatMinor
 import com.expenseassistant.ui.formatTimestamp
 import com.expenseassistant.ui.rememberHeroGradient
@@ -239,7 +240,7 @@ private fun ProfileHeader(profile: UserProfile, onEdit: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
     ) {
         Row(
             Modifier
@@ -345,6 +346,7 @@ private fun SectionCard(title: String, content: @Composable () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(
             Modifier
+                .fillMaxWidth()
                 .background(rememberSoftGradient())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

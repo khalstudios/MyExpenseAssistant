@@ -3,6 +3,7 @@ package com.expenseassistant.di
 import android.content.Context
 import com.expenseassistant.categorize.Categorizer
 import com.expenseassistant.data.local.AppDatabase
+import com.expenseassistant.data.prefs.CategoryIconStore
 import com.expenseassistant.data.prefs.UserPreferences
 import com.expenseassistant.data.repo.BudgetRepository
 import com.expenseassistant.data.repo.TransactionRepository
@@ -13,6 +14,7 @@ object ServiceLocator {
     @Volatile private var repository: TransactionRepository? = null
     @Volatile private var budgets: BudgetRepository? = null
     @Volatile private var preferences: UserPreferences? = null
+    @Volatile private var categoryIcons: CategoryIconStore? = null
 
     fun repository(context: Context): TransactionRepository = repository ?: synchronized(this) {
         repository ?: run {
@@ -35,5 +37,9 @@ object ServiceLocator {
 
     fun userPreferences(context: Context): UserPreferences = preferences ?: synchronized(this) {
         preferences ?: UserPreferences(context).also { preferences = it }
+    }
+
+    fun categoryIconStore(context: Context): CategoryIconStore = categoryIcons ?: synchronized(this) {
+        categoryIcons ?: CategoryIconStore(context).also { categoryIcons = it }
     }
 }

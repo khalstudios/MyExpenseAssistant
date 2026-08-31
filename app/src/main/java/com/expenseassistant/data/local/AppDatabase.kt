@@ -13,7 +13,7 @@ import com.expenseassistant.data.model.TransactionEntity
 
 @Database(
     entities = [TransactionEntity::class, MerchantRule::class, BudgetEntity::class],
-    version = 3,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -47,12 +47,43 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN customCategoryName TEXT")
+                db.execSQL("ALTER TABLE transactions ADD COLUMN customCategoryColor TEXT")
+            }
+        }
+
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN customCategoryIcon TEXT")
+            }
+        }
+
+        // House Expense and Vehicle Expense merged into one Maintenance category.
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "UPDATE transactions SET category = 'MAINTENANCE' " +
+                        "WHERE category IN ('HOUSE_MAINTENANCE', 'VEHICLE_MAINTENANCE')"
+                )
+                db.execSQL(
+                    "UPDATE merchant_rules SET category = 'MAINTENANCE' " +
+                        "WHERE category IN ('HOUSE_MAINTENANCE', 'VEHICLE_MAINTENANCE')"
+                )
+                // Keep whichever budget existed; a duplicate key would violate the primary key.
+                db.execSQL("DELETE FROM budgets WHERE categoryKey = 'VEHICLE_MAINTENANCE' AND EXISTS (SELECT 1 FROM budgets WHERE categoryKey = 'HOUSE_MAINTENANCE')")
+                db.execSQL("UPDATE budgets SET categoryKey = 'MAINTENANCE' WHERE categoryKey IN ('HOUSE_MAINTENANCE', 'VEHICLE_MAINTENANCE')")
+            }
+        }
+
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 "expense-assistant.db",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .build().also { instance = it }
         }
     }
 }

@@ -143,9 +143,9 @@ private fun BudgetEditRow(
     ) {
         Row(
             Modifier
+                .fillMaxWidth()
                 .background(rememberSoftGradient())
-                .padding(14.dp)
-                .fillMaxWidth(),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {

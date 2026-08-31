@@ -9,3 +9,6 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Hand-copied build outputs for sideloading
+*.apk

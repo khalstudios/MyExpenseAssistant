@@ -40,11 +40,18 @@ data class HomeUiState(
     val needsReviewCount: Int = 0,
 )
 
+/** Auto-categorised with low confidence and never confirmed by the user. */
+val TransactionEntity.needsCategoryReview: Boolean
+    get() = !userCorrected && categoryConfidence < 0.6f
+
 private data class PeriodSnapshot(
     val selection: PeriodSelection,
     val transactions: List<TransactionEntity>,
     val budgets: Map<String, Long>,
 )
+
+/** Scope of the home summary card, independent of the Insights period navigation. */
+enum class SummaryScope(val label: String) { MONTH("Month"), YEAR("Year"), ALL("All time") }
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -72,12 +79,38 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         .map { it.toHomeState() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
-    private val currentMonth = PeriodSelection.now(AnalyticsRange.MONTH)
+    private val _summaryScope = MutableStateFlow(SummaryScope.MONTH)
+    val summaryScope: StateFlow<SummaryScope> = _summaryScope
 
-    val recentState: StateFlow<HomeUiState> = repository
-        .observeSince(Periods.start(currentMonth))
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val recentState: StateFlow<HomeUiState> = _summaryScope
+        .flatMapLatest { scope -> repository.observeBetween(scope.startMillis(), scope.endExclusiveMillis()) }
         .map { transactions -> transactions.toRecentHomeState() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+
+    fun setSummaryScope(scope: SummaryScope) {
+        _summaryScope.value = scope
+    }
+
+    private fun SummaryScope.startMillis(): Long = when (this) {
+        SummaryScope.MONTH -> Periods.start(PeriodSelection.now(AnalyticsRange.MONTH))
+        SummaryScope.YEAR -> Periods.start(PeriodSelection.now(AnalyticsRange.YEAR))
+        SummaryScope.ALL -> 0L
+    }
+
+    /** Bounded so transactions dated in a future month don't leak into the current period. */
+    private fun SummaryScope.endExclusiveMillis(): Long = when (this) {
+        SummaryScope.MONTH -> Periods.endExclusive(PeriodSelection.now(AnalyticsRange.MONTH))
+        SummaryScope.YEAR -> Periods.endExclusive(PeriodSelection.now(AnalyticsRange.YEAR))
+        SummaryScope.ALL -> Long.MAX_VALUE
+    }
+
+    fun observeTransaction(id: Long) = repository.observeById(id)
+
+    /** Every low-confidence transaction, regardless of period, for the "needs a category" screen. */
+    val needsReviewTransactions: StateFlow<List<TransactionEntity>> = repository.observeAll()
+        .map { transactions -> transactions.filter { it.needsCategoryReview } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val analytics: StateFlow<AnalyticsUiState> = snapshot
         .map { it.toAnalytics() }
@@ -93,6 +126,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     val tagUsage: StateFlow<List<TagUsage>> = repository.observeTagUsage()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val customCategories: StateFlow<List<com.expenseassistant.data.repo.CustomCategoryOption>> =
+        repository.observeCustomCategorySuggestions()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     suspend fun transactionsForTag(tag: String): List<TransactionEntity> = repository.transactionsForTag(tag)
 
@@ -129,7 +166,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             spendByCategory = debits.groupBy { it.category }
                 .map { (category, items) -> category to items.sumOf { it.amountMinor } }
                 .sortedByDescending { it.second },
-            needsReviewCount = current.count { !it.userCorrected && it.categoryConfidence < 0.6f },
+            needsReviewCount = current.count { it.needsCategoryReview },
         )
     }
 
@@ -142,7 +179,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             spendByCategory = debits.groupBy { it.category }
                 .map { (category, items) -> category to items.sumOf { it.amountMinor } }
                 .sortedByDescending { it.second },
-            needsReviewCount = count { !it.userCorrected && it.categoryConfidence < 0.6f },
+            needsReviewCount = count { it.needsCategoryReview },
         )
     }
 
@@ -189,7 +226,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             topMerchant = debits.groupBy { it.merchant }
                 .map { (merchant, items) -> merchant to items.sumOf { it.amountMinor } }
                 .maxByOrNull { it.second },
-            needsReviewCount = current.count { !it.userCorrected && it.categoryConfidence < 0.6f },
+            needsReviewCount = current.count { it.needsCategoryReview },
             overallBudget = budgets[BudgetEntity.OVERALL]?.let { limit ->
                 BudgetProgress(null, limit, totalSpend, paceFraction)
             },
@@ -203,8 +240,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    fun recategorize(id: Long, category: Category) = viewModelScope.launch {
-        repository.recategorize(id, category)
+    fun recategorize(id: Long, category: Category, customName: String? = null, customColorHex: String? = null, customIconKey: String? = null) = viewModelScope.launch {
+        repository.recategorize(id, category, customName, customColorHex, customIconKey)
     }
 
     fun delete(id: Long) = viewModelScope.launch { repository.delete(id) }
@@ -231,6 +268,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         direction: Direction,
         merchant: String,
         category: Category,
+        customCategoryName: String? = null,
+        customCategoryColor: String? = null,
+        customCategoryIcon: String? = null,
         paymentMode: PaymentMode,
         occurredAt: Long,
         description: String,
@@ -241,6 +281,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             direction = direction,
             merchant = merchant,
             category = category,
+            customCategoryName = customCategoryName,
+            customCategoryColor = customCategoryColor,
+            customCategoryIcon = customCategoryIcon,
             paymentMode = paymentMode,
             occurredAt = occurredAt,
             description = description,

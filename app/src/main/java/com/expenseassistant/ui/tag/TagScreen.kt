@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import com.expenseassistant.data.model.Direction
 import com.expenseassistant.data.model.TransactionEntity
 import com.expenseassistant.ui.category.CategoryBadge
+import com.expenseassistant.ui.category.displayCategoryName
+import com.expenseassistant.ui.CardElevation
 import com.expenseassistant.ui.formatMinor
 import com.expenseassistant.ui.formatTimestamp
 import com.expenseassistant.ui.rememberHeroGradient
@@ -96,7 +98,7 @@ private fun TagTotalsCard(spentMinor: Long, receivedMinor: Long, count: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
     ) {
         Column(
             Modifier
@@ -139,21 +141,21 @@ private fun TagTransactionRow(transaction: TransactionEntity, onClick: () -> Uni
     val isDebit = transaction.direction == Direction.DEBIT
     Card(
         Modifier.fillMaxWidth().clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
     ) {
         Row(
             Modifier
+                .fillMaxWidth()
                 .background(rememberSoftGradient())
-                .padding(14.dp)
-                .fillMaxWidth(),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            CategoryBadge(transaction.category, size = 42.dp)
+            CategoryBadge(transaction, size = 42.dp)
             Column(Modifier.weight(1f)) {
                 Text(transaction.merchant, style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "${transaction.category.displayName} \u00b7 ${formatTimestamp(transaction.occurredAt)}",
+                    "${transaction.displayCategoryName} \u00b7 ${formatTimestamp(transaction.occurredAt)}",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }

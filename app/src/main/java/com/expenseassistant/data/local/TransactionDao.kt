@@ -79,6 +79,26 @@ interface TransactionDao {
     )
     suspend fun findSimilar(amountMinor: Long, direction: String, from: Long, to: Long): TransactionEntity?
 
+    /**
+     * Second dedupe pass keyed on when we *captured* the row rather than when the payment happened.
+     * The bank SMS and the UPI app notification for one payment arrive seconds apart, but their
+     * parsed occurredAt can differ by hours when one of them spells out a date.
+     */
+    @Query(
+        """
+        SELECT * FROM transactions
+        WHERE amountMinor = :amountMinor
+          AND direction = :direction
+          AND createdAt BETWEEN :from AND :to
+        LIMIT 1
+        """
+    )
+    suspend fun findRecentlyCaptured(amountMinor: Long, direction: String, from: Long, to: Long): TransactionEntity?
+
+    /** Any earlier row carrying the same bank/UPI reference, whatever the amount or timing. */
+    @Query("SELECT * FROM transactions WHERE referenceId = :referenceId LIMIT 1")
+    suspend fun findByReference(referenceId: String): TransactionEntity?
+
     @Query("UPDATE transactions SET category = :category, userCorrected = 1 WHERE id = :id")
     suspend fun setCategory(id: Long, category: Category)
 }

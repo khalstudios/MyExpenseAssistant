@@ -19,6 +19,8 @@ import java.util.concurrent.TimeUnit
 
 data class TagUsage(val tag: String, val count: Int)
 
+data class CustomCategoryOption(val name: String, val colorHex: String, val iconKey: String? = null)
+
 class TransactionRepository(
     private val transactionDao: TransactionDao,
     private val categorizer: Categorizer,
@@ -54,6 +56,19 @@ class TransactionRepository(
     /** Tags ordered by how often they're used, so recent/common ones surface first as suggestions. */
     fun observeTagSuggestions(): Flow<List<String>> = observeTagUsage().map { usages -> usages.map { it.tag } }
 
+    /** Custom categories the user has created before, most recently used first, for reuse in the picker. */
+    fun observeCustomCategorySuggestions(): Flow<List<CustomCategoryOption>> = transactionDao.observeAll().map { transactions ->
+        val seen = LinkedHashMap<String, CustomCategoryOption>()
+        transactions.sortedByDescending { it.occurredAt }.forEach { tx ->
+            val name = tx.customCategoryName?.trim()
+            val colorHex = tx.customCategoryColor
+            if (!name.isNullOrEmpty() && colorHex != null && !seen.containsKey(name.lowercase())) {
+                seen[name.lowercase()] = CustomCategoryOption(name, colorHex, tx.customCategoryIcon)
+            }
+        }
+        seen.values.toList()
+    }
+
     suspend fun earliestTimestamp(): Long? = transactionDao.earliestTimestamp()
 
     suspend fun deleteAll() = transactionDao.deleteAll()
@@ -66,6 +81,9 @@ class TransactionRepository(
         direction: Direction,
         merchant: String,
         category: Category,
+        customCategoryName: String? = null,
+        customCategoryColor: String? = null,
+        customCategoryIcon: String? = null,
         paymentMode: PaymentMode,
         occurredAt: Long,
         description: String?,
@@ -89,8 +107,11 @@ class TransactionRepository(
             paymentMode = paymentMode,
             userCorrected = true,
             dedupeKey = "manual:${UUID.randomUUID()}",
+            customCategoryName = customCategoryName,
+            customCategoryColor = customCategoryColor,
+            customCategoryIcon = customCategoryIcon,
         )
-        categorizer.learn(merchant, category)
+        if (customCategoryName == null) categorizer.learn(merchant, category)
         return transactionDao.insert(entity).also { id ->
             budgetNotifier?.onTransactionRecorded(entity.copy(id = id))
         }
@@ -104,6 +125,14 @@ class TransactionRepository(
         val dedupeKey = dedupeKey(payment)
         if (transactionDao.findByDedupeKey(dedupeKey) != null) return null
 
+        // A shared reference id is the strongest duplicate signal, so it wins regardless of timing.
+        payment.referenceId?.takeIf { it.isNotBlank() }?.let { reference ->
+            transactionDao.findByReference(reference)?.let { existing ->
+                Log.d(TAG, "Skipping duplicate of ${existing.id}: same reference $reference")
+                return null
+            }
+        }
+
         val window = TimeUnit.MINUTES.toMillis(DEDUPE_WINDOW_MINUTES)
         val similar = transactionDao.findSimilar(
             amountMinor = payment.amountMinor,
@@ -113,6 +142,19 @@ class TransactionRepository(
         )
         if (similar != null) {
             Log.d(TAG, "Skipping near-duplicate of transaction ${similar.id}")
+            return null
+        }
+
+        val now = System.currentTimeMillis()
+        val captureWindow = TimeUnit.MINUTES.toMillis(CAPTURE_DEDUPE_WINDOW_MINUTES)
+        val recentlyCaptured = transactionDao.findRecentlyCaptured(
+            amountMinor = payment.amountMinor,
+            direction = payment.direction.name,
+            from = now - captureWindow,
+            to = now + captureWindow,
+        )
+        if (recentlyCaptured != null) {
+            Log.d(TAG, "Skipping duplicate of ${recentlyCaptured.id}: same amount captured moments ago")
             return null
         }
 
@@ -140,12 +182,21 @@ class TransactionRepository(
 
     fun observeById(id: Long): Flow<TransactionEntity?> = transactionDao.observeById(id)
 
-    suspend fun recategorize(id: Long, category: Category) {
+    suspend fun recategorize(id: Long, category: Category, customName: String? = null, customColorHex: String? = null, customIconKey: String? = null) {
         val existing = transactionDao.findById(id) ?: return
         transactionDao.update(
-            existing.copy(category = category, categoryConfidence = 1f, userCorrected = true)
+            existing.copy(
+                category = category,
+                categoryConfidence = 1f,
+                userCorrected = true,
+                customCategoryName = customName,
+                customCategoryColor = customColorHex,
+                customCategoryIcon = customIconKey,
+            )
         )
-        categorizer.learn(existing.merchantRaw ?: existing.merchant, category)
+        if (customName == null) {
+            categorizer.learn(existing.merchantRaw ?: existing.merchant, category)
+        }
     }
 
     suspend fun updateDescription(id: Long, description: String?) {
@@ -205,5 +256,8 @@ class TransactionRepository(
     private companion object {
         const val TAG = "TransactionRepository"
         const val DEDUPE_WINDOW_MINUTES = 3L
+
+        /** Duplicate alerts for one payment land within seconds; a few minutes is a safe net. */
+        const val CAPTURE_DEDUPE_WINDOW_MINUTES = 5L
     }
 }

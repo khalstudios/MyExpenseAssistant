@@ -1,6 +1,7 @@
 package com.expenseassistant.ui.insights
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.expenseassistant.ui.budget.BudgetSummaryCard
 import com.expenseassistant.ui.category.CategoryBadge
+import com.expenseassistant.ui.CardElevation
 import com.expenseassistant.ui.formatMinor
 import com.expenseassistant.ui.rememberSoftGradient
 import com.expenseassistant.data.model.Category
@@ -56,6 +58,7 @@ fun InsightsScreen(
     onManageBudgets: () -> Unit,
     onOpenCategory: (Category) -> Unit,
     onOpenTag: (String) -> Unit,
+    onOpenNeedsReview: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -106,12 +109,12 @@ fun InsightsScreen(
                     title = "Largest single expense",
                     primary = formatMinor(transaction.amountMinor),
                     secondary = transaction.merchant,
-                    badge = { CategoryBadge(transaction.category, size = 40.dp) },
+                    badge = { CategoryBadge(transaction, size = 40.dp) },
                 )
             }
         }
         if (state.needsReviewCount > 0) {
-            item { ReviewNudgeCard(state.needsReviewCount) }
+            item { ReviewNudgeCard(state.needsReviewCount, onOpenNeedsReview) }
         }
     }
 }
@@ -122,6 +125,7 @@ private fun TagsCard(tags: List<TagUsage>, onOpenTag: (String) -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(
             Modifier
+                .fillMaxWidth()
                 .background(rememberSoftGradient())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -139,7 +143,10 @@ private fun TagsCard(tags: List<TagUsage>, onOpenTag: (String) -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 tags.forEach { usage ->
                     AssistChip(
                         onClick = { onOpenTag(usage.tag) },
@@ -155,10 +162,11 @@ private fun TagsCard(tags: List<TagUsage>, onOpenTag: (String) -> Unit) {
 private fun SpendChartCard(state: AnalyticsUiState) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
     ) {
         Column(
             Modifier
+                .fillMaxWidth()
                 .background(rememberSoftGradient())
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -185,10 +193,11 @@ private fun SpendChartCard(state: AnalyticsUiState) {
 private fun CategoryListCard(state: AnalyticsUiState, onOpenCategory: (Category) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
     ) {
         Column(
             Modifier
+                .fillMaxWidth()
                 .background(rememberSoftGradient())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -258,6 +267,7 @@ private fun StatTile(
     Card(modifier) {
         Column(
             Modifier
+                .fillMaxWidth()
                 .background(rememberSoftGradient())
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -278,9 +288,9 @@ private fun ComparisonCard(state: AnalyticsUiState) {
     Card(Modifier.fillMaxWidth()) {
         Row(
             Modifier
+                .fillMaxWidth()
                 .background(rememberSoftGradient())
-                .padding(16.dp)
-                .fillMaxWidth(),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
@@ -331,9 +341,9 @@ private fun HighlightCard(
     Card(Modifier.fillMaxWidth()) {
         Row(
             Modifier
+                .fillMaxWidth()
                 .background(rememberSoftGradient())
-                .padding(16.dp)
-                .fillMaxWidth(),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
@@ -354,15 +364,17 @@ private fun HighlightCard(
 }
 
 @Composable
-private fun ReviewNudgeCard(count: Int) {
+private fun ReviewNudgeCard(count: Int, onClick: () -> Unit) {
     Card(
-        Modifier.fillMaxWidth(),
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("$count transactions need a category", style = MaterialTheme.typography.titleSmall)
             Text(
-                "Set them on the Transactions tab — the app remembers each merchant for next time.",
+                "Tap to review them \u2014 the app remembers each merchant for next time.",
                 style = MaterialTheme.typography.bodySmall,
             )
         }

@@ -33,6 +33,7 @@ fun RecurringCard(items: List<RecurringExpense>, modifier: Modifier = Modifier) 
     Card(modifier.fillMaxWidth()) {
         Column(
             Modifier
+                .fillMaxWidth()
                 .background(rememberSoftGradient())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),

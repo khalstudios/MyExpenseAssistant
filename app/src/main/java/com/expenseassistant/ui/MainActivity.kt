@@ -37,6 +37,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,6 +61,8 @@ import com.expenseassistant.ui.budget.BudgetScreen
 import com.expenseassistant.ui.detail.TransactionDetailScreen
 import com.expenseassistant.ui.insights.InsightsScreen
 import com.expenseassistant.ui.tag.TagScreen
+import com.expenseassistant.ui.category.LocalCategoryIconOverrides
+import com.expenseassistant.di.ServiceLocator
 
 class MainActivity : ComponentActivity() {
 
@@ -69,7 +72,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             AppTheme {
                 Surface {
-                    AppShell()
+                    val context = LocalContext.current
+                    val iconStore = remember { ServiceLocator.categoryIconStore(context) }
+                    val iconOverrides by iconStore.overrides.collectAsStateWithLifecycle()
+                    CompositionLocalProvider(LocalCategoryIconOverrides provides iconOverrides) {
+                        AppShell()
+                    }
                 }
             }
         }
@@ -86,6 +94,7 @@ private sealed interface Route {
     data class Detail(val id: Long) : Route
     data class CategoryTransactions(val category: Category) : Route
     data class TagTransactions(val tag: String) : Route
+    data object NeedsReview : Route
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,6 +106,9 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     val recurring by viewModel.recurring.collectAsStateWithLifecycle()
     val tagSuggestions by viewModel.tagSuggestions.collectAsStateWithLifecycle()
     val tagUsage by viewModel.tagUsage.collectAsStateWithLifecycle()
+    val customCategories by viewModel.customCategories.collectAsStateWithLifecycle()
+    val summaryScope by viewModel.summaryScope.collectAsStateWithLifecycle()
+    val needsReview by viewModel.needsReviewTransactions.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var tab by remember { mutableStateOf(Tab.TRANSACTIONS) }
@@ -135,6 +147,9 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                         direction = input.direction,
                         merchant = input.merchant,
                         category = input.category,
+                        customCategoryName = input.customCategoryName,
+                        customCategoryColor = input.customCategoryColor,
+                        customCategoryIcon = input.customCategoryIcon,
                         paymentMode = input.paymentMode,
                         occurredAt = input.occurredAt,
                         description = input.description,
@@ -142,6 +157,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     )
                     route = Route.Main
                 },
+                customCategories = customCategories,
             )
             return
         }
@@ -160,29 +176,34 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         }
 
         is Route.Detail -> {
-            val transaction = (state.transactions + analytics.transactions)
-                .distinctBy { it.id }
-                .firstOrNull { it.id == current.id }
-            if (transaction != null) {
+            // Looked up straight from the database so transactions outside the visible period still open.
+            val transactionFlow = remember(current.id) { viewModel.observeTransaction(current.id) }
+            val transaction by transactionFlow.collectAsStateWithLifecycle(initialValue = null)
+            transaction?.let { detail ->
                 TransactionDetailScreen(
-                    transaction = transaction,
+                    transaction = detail,
                     onBack = { route = Route.Main },
-                    onCategoryChange = { viewModel.recategorize(transaction.id, it) },
-                    onDescriptionChange = { viewModel.updateDescription(transaction.id, it) },
-                    onTagsChange = { viewModel.updateTags(transaction.id, it) },
-                    onPaymentModeChange = { viewModel.updatePaymentMode(transaction.id, it) },
+                    onCategoryChange = { viewModel.recategorize(detail.id, it) },
+                    onCategoryChangeCustom = { name, colorHex, iconKey ->
+                        viewModel.recategorize(detail.id, Category.OTHER, name, colorHex, iconKey)
+                    },
+                    customCategories = customCategories,
+                    onDescriptionChange = { viewModel.updateDescription(detail.id, it) },
+                    onTagsChange = { viewModel.updateTags(detail.id, it) },
+                    onPaymentModeChange = { viewModel.updatePaymentMode(detail.id, it) },
                     onCoreChange = { amountMinor, direction, merchant, occurredAt ->
-                        viewModel.updateCore(transaction.id, amountMinor, direction, merchant, occurredAt)
+                        viewModel.updateCore(detail.id, amountMinor, direction, merchant, occurredAt)
                     },
                     onDelete = {
-                        viewModel.delete(transaction.id)
+                        viewModel.delete(detail.id)
                         route = Route.Main
                     },
                     tagSuggestions = tagSuggestions,
                     onOpenTag = { tag -> route = Route.TagTransactions(tag) },
                 )
-                return
             }
+            // Nothing to fall through to while the row loads, or if it was just deleted.
+            return
         }
 
         is Route.CategoryTransactions -> {
@@ -191,10 +212,29 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 notificationAccessGranted = notificationAccess,
                 accessibilityGranted = accessibility,
                 onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
+                onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
+                customCategories = customCategories,
                 onDelete = { id -> viewModel.delete(id) },
                 onOpenTransaction = { id -> route = Route.Detail(id) },
                 categoryFilter = current.category,
                 transactionOverride = analytics.transactions,
+                onClearFilter = { route = Route.Main },
+            )
+            return
+        }
+
+        Route.NeedsReview -> {
+            HomeScreen(
+                state = recentState,
+                notificationAccessGranted = notificationAccess,
+                accessibilityGranted = accessibility,
+                onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
+                onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
+                customCategories = customCategories,
+                onDelete = { id -> viewModel.delete(id) },
+                onOpenTransaction = { id -> route = Route.Detail(id) },
+                needsReviewFilter = true,
+                transactionOverride = needsReview,
                 onClearFilter = { route = Route.Main },
             )
             return
@@ -270,6 +310,11 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 notificationAccessGranted = notificationAccess,
                 accessibilityGranted = accessibility,
                 onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
+                onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
+                customCategories = customCategories,
+                summaryScope = summaryScope,
+                onSummaryScopeChange = viewModel::setSummaryScope,
+                onOpenNeedsReview = { route = Route.NeedsReview },
                 onDelete = { id -> viewModel.delete(id) },
                 onOpenTransaction = { id -> route = Route.Detail(id) },
                 modifier = Modifier.padding(padding),
@@ -286,6 +331,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 onManageBudgets = { route = Route.Budgets },
                 onOpenCategory = { route = Route.CategoryTransactions(it) },
                 onOpenTag = { tag -> route = Route.TagTransactions(tag) },
+                onOpenNeedsReview = { route = Route.NeedsReview },
                 modifier = Modifier.padding(padding),
             )
         }
@@ -297,12 +343,30 @@ private fun AppTheme(content: @Composable () -> Unit) {
     val dark = isSystemInDarkTheme()
     val colors = if (dark) {
         darkColorScheme(
-            primary = androidx.compose.ui.graphics.Color(0xFF80CBC4),
+            primary = androidx.compose.ui.graphics.Color(0xFF4DD0C0),
+            onPrimary = androidx.compose.ui.graphics.Color(0xFF06201C),
+            primaryContainer = androidx.compose.ui.graphics.Color(0xFF1E3A36),
+            onPrimaryContainer = androidx.compose.ui.graphics.Color(0xFFB5EFE6),
             secondary = androidx.compose.ui.graphics.Color(0xFFFFAB91),
+            secondaryContainer = androidx.compose.ui.graphics.Color(0xFF3A2620),
             tertiary = androidx.compose.ui.graphics.Color(0xFFD7CCC8),
-            background = androidx.compose.ui.graphics.Color(0xFF171413),
-            surface = androidx.compose.ui.graphics.Color(0xFF201B19),
-            surfaceVariant = androidx.compose.ui.graphics.Color(0xFF332925),
+            tertiaryContainer = androidx.compose.ui.graphics.Color(0xFF262223),
+            error = androidx.compose.ui.graphics.Color(0xFFEF6C6C),
+            errorContainer = androidx.compose.ui.graphics.Color(0xFF33211F),
+            background = androidx.compose.ui.graphics.Color(0xFF0D0D0F),
+            onBackground = androidx.compose.ui.graphics.Color(0xFFF2F2F2),
+            surface = androidx.compose.ui.graphics.Color(0xFF1A1A1D),
+            onSurface = androidx.compose.ui.graphics.Color(0xFFF2F2F2),
+            surfaceVariant = androidx.compose.ui.graphics.Color(0xFF1A1A1D),
+            onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFF9A9A9E),
+            // Card/sheet containers default to these; keep them flat so no grey band shows.
+            surfaceContainerLowest = androidx.compose.ui.graphics.Color(0xFF141416),
+            surfaceContainerLow = androidx.compose.ui.graphics.Color(0xFF1A1A1D),
+            surfaceContainer = androidx.compose.ui.graphics.Color(0xFF1A1A1D),
+            surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFF212125),
+            surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFF26262B),
+            outline = androidx.compose.ui.graphics.Color(0xFF3A3A3E),
+            outlineVariant = androidx.compose.ui.graphics.Color(0xFF2A2A2E),
         )
     } else {
         lightColorScheme(
@@ -314,20 +378,29 @@ private fun AppTheme(content: @Composable () -> Unit) {
             secondaryContainer = androidx.compose.ui.graphics.Color(0xFFFFD8CF),
             tertiary = androidx.compose.ui.graphics.Color(0xFF795548),
             tertiaryContainer = androidx.compose.ui.graphics.Color(0xFFF4EEEA),
+            error = androidx.compose.ui.graphics.Color(0xFFC5544C),
             errorContainer = androidx.compose.ui.graphics.Color(0xFFFFF1ED),
-            background = androidx.compose.ui.graphics.Color(0xFFF6F2EF),
+            background = androidx.compose.ui.graphics.Color(0xFFF4F1EE),
+            onBackground = androidx.compose.ui.graphics.Color(0xFF1C1B1A),
             surface = androidx.compose.ui.graphics.Color.White,
+            onSurface = androidx.compose.ui.graphics.Color(0xFF1C1B1A),
             surfaceVariant = androidx.compose.ui.graphics.Color.White,
+            onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFF6E6A67),
+            surfaceContainerLowest = androidx.compose.ui.graphics.Color.White,
+            surfaceContainerLow = androidx.compose.ui.graphics.Color.White,
+            surfaceContainer = androidx.compose.ui.graphics.Color.White,
+            surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFFFAF7F4),
+            surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFFF4F1EE),
             outline = androidx.compose.ui.graphics.Color(0xFFDCD2CB),
-            outlineVariant = androidx.compose.ui.graphics.Color(0xFFE8D9D0),
+            outlineVariant = androidx.compose.ui.graphics.Color(0xFFE8E1DB),
         )
     }
     MaterialTheme(
         colorScheme = colors,
         shapes = Shapes(
-            small = RoundedCornerShape(12.dp),
-            medium = RoundedCornerShape(18.dp),
-            large = RoundedCornerShape(24.dp),
+            small = RoundedCornerShape(14.dp),
+            medium = RoundedCornerShape(20.dp),
+            large = RoundedCornerShape(26.dp),
         ),
         content = content,
     )

@@ -13,9 +13,17 @@ enum class Category(val displayName: String) {
     EDUCATION("Education"),
     TRAVEL("Travel"),
     INVESTMENTS("Investments"),
-    TRANSFER("Transfer to People"),
+    TRANSFER("People"),
+    FRIENDS_AND_FAMILY("Friends/Family"),
+    EMI("EMIs"),
+    TAXES("Taxes"),
+    INSURANCE("Insurance"),
+    GIFTS_AND_DONATION("Gifts/Donation"),
+    MAINTENANCE("Maintenance"),
+    PERSONAL_CARE("Personal Care"),
+    HOBBIES("Hobbies"),
     INCOME("Income"),
-    OTHER("Uncategorised");
+    OTHER("Unknown");
 
     companion object {
         fun fromName(value: String?): Category =

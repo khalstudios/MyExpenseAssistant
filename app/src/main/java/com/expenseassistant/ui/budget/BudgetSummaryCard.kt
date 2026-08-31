@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.expenseassistant.ui.category.CategoryBadge
+import com.expenseassistant.ui.CardElevation
 import com.expenseassistant.ui.formatMinor
 import com.expenseassistant.ui.insights.BudgetProgress
 import com.expenseassistant.ui.rememberSoftGradient
@@ -39,10 +40,11 @@ fun BudgetSummaryCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
     ) {
         Column(
             Modifier
+                .fillMaxWidth()
                 .background(rememberSoftGradient())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),

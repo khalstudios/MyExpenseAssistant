@@ -66,8 +66,11 @@ import com.expenseassistant.data.model.Category
 import com.expenseassistant.data.model.Direction
 import com.expenseassistant.data.model.PaymentMode
 import com.expenseassistant.data.model.TransactionEntity
+import com.expenseassistant.data.repo.CustomCategoryOption
 import com.expenseassistant.ui.category.CategoryBadge
 import com.expenseassistant.ui.category.CategoryPickerSheet
+import com.expenseassistant.ui.category.displayCategoryName
+import com.expenseassistant.ui.CardElevation
 import com.expenseassistant.ui.formatMinor
 import com.expenseassistant.ui.formatTimestamp
 import com.expenseassistant.ui.rememberHeroGradient
@@ -81,6 +84,8 @@ fun TransactionDetailScreen(
     transaction: TransactionEntity,
     onBack: () -> Unit,
     onCategoryChange: (Category) -> Unit,
+    onCategoryChangeCustom: (name: String, colorHex: String, iconKey: String) -> Unit = { _, _, _ -> },
+    customCategories: List<CustomCategoryOption> = emptyList(),
     onDescriptionChange: (String) -> Unit,
     onTagsChange: (List<String>) -> Unit,
     onPaymentModeChange: (PaymentMode) -> Unit,
@@ -121,7 +126,8 @@ fun TransactionDetailScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            AmountHeader(transaction) { pickingCategory = true }
+            AmountHeader(transaction)
+            CategoryCard(transaction) { pickingCategory = true }
             PaymentModeSection(transaction.paymentMode, onPaymentModeChange)
             DescriptionSection(transaction.description.orEmpty(), onDescriptionChange)
             TagsSection(
@@ -149,8 +155,14 @@ fun TransactionDetailScreen(
         CategoryPickerSheet(
             merchant = transaction.merchant,
             selected = transaction.category,
+            selectedCustomName = transaction.customCategoryName,
+            customCategories = customCategories,
             onSelect = {
                 onCategoryChange(it)
+                pickingCategory = false
+            },
+            onSelectCustom = { name, colorHex, iconKey ->
+                onCategoryChangeCustom(name, colorHex, iconKey)
                 pickingCategory = false
             },
             onDismiss = { pickingCategory = false },
@@ -159,32 +171,25 @@ fun TransactionDetailScreen(
 }
 
 @Composable
-private fun AmountHeader(transaction: TransactionEntity, onEditCategory: () -> Unit) {
+private fun AmountHeader(transaction: TransactionEntity) {
     val isDebit = transaction.direction == Direction.DEBIT
     val hero = rememberHeroGradient()
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
     ) {
         Column(
             Modifier
                 .fillMaxWidth()
                 .background(hero.brush)
-                .padding(20.dp),
+                .padding(vertical = 24.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Box(
-                Modifier
-                    .background(Color.White.copy(alpha = 0.25f), androidx.compose.foundation.shape.CircleShape)
-                    .padding(4.dp),
-            ) {
-                CategoryBadge(transaction.category, size = 56.dp)
-            }
             Text(
                 (if (isDebit) "- " else "+ ") + formatMinor(transaction.amountMinor),
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = hero.onGradient,
             )
@@ -199,15 +204,44 @@ private fun AmountHeader(transaction: TransactionEntity, onEditCategory: () -> U
                 style = MaterialTheme.typography.bodySmall,
                 color = hero.onGradientMuted,
             )
-            AssistChip(
-                onClick = onEditCategory,
-                label = { Text(transaction.category.displayName) },
-                leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = Color(0xFF3E2723)) },
-                colors = androidx.compose.material3.AssistChipDefaults.assistChipColors(
-                    containerColor = Color.White.copy(alpha = 0.9f),
-                    labelColor = Color(0xFF3E2723),
-                ),
-                border = null,
+        }
+    }
+}
+
+/** Category shown as its own compact widget — icon, name and an edit affordance — rather than buried in the amount card. */
+@Composable
+private fun CategoryCard(transaction: TransactionEntity, onEditCategory: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onEditCategory),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(rememberSoftGradient())
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            CategoryBadge(transaction, size = 44.dp)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Category",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    transaction.displayCategoryName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Icon(
+                Icons.Filled.Edit,
+                contentDescription = "Change category",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -333,7 +367,6 @@ private fun MetadataSection(transaction: TransactionEntity) {
         MetaRow("Type", if (transaction.direction == Direction.DEBIT) "Spend" else "Income")
         MetaRow("Amount", formatMinor(transaction.amountMinor))
         MetaRow("Date & time", formatTimestamp(transaction.occurredAt))
-        MetaRow("Category", transaction.category.displayName)
         MetaRow("Payment mode", transaction.paymentMode.displayName)
         MetaRow("Source", "${transaction.sourceApp} (${transaction.captureSource.name.lowercase()})")
         transaction.referenceId?.let { MetaRow("Reference", it) }
@@ -364,10 +397,11 @@ private fun MetaRow(label: String, value: String) {
 private fun SectionCard(title: String, content: @Composable () -> Unit) {
     Card(
         Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
     ) {
         Column(
             Modifier
+                .fillMaxWidth()
                 .background(rememberSoftGradient())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),

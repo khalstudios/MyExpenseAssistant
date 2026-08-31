@@ -37,6 +37,10 @@ data class TransactionEntity(
     val paymentMode: PaymentMode = PaymentMode.UNKNOWN,
     val userCorrected: Boolean = false,
     val dedupeKey: String,
+    /** Set together, non-null only when the user picked a category they created themselves. */
+    val customCategoryName: String? = null,
+    val customCategoryColor: String? = null,
+    val customCategoryIcon: String? = null,
 ) {
     @get:Ignore
     val amount: Double get() = amountMinor / 100.0
