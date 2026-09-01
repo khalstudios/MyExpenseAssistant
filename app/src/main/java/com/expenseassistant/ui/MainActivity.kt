@@ -61,6 +61,7 @@ import com.expenseassistant.ui.budget.BudgetScreen
 import com.expenseassistant.ui.detail.TransactionDetailScreen
 import com.expenseassistant.ui.insights.InsightsScreen
 import com.expenseassistant.ui.tag.TagScreen
+import com.expenseassistant.ui.category.CategoryScreen
 import com.expenseassistant.ui.category.LocalCategoryIconOverrides
 import com.expenseassistant.di.ServiceLocator
 
@@ -163,7 +164,10 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         }
 
         Route.Budgets -> {
-            BudgetScreen(onBack = { route = Route.Main })
+            BudgetScreen(
+                onBack = { route = Route.Main },
+                onOpenCategory = { route = Route.CategoryTransactions(it) },
+            )
             return
         }
 
@@ -207,18 +211,18 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         }
 
         is Route.CategoryTransactions -> {
-            HomeScreen(
-                state = recentState,
-                notificationAccessGranted = notificationAccess,
-                accessibilityGranted = accessibility,
+            val categoryList = (state.transactions + analytics.transactions)
+                .distinctBy { it.id }
+                .filter { it.category == current.category }
+            CategoryScreen(
+                category = current.category,
+                transactions = categoryList,
+                onBack = { route = Route.Main },
+                onOpenTransaction = { id -> route = Route.Detail(id) },
                 onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
                 onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
                 customCategories = customCategories,
                 onDelete = { id -> viewModel.delete(id) },
-                onOpenTransaction = { id -> route = Route.Detail(id) },
-                categoryFilter = current.category,
-                transactionOverride = analytics.transactions,
-                onClearFilter = { route = Route.Main },
             )
             return
         }

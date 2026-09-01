@@ -55,6 +55,7 @@ fun HomeScreen(
     customCategories: List<CustomCategoryOption> = emptyList(),
     summaryScope: SummaryScope = SummaryScope.MONTH,
     onSummaryScopeChange: (SummaryScope) -> Unit = {},
+    onOpenCategory: (Category) -> Unit = {},
     onDelete: (Long) -> Unit,
     onOpenTransaction: (Long) -> Unit,
     categoryFilter: Category? = null,
@@ -85,15 +86,17 @@ fun HomeScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item {
-            PermissionsCard(notificationAccessGranted, accessibilityGranted)
-        }
-        item { SectionHeader("Income & Expenditure") }
-        item { SummaryCard(state, summaryScope, onSummaryScopeChange, onOpenNeedsReview) }
+        if (!hasFilter && transactionOverride == null) {
+            item {
+                PermissionsCard(notificationAccessGranted, accessibilityGranted)
+            }
+            item { SectionHeader("Income & Expenditure") }
+            item { SummaryCard(state, summaryScope, onSummaryScopeChange, onOpenNeedsReview) }
 
-        if (state.spendByCategory.isNotEmpty()) {
-            item { SectionHeader("Where it went") }
-            item { CategoryBreakdown(state.spendByCategory) }
+            if (state.spendByCategory.isNotEmpty()) {
+                item { SectionHeader("Where it went") }
+                item { CategoryBreakdown(state.spendByCategory, onOpenCategory) }
+            }
         }
 
         item {
@@ -160,7 +163,7 @@ private fun SectionHeader(title: String) {
 
 /** One card per day, matching how the reference app groups a day's spending together. */
 @Composable
-private fun DayGroupCard(
+fun DayGroupCard(
     dayStart: Long,
     transactions: List<TransactionEntity>,
     onOpenTransaction: (Long) -> Unit,
@@ -234,16 +237,28 @@ private fun SummaryCard(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text(
-                when (scope) {
-                    SummaryScope.MONTH -> currentMonthYearName()
-                    SummaryScope.YEAR -> yearToDateLabel()
-                    SummaryScope.ALL -> scope.label
-                },
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = hero.onGradient,
-            )
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Net Position",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = hero.onGradient,
+                )
+                Text(
+                    when (scope) {
+                        SummaryScope.MONTH -> currentMonthYearName()
+                        SummaryScope.YEAR -> yearToDateLabel()
+                        SummaryScope.ALL -> scope.label
+                    },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = hero.onGradient,
+                )
+            }
             ScopeToggle(scope = scope, onScopeChange = onScopeChange, hero = hero)
             val proportionTotal = (state.spendMinor + state.incomeMinor).coerceAtLeast(1)
             val spendFraction = (state.spendMinor.toFloat() / proportionTotal).coerceIn(0.04f, 0.96f)
@@ -374,7 +389,10 @@ private fun ScopeToggle(
 }
 
 @Composable
-private fun CategoryBreakdown(breakdown: List<Pair<Category, Long>>) {
+private fun CategoryBreakdown(
+    breakdown: List<Pair<Category, Long>>,
+    onOpenCategory: (Category) -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -386,7 +404,11 @@ private fun CategoryBreakdown(breakdown: List<Pair<Category, Long>>) {
         ) {
             breakdown.take(6).forEach { (category, amount) ->
                 Row(
-                    Modifier.fillMaxWidth(),
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onOpenCategory(category) }
+                        .padding(vertical = 4.dp, horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {

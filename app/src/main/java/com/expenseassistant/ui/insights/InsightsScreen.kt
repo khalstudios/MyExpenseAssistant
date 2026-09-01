@@ -82,12 +82,16 @@ fun InsightsScreen(
         if (state.slices.isNotEmpty()) {
             item { CategoryListCard(state, onOpenCategory) }
         }
+        if (tagUsage.isNotEmpty()) {
+            item { TagsCard(tagUsage, onOpenTag) }
+        }
         if (state.range == AnalyticsRange.MONTH) {
             item {
                 BudgetSummaryCard(
                     overall = state.overallBudget,
                     categories = state.categoryBudgets,
                     onManage = onManageBudgets,
+                    onOpenCategory = onOpenCategory,
                 )
             }
         }
@@ -95,9 +99,6 @@ fun InsightsScreen(
         item { ComparisonCard(state) }
         if (recurring.isNotEmpty()) {
             item { RecurringCard(recurring) }
-        }
-        if (tagUsage.isNotEmpty()) {
-            item { TagsCard(tagUsage, onOpenTag) }
         }
         state.topMerchant?.let { (merchant, amount) ->
             item { TopMerchantCard(merchant, amount) }
