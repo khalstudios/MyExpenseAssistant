@@ -244,7 +244,7 @@ private fun SummaryCard(
             ) {
                 Text(
                     "Net Position",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = hero.onGradient,
                 )
@@ -254,9 +254,9 @@ private fun SummaryCard(
                         SummaryScope.YEAR -> yearToDateLabel()
                         SummaryScope.ALL -> scope.label
                     },
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = hero.onGradient,
+                    color = hero.onGradientMuted,
                 )
             }
             ScopeToggle(scope = scope, onScopeChange = onScopeChange, hero = hero)

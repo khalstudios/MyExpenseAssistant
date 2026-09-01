@@ -1,7 +1,1 @@
-Refine category filtering, budget layout, and section headers
-
-- Hide summary card, permissions, and category breakdown on filtered transaction views
-- Add dedicated CategoryScreen with pinned TopAppBar and category summary hero
-- Redesign BudgetScreen and BudgetSummaryCard with clean category rows and clickable navigation
-- Move Tags widget above Budget widget on Insights screen
-- Format Net Position header and period label with larger bold typography
+Revert Net Position header and period label typography to clean compact style
