@@ -1,0 +1,58 @@
+MyExpenseAssistant - Build, Test, and Run on Phone
+
+Prerequisites
+- Connect the Android phone through USB.
+- Enable Developer options and USB debugging.
+- Approve the RSA USB-debugging prompt on the phone.
+
+1. Check that the phone is connected
+
+& 'C:\Users\shard\AppData\Local\Android\Sdk\platform-tools\adb.exe' devices
+
+The phone should appear with the status: device
+
+2. Build the app and run unit tests
+
+$gradle = "$env:LOCALAPPDATA\Gradle\gradle-8.9\bin\gradle.bat"
+
+& $gradle :app:assembleDebug :app:testDebugUnitTest `
+  --no-daemon `
+  --no-configuration-cache `
+  --console=plain
+
+A successful run ends with:
+
+BUILD SUCCESSFUL
+
+3. Install/update the app on the phone
+
+$adb = 'C:\Users\shard\AppData\Local\Android\Sdk\platform-tools\adb.exe'
+
+& $adb install -r `
+  'D:\My Projects\AI_Assisted\MyExpenseAssistant\app\build\outputs\apk\debug\app-debug.apk'
+
+The -r flag updates the installed app while preserving transaction data and settings.
+
+4. Relaunch the app
+
+& $adb shell am force-stop com.expenseassistant
+& $adb shell am start -n com.expenseassistant/.ui.MainActivity
+
+5. Confirm the installed build
+
+& $adb shell dumpsys package com.expenseassistant |
+  Select-String 'lastUpdateTime'
+
+APK locations
+
+Gradle build output:
+D:\My Projects\AI_Assisted\MyExpenseAssistant\app\build\outputs\apk\debug\app-debug.apk
+
+Handy transferable APK:
+D:\My Projects\AI_Assisted\MyExpenseAssistant\MyExpenseAssistant.apk
+
+Terminal note
+
+If PowerShell corrupts the first token of a command, run this first and then retry:
+
+Write-Output "start"
