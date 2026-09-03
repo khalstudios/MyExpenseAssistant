@@ -17,18 +17,16 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -43,7 +41,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -60,6 +57,7 @@ import com.expenseassistant.ui.add.AddTransactionScreen
 import com.expenseassistant.ui.budget.BudgetScreen
 import com.expenseassistant.ui.detail.TransactionDetailScreen
 import com.expenseassistant.ui.insights.InsightsScreen
+import com.expenseassistant.ui.more.MoreScreen
 import com.expenseassistant.ui.tag.TagScreen
 import com.expenseassistant.ui.category.CategoryScreen
 import com.expenseassistant.ui.category.LocalCategoryIconOverrides
@@ -85,13 +83,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: String) { TRANSACTIONS("Transactions"), INSIGHTS("Insights") }
+private enum class Tab(val label: String) { HOME("Home"), INSIGHTS("Insights"), PROFILE("Profile"), MORE("More") }
 
 private sealed interface Route {
     data object Main : Route
     data object Add : Route
     data object Budgets : Route
-    data object Account : Route
     data class Detail(val id: Long) : Route
     data class CategoryTransactions(val category: Category) : Route
     data class TagTransactions(val tag: String) : Route
@@ -112,17 +109,15 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     val needsReview by viewModel.needsReviewTransactions.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var tab by remember { mutableStateOf(Tab.TRANSACTIONS) }
+    var tab by remember { mutableStateOf(Tab.HOME) }
     var route by remember { mutableStateOf<Route>(Route.Main) }
 
     var notificationAccess by remember { mutableStateOf(PermissionStatus.isNotificationAccessGranted(context)) }
-    var accessibility by remember { mutableStateOf(PermissionStatus.isAccessibilityGranted(context)) }
 
     // Re-check after the user returns from system settings.
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             notificationAccess = PermissionStatus.isNotificationAccessGranted(context)
-            accessibility = PermissionStatus.isAccessibilityGranted(context)
         }
     }
 
@@ -171,14 +166,6 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
             return
         }
 
-        Route.Account -> {
-            AccountScreen(
-                onBack = { route = Route.Main },
-                onOpenBudgets = { route = Route.Budgets },
-            )
-            return
-        }
-
         is Route.Detail -> {
             // Looked up straight from the database so transactions outside the visible period still open.
             val transactionFlow = remember(current.id) { viewModel.observeTransaction(current.id) }
@@ -222,7 +209,6 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
             HomeScreen(
                 state = recentState,
                 notificationAccessGranted = notificationAccess,
-                accessibilityGranted = accessibility,
                 onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
                 onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
                 customCategories = customCategories,
@@ -253,16 +239,16 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         Route.Main -> Unit
     }
 
+    val topBarTitle = when (tab) {
+        Tab.HOME -> "Expense Assistant"
+        Tab.INSIGHTS -> "Insights"
+        Tab.PROFILE -> "Profile"
+        Tab.MORE -> "More"
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(if (tab == Tab.TRANSACTIONS) "Expense Assistant" else "Insights") },
-                actions = {
-                    IconButton(onClick = { route = Route.Account }) {
-                        Icon(Icons.Filled.AccountCircle, contentDescription = "Account")
-                    }
-                },
-            )
+            TopAppBar(title = { Text(topBarTitle) })
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -276,34 +262,43 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         floatingActionButtonPosition = FabPosition.Center,
         bottomBar = {
             NavigationBar {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    NavigationBarItem(
-                        modifier = Modifier.weight(1f),
-                        selected = tab == Tab.TRANSACTIONS,
-                        onClick = { tab = Tab.TRANSACTIONS },
-                        icon = { Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = null) },
-                        label = { Text(Tab.TRANSACTIONS.label) },
-                    )
-                    Spacer(Modifier.width(96.dp))
-                    NavigationBarItem(
-                        modifier = Modifier.weight(1f),
-                        selected = tab == Tab.INSIGHTS,
-                        onClick = { tab = Tab.INSIGHTS },
-                        icon = { Icon(Icons.Filled.PieChart, contentDescription = null) },
-                        label = { Text(Tab.INSIGHTS.label) },
-                    )
-                }
+                NavigationBarItem(
+                    modifier = Modifier.weight(1f),
+                    selected = tab == Tab.HOME,
+                    onClick = { tab = Tab.HOME },
+                    icon = { Icon(Icons.Filled.Home, contentDescription = null) },
+                    label = { Text(Tab.HOME.label) },
+                )
+                NavigationBarItem(
+                    modifier = Modifier.weight(1f),
+                    selected = tab == Tab.INSIGHTS,
+                    onClick = { tab = Tab.INSIGHTS },
+                    icon = { Icon(Icons.Filled.PieChart, contentDescription = null) },
+                    label = { Text(Tab.INSIGHTS.label) },
+                )
+                // Reserve space for the floating action button so it doesn't overlap these two items.
+                Spacer(modifier = Modifier.width(64.dp))
+                NavigationBarItem(
+                    modifier = Modifier.weight(1f),
+                    selected = tab == Tab.PROFILE,
+                    onClick = { tab = Tab.PROFILE },
+                    icon = { Icon(Icons.Filled.AccountBalance, contentDescription = null) },
+                    label = { Text(Tab.PROFILE.label) },
+                )
+                NavigationBarItem(
+                    modifier = Modifier.weight(1f),
+                    selected = tab == Tab.MORE,
+                    onClick = { tab = Tab.MORE },
+                    icon = { Icon(Icons.Filled.MoreHoriz, contentDescription = null) },
+                    label = { Text(Tab.MORE.label) },
+                )
             }
         },
     ) { padding ->
         when (tab) {
-            Tab.TRANSACTIONS -> HomeScreen(
+            Tab.HOME -> HomeScreen(
                 state = recentState,
                 notificationAccessGranted = notificationAccess,
-                accessibilityGranted = accessibility,
                 onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
                 onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
                 customCategories = customCategories,
@@ -326,6 +321,16 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 onManageBudgets = { route = Route.Budgets },
                 onOpenCategory = { route = Route.CategoryTransactions(it) },
                 onOpenTag = { tag -> route = Route.TagTransactions(tag) },
+                onOpenNeedsReview = { route = Route.NeedsReview },
+                modifier = Modifier.padding(padding),
+            )
+
+            Tab.PROFILE -> AccountScreen(
+                modifier = Modifier.padding(padding),
+            )
+
+            Tab.MORE -> MoreScreen(
+                onOpenBudgets = { route = Route.Budgets },
                 onOpenNeedsReview = { route = Route.NeedsReview },
                 modifier = Modifier.padding(padding),
             )

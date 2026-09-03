@@ -49,7 +49,6 @@ import com.expenseassistant.ui.category.displayCategoryName
 fun HomeScreen(
     state: HomeUiState,
     notificationAccessGranted: Boolean,
-    accessibilityGranted: Boolean,
     onCategoryChange: (Long, Category) -> Unit,
     onCategoryChangeCustom: (Long, String, String, String) -> Unit = { _, _, _, _ -> },
     customCategories: List<CustomCategoryOption> = emptyList(),
@@ -88,7 +87,7 @@ fun HomeScreen(
     ) {
         if (!hasFilter && transactionOverride == null) {
             item {
-                PermissionsCard(notificationAccessGranted, accessibilityGranted)
+                PermissionsCard(notificationAccessGranted)
             }
             item { SectionHeader("Income & Expenditure") }
             item { SummaryCard(state, summaryScope, onSummaryScopeChange, onOpenNeedsReview) }

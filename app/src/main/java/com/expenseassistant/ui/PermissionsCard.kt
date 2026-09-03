@@ -21,10 +21,9 @@ import com.expenseassistant.service.PermissionStatus
 @Composable
 fun PermissionsCard(
     notificationAccessGranted: Boolean,
-    accessibilityGranted: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    if (notificationAccessGranted && accessibilityGranted) return
+    if (notificationAccessGranted) return
     val context = LocalContext.current
 
     Card(
@@ -33,18 +32,10 @@ fun PermissionsCard(
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Finish setup", style = MaterialTheme.typography.titleMedium)
-            if (!notificationAccessGranted) {
-                PermissionRow(
-                    title = "Notification access",
-                    description = "Required to read payment confirmations from GPay, PhonePe and Paytm.",
-                ) { context.openSettings(PermissionStatus.notificationAccessIntent()) }
-            }
-            if (!accessibilityGranted) {
-                PermissionRow(
-                    title = "Screen reading (optional)",
-                    description = "Catches payments that show a success screen but no notification.",
-                ) { context.openSettings(PermissionStatus.accessibilityIntent()) }
-            }
+            PermissionRow(
+                title = "Notification access",
+                description = "Required to read payment confirmations from GPay, PhonePe and Paytm.",
+            ) { context.openSettings(PermissionStatus.notificationAccessIntent()) }
         }
     }
 }
