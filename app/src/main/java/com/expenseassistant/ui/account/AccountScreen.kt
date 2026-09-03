@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Accessibility
+import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Notifications
@@ -86,8 +87,13 @@ fun AccountScreen(
     var confirmingClear by remember { mutableStateOf(false) }
     var notificationAccess by remember { mutableStateOf(PermissionStatus.isNotificationAccessGranted(context)) }
     var accessibility by remember { mutableStateOf(PermissionStatus.isAccessibilityGranted(context)) }
+    var contactsAccess by remember { mutableStateOf(PermissionStatus.isContactsAccessGranted(context)) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    val contactsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        contactsAccess = PermissionStatus.isContactsAccessGranted(context)
+    }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/csv")
@@ -107,6 +113,7 @@ fun AccountScreen(
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             notificationAccess = PermissionStatus.isNotificationAccessGranted(context)
             accessibility = PermissionStatus.isAccessibilityGranted(context)
+            contactsAccess = PermissionStatus.isContactsAccessGranted(context)
         }
     }
 
@@ -145,6 +152,12 @@ fun AccountScreen(
                     title = "Screen reading",
                     subtitle = if (accessibility) "Enabled" else "Disabled",
                     onClick = { runCatching { context.startActivity(PermissionStatus.accessibilityIntent()) } },
+                )
+                SettingRow(
+                    icon = Icons.Filled.Contacts,
+                    title = "Contact names",
+                    subtitle = if (contactsAccess) "Enabled" else "Match payments to your phone contacts",
+                    onClick = { contactsLauncher.launch(android.Manifest.permission.READ_CONTACTS) },
                 )
             }
 

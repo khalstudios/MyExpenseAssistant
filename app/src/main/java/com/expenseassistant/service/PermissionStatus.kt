@@ -3,10 +3,16 @@ package com.expenseassistant.service
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.provider.Settings
 import android.text.TextUtils
+import androidx.core.content.ContextCompat
 
 object PermissionStatus {
+
+    fun isContactsAccessGranted(context: Context): Boolean =
+        ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) ==
+            PackageManager.PERMISSION_GRANTED
 
     fun isNotificationAccessGranted(context: Context): Boolean {
         val enabled = Settings.Secure.getString(

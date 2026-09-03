@@ -12,7 +12,7 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "transactions",
     indices = [
-        Index(value = ["dedupeKey"], unique = true),
+        Index(value = ["dedupeKey"]),
         Index(value = ["occurredAt"]),
     ],
 )

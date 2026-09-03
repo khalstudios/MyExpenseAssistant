@@ -31,7 +31,7 @@ class PaymentNotificationListener : NotificationListenerService() {
                 val payment = PaymentTextParser.parse(text, packageName, sbn.postTime) ?: return@runCatching
                 val id = ServiceLocator.repository(applicationContext)
                     .ingest(payment, CaptureSource.NOTIFICATION)
-                Log.d(TAG, if (id != null) "Recorded transaction $id from $packageName" else "Duplicate ignored")
+                Log.d(TAG, "Recorded transaction $id from $packageName")
             }.onFailure { Log.e(TAG, "Failed to handle notification from $packageName", it) }
         }
     }

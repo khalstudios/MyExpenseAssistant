@@ -11,6 +11,7 @@ import androidx.room.PrimaryKey
 data class MerchantRule(
     @PrimaryKey val merchantKey: String,
     val category: Category,
+    val displayName: String? = null,
     val hitCount: Int = 1,
     val updatedAt: Long = System.currentTimeMillis(),
 )

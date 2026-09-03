@@ -1,10 +1,11 @@
 package com.expenseassistant.data.repo
 
-import android.util.Log
 import com.expenseassistant.categorize.Categorizer
+import com.expenseassistant.data.local.ContactNameCacheDao
 import com.expenseassistant.data.local.TransactionDao
 import com.expenseassistant.data.model.CaptureSource
 import com.expenseassistant.data.model.Category
+import com.expenseassistant.data.model.ContactNameCache
 import com.expenseassistant.data.model.Direction
 import com.expenseassistant.data.model.PaymentMode
 import com.expenseassistant.data.model.TransactionEntity
@@ -13,9 +14,7 @@ import com.expenseassistant.parser.ParsedPayment
 import com.expenseassistant.parser.PaymentModeDetector
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.security.MessageDigest
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 data class TagUsage(val tag: String, val count: Int)
 
@@ -24,6 +23,8 @@ data class CustomCategoryOption(val name: String, val colorHex: String, val icon
 class TransactionRepository(
     private val transactionDao: TransactionDao,
     private val categorizer: Categorizer,
+    private val contactNameCacheDao: ContactNameCacheDao? = null,
+    private val contactResolver: ContactResolver? = null,
     private val budgetNotifier: BudgetNotifier? = null,
 ) {
 
@@ -73,7 +74,10 @@ class TransactionRepository(
 
     suspend fun deleteAll() = transactionDao.deleteAll()
 
-    suspend fun clearLearnedRules() = categorizer.forgetAll()
+    suspend fun clearLearnedRules() {
+        categorizer.forgetAll()
+        contactNameCacheDao?.deleteAll()
+    }
 
     /** Adds a transaction the capture services could not see, such as cash or a card swipe. */
     suspend fun addManual(
@@ -117,54 +121,30 @@ class TransactionRepository(
         }
     }
 
-    /**
-     * Stores a captured payment. Returns the new row id, or null when it was a duplicate
-     * (the same payment often arrives as both a notification and a success screen).
-     */
+    /** Stores every parsed payment notification or payment-success screen. */
     suspend fun ingest(payment: ParsedPayment, captureSource: CaptureSource): Long? {
-        val dedupeKey = dedupeKey(payment)
-        if (transactionDao.findByDedupeKey(dedupeKey) != null) return null
-
-        // A shared reference id is the strongest duplicate signal, so it wins regardless of timing.
-        payment.referenceId?.takeIf { it.isNotBlank() }?.let { reference ->
-            transactionDao.findByReference(reference)?.let { existing ->
-                Log.d(TAG, "Skipping duplicate of ${existing.id}: same reference $reference")
-                return null
+        val guess = categorizer.categorize(payment)
+        val originalMerchant = payment.merchantRaw?.trim()?.takeIf { it.isNotEmpty() }
+        val contactName = originalMerchant?.takeIf { guess.merchantDisplayName == null }?.let { merchant ->
+            val key = Categorizer.merchantKey(merchant)
+            val cached = key?.let { contactNameCacheDao?.find(it) }
+            when {
+                cached != null -> cached.contactName
+                key != null && contactResolver?.hasAccess() == true -> {
+                    contactResolver.resolve(merchant).also { name ->
+                        contactNameCacheDao?.upsert(ContactNameCache(key, name))
+                    }
+                }
+                else -> null
             }
         }
-
-        val window = TimeUnit.MINUTES.toMillis(DEDUPE_WINDOW_MINUTES)
-        val similar = transactionDao.findSimilar(
-            amountMinor = payment.amountMinor,
-            direction = payment.direction.name,
-            from = payment.occurredAt - window,
-            to = payment.occurredAt + window,
-        )
-        if (similar != null) {
-            Log.d(TAG, "Skipping near-duplicate of transaction ${similar.id}")
-            return null
-        }
-
-        val now = System.currentTimeMillis()
-        val captureWindow = TimeUnit.MINUTES.toMillis(CAPTURE_DEDUPE_WINDOW_MINUTES)
-        val recentlyCaptured = transactionDao.findRecentlyCaptured(
-            amountMinor = payment.amountMinor,
-            direction = payment.direction.name,
-            from = now - captureWindow,
-            to = now + captureWindow,
-        )
-        if (recentlyCaptured != null) {
-            Log.d(TAG, "Skipping duplicate of ${recentlyCaptured.id}: same amount captured moments ago")
-            return null
-        }
-
-        val guess = categorizer.categorize(payment)
+        val merchantName = guess.merchantDisplayName ?: contactName ?: originalMerchant ?: payment.sourceApp
         val entity = TransactionEntity(
             amountMinor = payment.amountMinor,
             currency = payment.currency,
             direction = payment.direction,
             merchantRaw = payment.merchantRaw,
-            merchant = payment.merchantRaw?.trim()?.takeIf { it.isNotEmpty() } ?: payment.sourceApp,
+            merchant = merchantName,
             category = guess.category,
             categoryConfidence = guess.confidence,
             sourcePackage = payment.sourcePackage,
@@ -173,11 +153,13 @@ class TransactionRepository(
             rawText = payment.rawText,
             referenceId = payment.referenceId,
             occurredAt = payment.occurredAt,
+            description = originalMerchant?.takeIf { merchantName != it },
             paymentMode = PaymentModeDetector.detect(payment.rawText, payment.sourcePackage),
-            dedupeKey = dedupeKey,
+            dedupeKey = "capture:${UUID.randomUUID()}",
         )
-        return transactionDao.insert(entity).takeIf { it > 0 }
-            ?.also { id -> budgetNotifier?.onTransactionRecorded(entity.copy(id = id)) }
+        return transactionDao.insert(entity).also { id ->
+            budgetNotifier?.onTransactionRecorded(entity.copy(id = id))
+        }
     }
 
     fun observeById(id: Long): Flow<TransactionEntity?> = transactionDao.observeById(id)
@@ -238,26 +220,54 @@ class TransactionRepository(
         )
     }
 
-    suspend fun delete(id: Long) = transactionDao.delete(id)
-
-    private fun dedupeKey(payment: ParsedPayment): String {
-        val reference = payment.referenceId?.lowercase()
-        val raw = if (reference != null) {
-            "ref:$reference"
-        } else {
-            val bucket = payment.occurredAt / TimeUnit.MINUTES.toMillis(DEDUPE_WINDOW_MINUTES)
-            "amt:${payment.amountMinor}|dir:${payment.direction}|m:${Categorizer.merchantKey(payment.merchantRaw)}|t:$bucket"
+    /** Single commit for the detail screen, which batches every edit behind one save action. */
+    suspend fun updateDetails(
+        id: Long,
+        amountMinor: Long,
+        direction: Direction,
+        merchant: String,
+        occurredAt: Long,
+        category: Category,
+        customCategoryName: String?,
+        customCategoryColor: String?,
+        customCategoryIcon: String?,
+        paymentMode: PaymentMode,
+        description: String?,
+        tags: List<String>,
+    ) {
+        val existing = transactionDao.findById(id) ?: return
+        val categoryChanged = existing.category != category ||
+            existing.customCategoryName != customCategoryName
+        val cleanedTags = tags.map { it.trim().removePrefix("#") }
+            .filter { it.isNotEmpty() }
+            .distinctBy { it.lowercase() }
+        val trimmedMerchant = merchant.trim()
+        val merchantRenamed = trimmedMerchant != existing.merchant
+        transactionDao.update(
+            existing.copy(
+                amountMinor = amountMinor,
+                direction = direction,
+                merchant = trimmedMerchant,
+                merchantRaw = trimmedMerchant,
+                occurredAt = occurredAt,
+                category = category,
+                categoryConfidence = if (categoryChanged) 1f else existing.categoryConfidence,
+                customCategoryName = customCategoryName,
+                customCategoryColor = customCategoryColor,
+                customCategoryIcon = customCategoryIcon,
+                paymentMode = paymentMode,
+                description = description?.takeIf { it.isNotBlank() },
+                tags = cleanedTags,
+                userCorrected = true,
+            )
+        )
+        if (categoryChanged && customCategoryName == null) {
+            categorizer.learn(existing.merchantRaw ?: existing.merchant, category)
         }
-        return MessageDigest.getInstance("SHA-256")
-            .digest(raw.toByteArray())
-            .joinToString("") { "%02x".format(it) }
+        if (merchantRenamed) {
+            categorizer.learnDisplayName(existing.merchantRaw ?: existing.merchant, trimmedMerchant)
+        }
     }
 
-    private companion object {
-        const val TAG = "TransactionRepository"
-        const val DEDUPE_WINDOW_MINUTES = 3L
-
-        /** Duplicate alerts for one payment land within seconds; a few minutes is a safe net. */
-        const val CAPTURE_DEDUPE_WINDOW_MINUTES = 5L
-    }
+    suspend fun delete(id: Long) = transactionDao.delete(id)
 }

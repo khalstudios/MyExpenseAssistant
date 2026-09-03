@@ -47,6 +47,28 @@ class PaymentTextParserTest {
     }
 
     @Test
+    fun `parses icici debit sms naming the payee as credited`() {
+        val text = "ICICI Bank Acct XX245 debited for Rs 55.00 on 03-Sep-26; BOTTLE LAB TECH credited. " +
+            "UPI:061447710011. Call 18002662 for dispute. SMS BLOCK 245 to 9215676766."
+        val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
+        assertNotNull(result)
+        assertEquals(5500L, result!!.amountMinor)
+        assertEquals(Direction.DEBIT, result.direction)
+        assertEquals("BOTTLE LAB TECH", result.merchantRaw)
+        assertEquals("061447710011", result.referenceId)
+    }
+
+    @Test
+    fun `parses hdfc multiline sent sms`() {
+        val text = "Sent Rs.15.00\nFrom HDFC Bank A/C *7519\nTo TANVI SEVAK\nOn 03/09/26\nRef 198506244129"
+        val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
+        assertNotNull(result)
+        assertEquals(1500L, result!!.amountMinor)
+        assertEquals(Direction.DEBIT, result.direction)
+        assertEquals("TANVI SEVAK", result.merchantRaw)
+    }
+
+    @Test
     fun `parses credit`() {
         val result = PaymentTextParser.parse("₹5,000 credited to your account from ACME PAYROLL", gpay)
         assertNotNull(result)
@@ -69,6 +91,13 @@ class PaymentTextParserTest {
     @Test
     fun `ignores text without amount`() {
         assertNull(PaymentTextParser.parse("Payment successful", gpay))
+    }
+
+    @Test
+    fun `captures a payment without a merchant`() {
+        val result = PaymentTextParser.parse("Payment successful. You paid ₹500", gpay)
+        assertNotNull(result)
+        assertEquals(null, result!!.merchantRaw)
     }
 
     @Test

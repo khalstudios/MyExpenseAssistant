@@ -6,7 +6,11 @@ import com.expenseassistant.data.model.Direction
 import com.expenseassistant.data.model.MerchantRule
 import com.expenseassistant.parser.ParsedPayment
 
-data class CategoryGuess(val category: Category, val confidence: Float)
+data class CategoryGuess(
+    val category: Category,
+    val confidence: Float,
+    val merchantDisplayName: String? = null,
+)
 
 /**
  * Layered classifier:
@@ -21,7 +25,7 @@ class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
 
         if (key != null) {
             merchantRuleDao.find(key)?.let {
-                return CategoryGuess(it.category, 0.99f)
+                return CategoryGuess(it.category, 0.99f, it.displayName)
             }
         }
 
@@ -54,6 +58,20 @@ class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
             MerchantRule(
                 merchantKey = key,
                 category = category,
+                displayName = existing?.displayName,
+                hitCount = (existing?.hitCount ?: 0) + 1,
+            )
+        )
+    }
+
+    suspend fun learnDisplayName(merchantRaw: String?, displayName: String) {
+        val key = merchantKey(merchantRaw) ?: return
+        val existing = merchantRuleDao.find(key)
+        merchantRuleDao.upsert(
+            MerchantRule(
+                merchantKey = key,
+                category = existing?.category ?: Category.OTHER,
+                displayName = displayName.trim().takeIf { it.isNotEmpty() },
                 hitCount = (existing?.hitCount ?: 0) + 1,
             )
         )

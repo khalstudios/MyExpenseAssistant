@@ -24,7 +24,7 @@ AccessibilityService ────────┘        (regex)         (rules +
 
 Categorisation is a layered classifier rather than a single lookup:
 
-1. **Learned rules** — every time you correct a category, the normalised merchant key (`Swiggy Private Limited` → `swiggy`) is stored in `merchant_rules` and wins next time. Confidence `0.99`.
+1. **Learned rules** — every time you correct a category or rename a captured merchant, the normalised merchant key (`Swiggy Private Limited` → `swiggy`) is stored in `merchant_rules` and wins next time. A saved rename becomes the display name for future matching payments; category rules have confidence `0.99`.
 2. **Knowledge base** — ~250 merchant/keyword patterns across 15 categories, longest match first, checked against the merchant field before the raw text. Confidence `0.6–0.95`.
 3. **Heuristics** — credits default to income; payments to a personal VPA or a 1–3 word personal name become `Transfer to People`. Confidence `0.55–0.6`.
 
@@ -51,11 +51,18 @@ gradle wrapper --gradle-version 8.9
 
 The accessibility path is only needed for apps that show a success screen but post no notification. Notification access alone covers GPay, PhonePe, Paytm and bank SMS.
 
+Automatic capture stores every completed payment notification it can parse, even when the merchant or category is unavailable or inaccurate. In those cases, the source app is used as the merchant name and the transaction can be corrected later.
+
+### Contact names
+
+In **Account** under **Capture**, enable *Contact names* to let the app match the merchant name parsed from newly captured payments to a similar phone-contact name. The app does not inspect phone numbers in notifications or screen captures. A contact name is used only when it is the clear match; it becomes the transaction merchant while the original parsed counterparty is retained in Notes. Each result, including no match, is cached locally by merchant name so the phone contacts provider is not queried again for repeat payments. Contact access is optional and contact data is only read on-device during the first lookup.
+
 ## Privacy
 
 - No internet permission is declared — data cannot leave the device.
 - Only packages listed in [PaymentApps.kt](app/src/main/java/com/expenseassistant/parser/PaymentApps.kt) are read; every other notification is discarded before parsing.
 - The accessibility service is scoped via `android:packageNames` to four UPI apps and only acts on screens containing success wording.
+- Contacts are accessed only after the user enables the optional *Contact names* permission in Account.
 
 ## Play Store note
 

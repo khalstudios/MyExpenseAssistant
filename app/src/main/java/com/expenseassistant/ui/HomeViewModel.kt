@@ -15,6 +15,7 @@ import com.expenseassistant.data.repo.TagUsage
 import com.expenseassistant.di.ServiceLocator
 import com.expenseassistant.recurring.RecurringDetector
 import com.expenseassistant.recurring.RecurringExpense
+import com.expenseassistant.ui.detail.TransactionEdits
 import com.expenseassistant.ui.insights.AnalyticsRange
 import com.expenseassistant.ui.insights.AnalyticsUiState
 import com.expenseassistant.ui.insights.BudgetProgress
@@ -262,6 +263,23 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             repository.updateCore(id, amountMinor, direction, merchant, occurredAt)
         }
+
+    fun saveDetails(id: Long, edits: TransactionEdits) = viewModelScope.launch {
+        repository.updateDetails(
+            id = id,
+            amountMinor = edits.amountMinor,
+            direction = edits.direction,
+            merchant = edits.merchant,
+            occurredAt = edits.occurredAt,
+            category = edits.category,
+            customCategoryName = edits.customCategoryName,
+            customCategoryColor = edits.customCategoryColor,
+            customCategoryIcon = edits.customCategoryIcon,
+            paymentMode = edits.paymentMode,
+            description = edits.description,
+            tags = edits.tags,
+        )
+    }
 
     fun addManualTransaction(
         amountMinor: Long,

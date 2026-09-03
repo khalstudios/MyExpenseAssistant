@@ -187,21 +187,12 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 TransactionDetailScreen(
                     transaction = detail,
                     onBack = { route = Route.Main },
-                    onCategoryChange = { viewModel.recategorize(detail.id, it) },
-                    onCategoryChangeCustom = { name, colorHex, iconKey ->
-                        viewModel.recategorize(detail.id, Category.OTHER, name, colorHex, iconKey)
-                    },
-                    customCategories = customCategories,
-                    onDescriptionChange = { viewModel.updateDescription(detail.id, it) },
-                    onTagsChange = { viewModel.updateTags(detail.id, it) },
-                    onPaymentModeChange = { viewModel.updatePaymentMode(detail.id, it) },
-                    onCoreChange = { amountMinor, direction, merchant, occurredAt ->
-                        viewModel.updateCore(detail.id, amountMinor, direction, merchant, occurredAt)
-                    },
+                    onSave = { edits -> viewModel.saveDetails(detail.id, edits) },
                     onDelete = {
                         viewModel.delete(detail.id)
                         route = Route.Main
                     },
+                    customCategories = customCategories,
                     tagSuggestions = tagSuggestions,
                     onOpenTag = { tag -> route = Route.TagTransactions(tag) },
                 )

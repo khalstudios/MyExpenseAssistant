@@ -43,6 +43,8 @@ object PaymentTextParser {
 
     private val MERCHANT_PATTERNS = listOf(
         Regex("""(?:paid|sent)\s+(?:₹|rs\.?|inr)?\s*[0-9,.]*\s*to\s+([A-Za-z0-9&'@._\- ]{2,60}?)$MERCHANT_END""", RegexOption.IGNORE_CASE),
+        // ICICI-style debits name the payee after the amount: "...debited for Rs 55 on 03-Sep-26; ACME credited".
+        Regex("""[;,]\s*([A-Za-z0-9&'@._\- ]{2,60}?)\s+credited\b""", RegexOption.IGNORE_CASE),
         Regex("""\bto\s+([A-Za-z0-9&'@._\- ]{2,60}?)$MERCHANT_END""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:at|from)\s+([A-Za-z0-9&'@._\- ]{2,60}?)$MERCHANT_END""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:vpa|upi id)\s*:?\s*([A-Za-z0-9._\-]{2,40}@[A-Za-z]{2,20})""", RegexOption.IGNORE_CASE),
@@ -118,12 +120,13 @@ object PaymentTextParser {
         if (amountMinor <= 0) return null
 
         val direction = extractDirection(lower) ?: return null
+        val merchant = extractMerchant(normalized)
 
         return ParsedPayment(
             amountMinor = amountMinor,
             currency = "INR",
             direction = direction,
-            merchantRaw = extractMerchant(normalized),
+            merchantRaw = merchant,
             referenceId = REFERENCE.find(normalized)?.groupValues?.get(1),
             rawText = normalized,
             sourcePackage = sourcePackage,
@@ -225,4 +228,5 @@ object PaymentTextParser {
         if (words.isEmpty() || words.size > 8) return false
         return words.any { it !in NOISE_MERCHANT_TOKENS }
     }
+
 }

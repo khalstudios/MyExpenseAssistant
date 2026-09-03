@@ -8,12 +8,13 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.expenseassistant.data.model.BudgetEntity
+import com.expenseassistant.data.model.ContactNameCache
 import com.expenseassistant.data.model.MerchantRule
 import com.expenseassistant.data.model.TransactionEntity
 
 @Database(
-    entities = [TransactionEntity::class, MerchantRule::class, BudgetEntity::class],
-    version = 6,
+    entities = [TransactionEntity::class, MerchantRule::class, BudgetEntity::class, ContactNameCache::class],
+    version = 9,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -22,6 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun merchantRuleDao(): MerchantRuleDao
     abstract fun budgetDao(): BudgetDao
+    abstract fun contactNameCacheDao(): ContactNameCacheDao
 
     companion object {
         @Volatile private var instance: AppDatabase? = null
@@ -77,12 +79,42 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE merchant_rules ADD COLUMN displayName TEXT")
+            }
+        }
+
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS contact_name_cache (merchantKey TEXT NOT NULL PRIMARY KEY, contactName TEXT, lookedUpAt INTEGER NOT NULL)"
+                )
+            }
+        }
+
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP INDEX IF EXISTS index_transactions_dedupeKey")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_dedupeKey ON transactions (dedupeKey)")
+            }
+        }
+
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 "expense-assistant.db",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            ).addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7,
+                MIGRATION_7_8,
+                MIGRATION_8_9,
+            )
                 .build().also { instance = it }
         }
     }

@@ -15,6 +15,8 @@ private val currencyFormat: NumberFormat = NumberFormat.getCurrencyInstance(Loca
 private val dateFormat = SimpleDateFormat("d MMM, h:mm a", Locale.getDefault())
 private val dayHeaderFormat = SimpleDateFormat("d MMMM", Locale.getDefault())
 private val dayHeaderWithYearFormat = SimpleDateFormat("d MMMM yyyy", Locale.getDefault())
+private val shortDayFormat = SimpleDateFormat("d MMM", Locale.getDefault())
+private val shortDayWithYearFormat = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
 private val timeOnlyFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
 private val monthYearNameFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
 private val shortMonthFormat = SimpleDateFormat("MMM", Locale.getDefault())
@@ -40,6 +42,14 @@ fun formatDayHeader(epochMillis: Long): String {
     val thisYear = Calendar.getInstance().get(Calendar.YEAR)
     val year = Calendar.getInstance().apply { timeInMillis = epochMillis }.get(Calendar.YEAR)
     val format = if (year == thisYear) dayHeaderFormat else dayHeaderWithYearFormat
+    return format.format(Date(epochMillis))
+}
+
+/** "22 Aug" — compact single-line form for tight layouts like button labels. */
+fun formatShortDate(epochMillis: Long): String {
+    val thisYear = Calendar.getInstance().get(Calendar.YEAR)
+    val year = Calendar.getInstance().apply { timeInMillis = epochMillis }.get(Calendar.YEAR)
+    val format = if (year == thisYear) shortDayFormat else shortDayWithYearFormat
     return format.format(Date(epochMillis))
 }
 

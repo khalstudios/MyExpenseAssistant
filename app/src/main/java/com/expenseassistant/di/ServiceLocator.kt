@@ -6,6 +6,7 @@ import com.expenseassistant.data.local.AppDatabase
 import com.expenseassistant.data.prefs.CategoryIconStore
 import com.expenseassistant.data.prefs.UserPreferences
 import com.expenseassistant.data.repo.BudgetRepository
+import com.expenseassistant.data.repo.ContactResolver
 import com.expenseassistant.data.repo.TransactionRepository
 import com.expenseassistant.notify.BudgetNotifier
 
@@ -22,6 +23,8 @@ object ServiceLocator {
             TransactionRepository(
                 transactionDao = db.transactionDao(),
                 categorizer = Categorizer(db.merchantRuleDao()),
+                contactNameCacheDao = db.contactNameCacheDao(),
+                contactResolver = ContactResolver(context.applicationContext),
                 budgetNotifier = BudgetNotifier(
                     context.applicationContext,
                     db.transactionDao(),
