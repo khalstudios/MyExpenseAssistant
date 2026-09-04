@@ -13,6 +13,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
@@ -253,7 +254,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { route = Route.Add },
-                modifier = Modifier.offset(y = 44.dp),
+                modifier = Modifier.offset(y = 54.dp),
                 containerColor = MaterialTheme.colorScheme.primary,
             ) {
                 Icon(Icons.Filled.Add, contentDescription = "Add transaction")
@@ -261,7 +262,14 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         },
         floatingActionButtonPosition = FabPosition.Center,
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                modifier = Modifier.clip(
+                    RoundedCornerShape(
+                        topStart = 24.dp,
+                        topEnd = 24.dp,
+                    ),
+                ),
+            ) {
                 NavigationBarItem(
                     modifier = Modifier.weight(1f),
                     selected = tab == Tab.HOME,
@@ -277,7 +285,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     label = { Text(Tab.INSIGHTS.label) },
                 )
                 // Reserve space for the floating action button so it doesn't overlap these two items.
-                Spacer(modifier = Modifier.width(64.dp))
+                Spacer(modifier = Modifier.width(54.dp))
                 NavigationBarItem(
                     modifier = Modifier.weight(1f),
                     selected = tab == Tab.PROFILE,
@@ -355,16 +363,16 @@ private fun AppTheme(content: @Composable () -> Unit) {
             errorContainer = androidx.compose.ui.graphics.Color(0xFF33211F),
             background = androidx.compose.ui.graphics.Color(0xFF0D0D0F),
             onBackground = androidx.compose.ui.graphics.Color(0xFFF2F2F2),
-            surface = androidx.compose.ui.graphics.Color(0xFF1A1A1D),
+            surface = androidx.compose.ui.graphics.Color(0xFF222226),
             onSurface = androidx.compose.ui.graphics.Color(0xFFF2F2F2),
-            surfaceVariant = androidx.compose.ui.graphics.Color(0xFF1A1A1D),
+            surfaceVariant = androidx.compose.ui.graphics.Color(0xFF222226),
             onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFF9A9A9E),
             // Card/sheet containers default to these; keep them flat so no grey band shows.
-            surfaceContainerLowest = androidx.compose.ui.graphics.Color(0xFF141416),
-            surfaceContainerLow = androidx.compose.ui.graphics.Color(0xFF1A1A1D),
-            surfaceContainer = androidx.compose.ui.graphics.Color(0xFF1A1A1D),
-            surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFF212125),
-            surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFF26262B),
+            surfaceContainerLowest = androidx.compose.ui.graphics.Color(0xFF18181B),
+            surfaceContainerLow = androidx.compose.ui.graphics.Color(0xFF202024),
+            surfaceContainer = androidx.compose.ui.graphics.Color(0xFF222226),
+            surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFF29292E),
+            surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFF303036),
             outline = androidx.compose.ui.graphics.Color(0xFF3A3A3E),
             outlineVariant = androidx.compose.ui.graphics.Color(0xFF2A2A2E),
         )
