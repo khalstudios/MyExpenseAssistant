@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.RateReview
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -69,6 +71,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun AccountScreen(
     modifier: Modifier = Modifier,
+    onOpenBudgets: () -> Unit = {},
+    onOpenNeedsReview: () -> Unit = {},
     viewModel: AccountViewModel = viewModel(factory = AccountViewModel.Factory),
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
@@ -120,6 +124,21 @@ fun AccountScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ProfileHeader(profile) { editingProfile = true }
+
+            SectionCard("Planning") {
+                SettingRow(
+                    icon = Icons.Filled.Savings,
+                    title = "Monthly budgets",
+                    subtitle = "Set limits overall and per category",
+                    onClick = onOpenBudgets,
+                )
+                SettingRow(
+                    icon = Icons.Filled.RateReview,
+                    title = "Needs review",
+                    subtitle = "Transactions we couldn't categorise confidently",
+                    onClick = onOpenNeedsReview,
+                )
+            }
 
             SectionCard("Capture") {
                 SettingRow(

@@ -3,6 +3,7 @@ package com.expenseassistant.ui.insights
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -10,9 +11,11 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -32,11 +35,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.expenseassistant.ui.budget.BudgetSummaryCard
 import com.expenseassistant.ui.category.CategoryBadge
 import com.expenseassistant.ui.CardElevation
 import com.expenseassistant.ui.formatMinor
@@ -55,7 +58,6 @@ fun InsightsScreen(
     onShiftPeriod: (Int) -> Unit,
     onJumpTo: (year: Int, monthIndex: Int) -> Unit,
     onResetToCurrent: () -> Unit,
-    onManageBudgets: () -> Unit,
     onOpenCategory: (Category) -> Unit,
     onOpenTag: (String) -> Unit,
     onOpenNeedsReview: () -> Unit = {},
@@ -85,16 +87,7 @@ fun InsightsScreen(
         if (tagUsage.isNotEmpty()) {
             item { TagsCard(tagUsage, onOpenTag) }
         }
-        if (state.range == AnalyticsRange.MONTH) {
-            item {
-                BudgetSummaryCard(
-                    overall = state.overallBudget,
-                    categories = state.categoryBudgets,
-                    onManage = onManageBudgets,
-                    onOpenCategory = onOpenCategory,
-                )
-            }
-        }
+        item { SpendingTrendsCard(state) }
         item { StatGrid(state) }
         item { ComparisonCard(state) }
         if (recurring.isNotEmpty()) {
@@ -144,6 +137,11 @@ private fun TagsCard(tags: List<TagUsage>, onOpenTag: (String) -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            val spendingTags = tags.filter { it.spentMinor > 0 }.sortedByDescending { it.spentMinor }
+            if (spendingTags.isNotEmpty()) {
+                TagSpendBarChart(spendingTags, onOpenTag)
+                HorizontalDivider()
+            }
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -152,6 +150,54 @@ private fun TagsCard(tags: List<TagUsage>, onOpenTag: (String) -> Unit) {
                     AssistChip(
                         onClick = { onOpenTag(usage.tag) },
                         label = { Text("#${usage.tag} \u00b7 ${usage.count}") },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TagSpendBarChart(tags: List<TagUsage>, onOpenTag: (String) -> Unit) {
+    val top = tags.take(6)
+    val max = top.first().spentMinor.coerceAtLeast(1L)
+    Column(
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        top.forEach { usage ->
+            val fraction = (usage.spentMinor.toFloat() / max).coerceIn(0.02f, 1f)
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenTag(usage.tag) },
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("#${usage.tag}", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        formatMinor(usage.spentMinor),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(fraction)
+                            .height(10.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(MaterialTheme.colorScheme.primary),
                     )
                 }
             }

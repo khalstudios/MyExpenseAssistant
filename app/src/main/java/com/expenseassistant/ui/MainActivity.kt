@@ -22,8 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
@@ -55,10 +55,10 @@ import com.expenseassistant.data.model.Category
 import com.expenseassistant.data.model.TransactionEntity
 import com.expenseassistant.ui.account.AccountScreen
 import com.expenseassistant.ui.add.AddTransactionScreen
+import com.expenseassistant.ui.budget.BudgetBreakdownScreen
 import com.expenseassistant.ui.budget.BudgetScreen
 import com.expenseassistant.ui.detail.TransactionDetailScreen
 import com.expenseassistant.ui.insights.InsightsScreen
-import com.expenseassistant.ui.more.MoreScreen
 import com.expenseassistant.ui.tag.TagScreen
 import com.expenseassistant.ui.category.CategoryScreen
 import com.expenseassistant.ui.category.LocalCategoryIconOverrides
@@ -84,7 +84,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: String) { HOME("Home"), INSIGHTS("Insights"), PROFILE("Profile"), MORE("More") }
+private enum class Tab(val label: String) { HOME("Home"), INSIGHTS("Insights"), BUDGET("Budget"), PROFILE("Profile") }
 
 private sealed interface Route {
     data object Main : Route
@@ -102,6 +102,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val recentState by viewModel.recentState.collectAsStateWithLifecycle()
     val analytics by viewModel.analytics.collectAsStateWithLifecycle()
+    val monthlyBudgetAnalytics by viewModel.monthlyBudgetAnalytics.collectAsStateWithLifecycle()
     val recurring by viewModel.recurring.collectAsStateWithLifecycle()
     val tagSuggestions by viewModel.tagSuggestions.collectAsStateWithLifecycle()
     val tagUsage by viewModel.tagUsage.collectAsStateWithLifecycle()
@@ -243,8 +244,8 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     val topBarTitle = when (tab) {
         Tab.HOME -> "Expense Assistant"
         Tab.INSIGHTS -> "Insights"
+        Tab.BUDGET -> "Budget"
         Tab.PROFILE -> "Profile"
-        Tab.MORE -> "More"
     }
 
     Scaffold(
@@ -263,12 +264,13 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         floatingActionButtonPosition = FabPosition.Center,
         bottomBar = {
             NavigationBar(
-                modifier = Modifier.clip(
-                    RoundedCornerShape(
-                        topStart = 24.dp,
-                        topEnd = 24.dp,
+                modifier = Modifier
+                    .clip(
+                        RoundedCornerShape(
+                            topStart = 24.dp,
+                            topEnd = 24.dp,
+                        ),
                     ),
-                ),
             ) {
                 NavigationBarItem(
                     modifier = Modifier.weight(1f),
@@ -288,17 +290,17 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 Spacer(modifier = Modifier.width(54.dp))
                 NavigationBarItem(
                     modifier = Modifier.weight(1f),
+                    selected = tab == Tab.BUDGET,
+                    onClick = { tab = Tab.BUDGET },
+                    icon = { Icon(Icons.Filled.Savings, contentDescription = null) },
+                    label = { Text(Tab.BUDGET.label) },
+                )
+                NavigationBarItem(
+                    modifier = Modifier.weight(1f),
                     selected = tab == Tab.PROFILE,
                     onClick = { tab = Tab.PROFILE },
                     icon = { Icon(Icons.Filled.AccountBalance, contentDescription = null) },
                     label = { Text(Tab.PROFILE.label) },
-                )
-                NavigationBarItem(
-                    modifier = Modifier.weight(1f),
-                    selected = tab == Tab.MORE,
-                    onClick = { tab = Tab.MORE },
-                    icon = { Icon(Icons.Filled.MoreHoriz, contentDescription = null) },
-                    label = { Text(Tab.MORE.label) },
                 )
             }
         },
@@ -312,6 +314,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 customCategories = customCategories,
                 summaryScope = summaryScope,
                 onSummaryScopeChange = viewModel::setSummaryScope,
+                budgetState = monthlyBudgetAnalytics,
                 onOpenNeedsReview = { route = Route.NeedsReview },
                 onDelete = { id -> viewModel.delete(id) },
                 onOpenTransaction = { id -> route = Route.Detail(id) },
@@ -326,18 +329,20 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 onShiftPeriod = viewModel::shiftPeriod,
                 onJumpTo = viewModel::jumpTo,
                 onResetToCurrent = viewModel::resetToCurrent,
-                onManageBudgets = { route = Route.Budgets },
                 onOpenCategory = { route = Route.CategoryTransactions(it) },
                 onOpenTag = { tag -> route = Route.TagTransactions(tag) },
                 onOpenNeedsReview = { route = Route.NeedsReview },
                 modifier = Modifier.padding(padding),
             )
 
-            Tab.PROFILE -> AccountScreen(
+            Tab.BUDGET -> BudgetBreakdownScreen(
+                state = monthlyBudgetAnalytics,
+                onManageBudgets = { route = Route.Budgets },
+                onOpenCategory = { route = Route.CategoryTransactions(it) },
                 modifier = Modifier.padding(padding),
             )
 
-            Tab.MORE -> MoreScreen(
+            Tab.PROFILE -> AccountScreen(
                 onOpenBudgets = { route = Route.Budgets },
                 onOpenNeedsReview = { route = Route.NeedsReview },
                 modifier = Modifier.padding(padding),
@@ -361,20 +366,20 @@ private fun AppTheme(content: @Composable () -> Unit) {
             tertiaryContainer = androidx.compose.ui.graphics.Color(0xFF262223),
             error = androidx.compose.ui.graphics.Color(0xFFEF6C6C),
             errorContainer = androidx.compose.ui.graphics.Color(0xFF33211F),
-            background = androidx.compose.ui.graphics.Color(0xFF0D0D0F),
-            onBackground = androidx.compose.ui.graphics.Color(0xFFF2F2F2),
-            surface = androidx.compose.ui.graphics.Color(0xFF222226),
-            onSurface = androidx.compose.ui.graphics.Color(0xFFF2F2F2),
-            surfaceVariant = androidx.compose.ui.graphics.Color(0xFF222226),
-            onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFF9A9A9E),
+            background = androidx.compose.ui.graphics.Color(0xFF15161A),
+            onBackground = androidx.compose.ui.graphics.Color(0xFFF3F4F6),
+            surface = androidx.compose.ui.graphics.Color(0xFF202126),
+            onSurface = androidx.compose.ui.graphics.Color(0xFFF3F4F6),
+            surfaceVariant = androidx.compose.ui.graphics.Color(0xFF202126),
+            onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFFAAAAB2),
             // Card/sheet containers default to these; keep them flat so no grey band shows.
-            surfaceContainerLowest = androidx.compose.ui.graphics.Color(0xFF18181B),
-            surfaceContainerLow = androidx.compose.ui.graphics.Color(0xFF202024),
-            surfaceContainer = androidx.compose.ui.graphics.Color(0xFF222226),
-            surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFF29292E),
-            surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFF303036),
-            outline = androidx.compose.ui.graphics.Color(0xFF3A3A3E),
-            outlineVariant = androidx.compose.ui.graphics.Color(0xFF2A2A2E),
+            surfaceContainerLowest = androidx.compose.ui.graphics.Color(0xFF191A1F),
+            surfaceContainerLow = androidx.compose.ui.graphics.Color(0xFF1D1E23),
+            surfaceContainer = androidx.compose.ui.graphics.Color(0xFF202126),
+            surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFF28292F),
+            surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFF303137),
+            outline = androidx.compose.ui.graphics.Color(0xFF3D3E45),
+            outlineVariant = androidx.compose.ui.graphics.Color(0xFF2A2B31),
         )
     } else {
         lightColorScheme(
@@ -388,19 +393,19 @@ private fun AppTheme(content: @Composable () -> Unit) {
             tertiaryContainer = androidx.compose.ui.graphics.Color(0xFFF4EEEA),
             error = androidx.compose.ui.graphics.Color(0xFFC5544C),
             errorContainer = androidx.compose.ui.graphics.Color(0xFFFFF1ED),
-            background = androidx.compose.ui.graphics.Color(0xFFF4F1EE),
-            onBackground = androidx.compose.ui.graphics.Color(0xFF1C1B1A),
+            background = androidx.compose.ui.graphics.Color(0xFFF6F7FA),
+            onBackground = androidx.compose.ui.graphics.Color(0xFF20242C),
             surface = androidx.compose.ui.graphics.Color.White,
-            onSurface = androidx.compose.ui.graphics.Color(0xFF1C1B1A),
+            onSurface = androidx.compose.ui.graphics.Color(0xFF20242C),
             surfaceVariant = androidx.compose.ui.graphics.Color.White,
-            onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFF6E6A67),
+            onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFF737780),
             surfaceContainerLowest = androidx.compose.ui.graphics.Color.White,
             surfaceContainerLow = androidx.compose.ui.graphics.Color.White,
             surfaceContainer = androidx.compose.ui.graphics.Color.White,
-            surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFFFAF7F4),
-            surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFFF4F1EE),
-            outline = androidx.compose.ui.graphics.Color(0xFFDCD2CB),
-            outlineVariant = androidx.compose.ui.graphics.Color(0xFFE8E1DB),
+            surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFFFAFBFD),
+            surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFFF1F3F7),
+            outline = androidx.compose.ui.graphics.Color(0xFFD8DCE3),
+            outlineVariant = androidx.compose.ui.graphics.Color(0xFFE5E8ED),
         )
     }
     MaterialTheme(

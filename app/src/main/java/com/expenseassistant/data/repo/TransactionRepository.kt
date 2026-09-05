@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.UUID
 
-data class TagUsage(val tag: String, val count: Int)
+data class TagUsage(val tag: String, val count: Int, val spentMinor: Long = 0L)
 
 data class CustomCategoryOption(val name: String, val colorHex: String, val iconKey: String? = null)
 
@@ -45,13 +45,20 @@ class TransactionRepository(
     /** Every tag in use, most-used first, for the "browse by tag" widget. */
     fun observeTagUsage(): Flow<List<TagUsage>> = transactionDao.observeAll().map { transactions ->
         val counts = LinkedHashMap<String, Int>()
+        val spend = LinkedHashMap<String, Long>()
         transactions.forEach { tx ->
             tx.tags.forEach { tag ->
                 val key = tag.trim()
-                if (key.isNotEmpty()) counts[key] = (counts[key] ?: 0) + 1
+                if (key.isNotEmpty()) {
+                    counts[key] = (counts[key] ?: 0) + 1
+                    if (tx.direction == Direction.DEBIT) {
+                        spend[key] = (spend[key] ?: 0L) + tx.amountMinor
+                    }
+                }
             }
         }
-        counts.entries.sortedByDescending { it.value }.map { TagUsage(it.key, it.value) }
+        counts.entries.sortedByDescending { it.value }
+            .map { TagUsage(it.key, it.value, spend[it.key] ?: 0L) }
     }
 
     /** Tags ordered by how often they're used, so recent/common ones surface first as suggestions. */

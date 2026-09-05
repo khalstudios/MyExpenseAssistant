@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.expenseassistant.data.model.Category
@@ -47,38 +48,59 @@ fun CategoryPieChart(
         animationSpec = tween(durationMillis = 700),
         label = "pieSweep",
     )
+    val trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
 
     Box(
         modifier = modifier
-            .fillMaxWidth(0.7f)
+            .fillMaxWidth()
             .aspectRatio(1f),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.fillMaxWidth().aspectRatio(1f)) {
-            val thickness = size.minDimension * 0.18f
+            val thickness = size.minDimension * 0.16f
             val inset = thickness / 2f
             val arcSize = Size(size.width - thickness, size.height - thickness)
+
+            drawArc(
+                color = trackColor,
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = Offset(inset, inset),
+                size = arcSize,
+                style = Stroke(width = thickness),
+            )
+
             var startAngle = -90f
             slices.forEach { slice ->
-                val sweep = slice.fraction * 360f * sweepProgress
-                drawArc(
-                    color = slice.category.color,
-                    startAngle = startAngle,
-                    sweepAngle = sweep,
-                    useCenter = false,
-                    topLeft = Offset(inset, inset),
-                    size = arcSize,
-                    style = Stroke(width = thickness),
-                )
-                startAngle += slice.fraction * 360f
+                val fullSweep = slice.fraction * 360f
+                val gap = minOf(4f, fullSweep * 0.18f)
+                val sweep = (fullSweep - gap) * sweepProgress
+                if (sweep > 0f) {
+                    drawArc(
+                        color = slice.category.color,
+                        startAngle = startAngle + (gap / 2f),
+                        sweepAngle = sweep,
+                        useCenter = false,
+                        topLeft = Offset(inset, inset),
+                        size = arcSize,
+                        style = Stroke(width = thickness, cap = StrokeCap.Round),
+                    )
+                }
+                startAngle += fullSweep
             }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Total spent", style = MaterialTheme.typography.labelSmall)
+            Text("Total spent", style = MaterialTheme.typography.labelMedium)
             Text(
                 formatMinor(totalMinor),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
+            )
+            Text(
+                "${slices.size} ${if (slices.size == 1) "category" else "categories"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

@@ -2,6 +2,7 @@ package com.expenseassistant.ui.category
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalance
@@ -12,7 +13,6 @@ import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Handyman
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.LocalGroceryStore
 import androidx.compose.material.icons.filled.MedicalServices
@@ -73,29 +73,29 @@ fun Category.resolvedIcon(): ImageVector {
 /** Stable per-category colour so the pie chart, legend and list icons always agree. */
 val Category.color: Color
     get() = when (this) {
-        Category.FOOD_AND_DRINK -> Color(0xFFFF9800)
-        Category.GROCERIES -> Color(0xFF66BB6A)
-        Category.TRANSPORT -> Color(0xFF29B6F6)
-        Category.FUEL -> Color(0xFF26A69A)
-        Category.SHOPPING -> Color(0xFF42A5F5)
+        Category.FOOD_AND_DRINK -> Color(0xFFE67E22)
+        Category.GROCERIES -> Color(0xFF43A047)
+        Category.TRANSPORT -> Color(0xFF1E88E5)
+        Category.FUEL -> Color(0xFF00897B)
+        Category.SHOPPING -> Color(0xFF5C6BC0)
         Category.BILLS_AND_UTILITIES -> Color(0xFFEF5350)
-        Category.RENT -> Color(0xFF7E57C2)
-        Category.ENTERTAINMENT -> Color(0xFFEC407A)
+        Category.RENT -> Color(0xFF8E24AA)
+        Category.ENTERTAINMENT -> Color(0xFFD81B60)
         Category.HEALTH -> Color(0xFFE53935)
-        Category.EDUCATION -> Color(0xFFAB47BC)
-        Category.TRAVEL -> Color(0xFF29B6F6)
-        Category.INVESTMENTS -> Color(0xFF9CCC65)
-        Category.TRANSFER -> Color(0xFFEC407A)
+        Category.EDUCATION -> Color(0xFF7E57C2)
+        Category.TRAVEL -> Color(0xFF00ACC1)
+        Category.INVESTMENTS -> Color(0xFF7CB342)
+        Category.TRANSFER -> Color(0xFF3949AB)
         Category.FRIENDS_AND_FAMILY -> Color(0xFFF06292)
-        Category.EMI -> Color(0xFFEF5350)
-        Category.TAXES -> Color(0xFF78909C)
-        Category.INSURANCE -> Color(0xFF5C6BC0)
-        Category.GIFTS_AND_DONATION -> Color(0xFFF48FB1)
-        Category.MAINTENANCE -> Color(0xFFFFA726)
-        Category.PERSONAL_CARE -> Color(0xFF4DD0E1)
-        Category.HOBBIES -> Color(0xFFBA68C8)
-        Category.INCOME -> Color(0xFF66BB6A)
-        Category.OTHER -> Color(0xFF90A4AE)
+        Category.EMI -> Color(0xFF6D4C41)
+        Category.TAXES -> Color(0xFF546E7A)
+        Category.INSURANCE -> Color(0xFF00838F)
+        Category.GIFTS_AND_DONATION -> Color(0xFFFF8A65)
+        Category.MAINTENANCE -> Color(0xFFF9A825)
+        Category.PERSONAL_CARE -> Color(0xFF26A69A)
+        Category.HOBBIES -> Color(0xFFAB47BC)
+        Category.INCOME -> Color(0xFF2E7D32)
+        Category.OTHER -> Color(0xFF78909C)
     }
 
 /** Custom categories (user-created) override the built-in name/colour but keep a shared icon. */
@@ -110,6 +110,6 @@ val TransactionEntity.displayCategoryColor: Color
 val TransactionEntity.displayCategoryIcon: ImageVector
     @Composable get() = when {
         customCategoryIcon != null -> CategoryIconCatalog.iconFor(customCategoryIcon)
-        customCategoryName != null -> Icons.Filled.Label
+        customCategoryName != null -> Icons.AutoMirrored.Filled.Label
         else -> category.resolvedIcon()
     }

@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,10 +40,14 @@ import com.expenseassistant.data.model.Category
 import com.expenseassistant.data.model.Direction
 import com.expenseassistant.data.model.TransactionEntity
 import com.expenseassistant.data.repo.CustomCategoryOption
+import com.expenseassistant.ui.budget.BudgetOverviewCard
 import com.expenseassistant.ui.category.CategoryBadge
 import com.expenseassistant.ui.category.CategoryDot
 import com.expenseassistant.ui.category.CategoryPickerSheet
 import com.expenseassistant.ui.category.displayCategoryName
+import com.expenseassistant.ui.insights.AnalyticsUiState
+import com.expenseassistant.ui.insights.CategoryPieChart
+import com.expenseassistant.ui.insights.PieSlice
 
 @OptIn(ExperimentalFoundationApi::class)
 
@@ -54,6 +60,7 @@ fun HomeScreen(
     customCategories: List<CustomCategoryOption> = emptyList(),
     summaryScope: SummaryScope = SummaryScope.MONTH,
     onSummaryScopeChange: (SummaryScope) -> Unit = {},
+    budgetState: AnalyticsUiState? = null,
     onOpenCategory: (Category) -> Unit = {},
     onDelete: (Long) -> Unit,
     onOpenTransaction: (Long) -> Unit,
@@ -89,12 +96,17 @@ fun HomeScreen(
             item {
                 PermissionsCard(notificationAccessGranted)
             }
-            item { SectionHeader("Income & Expenditure") }
+            item { SectionHeader("Income & Expenditure", topPadding = 0.dp) }
             item { SummaryCard(state, summaryScope, onSummaryScopeChange, onOpenNeedsReview) }
 
             if (state.spendByCategory.isNotEmpty()) {
                 item { SectionHeader("Where it went") }
                 item { CategoryBreakdown(state.spendByCategory, onOpenCategory) }
+            }
+
+            budgetState?.let { monthlyBudget ->
+                item { SectionHeader("Budget overview") }
+                item { BudgetOverviewCard(monthlyBudget.overallBudget, monthlyBudget.categoryBudgets) }
             }
         }
 
@@ -151,12 +163,12 @@ fun HomeScreen(
 }
 
 @Composable
-private fun SectionHeader(title: String) {
+private fun SectionHeader(title: String, topPadding: androidx.compose.ui.unit.Dp = 4.dp) {
     Text(
         title,
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(top = 4.dp),
+        modifier = Modifier.padding(top = topPadding),
     )
 }
 
@@ -392,6 +404,15 @@ private fun CategoryBreakdown(
     breakdown: List<Pair<Category, Long>>,
     onOpenCategory: (Category) -> Unit,
 ) {
+    val totalMinor = breakdown.sumOf { it.second }
+    val slices = breakdown.map { (category, amountMinor) ->
+        PieSlice(
+            category = category,
+            amountMinor = amountMinor,
+            fraction = amountMinor.toFloat() / totalMinor.coerceAtLeast(1L),
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -401,6 +422,16 @@ private fun CategoryBreakdown(
             Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                CategoryPieChart(
+                    slices = slices,
+                    totalMinor = totalMinor,
+                    modifier = Modifier.widthIn(max = 260.dp),
+                )
+            }
             breakdown.take(6).forEach { (category, amount) ->
                 Row(
                     Modifier

@@ -117,6 +117,17 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         .map { it.toAnalytics() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AnalyticsUiState())
 
+    private val monthlyBudgetSelection = PeriodSelection.now(AnalyticsRange.MONTH)
+
+    val monthlyBudgetAnalytics: StateFlow<AnalyticsUiState> = combine(
+        repository.observeBetween(
+            Periods.previousStart(monthlyBudgetSelection),
+            Periods.endExclusive(monthlyBudgetSelection),
+        ),
+        budgetRepository.observeBudgets(),
+    ) { transactions, budgets -> PeriodSnapshot(monthlyBudgetSelection, transactions, budgets).toAnalytics() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AnalyticsUiState(selection = monthlyBudgetSelection))
+
     val recurring: StateFlow<List<RecurringExpense>> =
         repository.observeSince(sixMonthsAgo())
             .map { RecurringDetector.detect(it) }
