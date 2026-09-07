@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+
+        <!--
+          Direct-distribution only. Reads on-screen payment confirmations from a fixed list of
+          UPI apps when they complete a payment without posting a notification. Google Play
+          restricts the Accessibility API to accessibility purposes, so this service is not
+          part of the Play build - see app/src/play/.
+        -->
+        <service
+            android:name=".service.PaymentScreenAccessibilityService"
+            android:exported="false"
+            android:label="@string/accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+    </application>
+
+</manifest>

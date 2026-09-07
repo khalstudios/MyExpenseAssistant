@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Savings
@@ -63,13 +64,19 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expenseassistant.data.prefs.UserProfile
 import com.expenseassistant.data.prefs.BackupInterval
 import com.expenseassistant.service.PermissionStatus
+import com.expenseassistant.service.ScreenCapture
 import com.expenseassistant.ui.CardElevation
+import com.expenseassistant.ui.DisclosureDialog
+import com.expenseassistant.ui.Disclosures
 import com.expenseassistant.ui.formatMinor
 import com.expenseassistant.ui.formatTimestamp
 import com.expenseassistant.ui.rememberHeroGradient
 import com.expenseassistant.ui.rememberSoftGradient
 import com.expenseassistant.ui.toMinorUnits
 import kotlinx.coroutines.launch
+
+/** The sensitive-access grants offered in the Capture section, each behind a disclosure. */
+private enum class CaptureAccess { NOTIFICATIONS, SCREEN_READING, CONTACTS }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,6 +97,8 @@ fun AccountScreen(
     val scrollState = rememberScrollState()
 
     var editingProfile by remember { mutableStateOf(false) }
+    var pendingDisclosure by remember { mutableStateOf<CaptureAccess?>(null) }
+    var showPrivacy by remember { mutableStateOf(false) }
     var confirmingClear by remember { mutableStateOf(false) }
     var restoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var configuringAutoBackup by remember { mutableStateOf(false) }
@@ -192,19 +201,21 @@ fun AccountScreen(
                     icon = Icons.Filled.Notifications,
                     title = "Notification access",
                     subtitle = if (notificationAccess) "Enabled" else "Disabled",
-                    onClick = { runCatching { context.startActivity(PermissionStatus.notificationAccessIntent()) } },
+                    onClick = { pendingDisclosure = CaptureAccess.NOTIFICATIONS },
                 )
-                SettingRow(
-                    icon = Icons.Filled.Accessibility,
-                    title = "Screen reading",
-                    subtitle = if (accessibility) "Enabled" else "Disabled",
-                    onClick = { runCatching { context.startActivity(PermissionStatus.accessibilityIntent()) } },
-                )
+                if (ScreenCapture.AVAILABLE) {
+                    SettingRow(
+                        icon = Icons.Filled.Accessibility,
+                        title = "Screen reading",
+                        subtitle = if (accessibility) "Enabled" else "Disabled",
+                        onClick = { pendingDisclosure = CaptureAccess.SCREEN_READING },
+                    )
+                }
                 SettingRow(
                     icon = Icons.Filled.Contacts,
                     title = "Contact names",
                     subtitle = if (contactsAccess) "Enabled" else "Match payments to your phone contacts",
-                    onClick = { contactsLauncher.launch(android.Manifest.permission.READ_CONTACTS) },
+                    onClick = { pendingDisclosure = CaptureAccess.CONTACTS },
                 )
             }
 
@@ -255,10 +266,45 @@ fun AccountScreen(
                     subtitle = "Cannot be undone",
                     onClick = { confirmingClear = true },
                 )
+                SettingRow(
+                    icon = Icons.Filled.PrivacyTip,
+                    title = "Privacy",
+                    subtitle = "What is read, what is stored, and what never leaves this phone",
+                    actionLabel = "Read",
+                    onClick = { showPrivacy = true },
+                )
             }
         }
 
         SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+
+    // Every sensitive access is disclosed in-app before the system grant screen is opened.
+    pendingDisclosure?.let { access ->
+        val disclosure = when (access) {
+            CaptureAccess.NOTIFICATIONS -> Disclosures.Notifications
+            CaptureAccess.SCREEN_READING -> Disclosures.ScreenReading
+            CaptureAccess.CONTACTS -> Disclosures.Contacts
+        }
+        DisclosureDialog(
+            disclosure = disclosure,
+            onDismiss = { pendingDisclosure = null },
+            onAccept = {
+                pendingDisclosure = null
+                when (access) {
+                    CaptureAccess.NOTIFICATIONS ->
+                        runCatching { context.startActivity(PermissionStatus.notificationAccessIntent()) }
+                    CaptureAccess.SCREEN_READING ->
+                        runCatching { context.startActivity(PermissionStatus.accessibilityIntent()) }
+                    CaptureAccess.CONTACTS ->
+                        contactsLauncher.launch(android.Manifest.permission.READ_CONTACTS)
+                }
+            },
+        )
+    }
+
+    if (showPrivacy) {
+        PrivacyDialog(onDismiss = { showPrivacy = false })
     }
 
     if (editingProfile) {

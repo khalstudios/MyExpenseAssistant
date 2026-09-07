@@ -25,12 +25,13 @@ object PermissionStatus {
         }
     }
 
+    /** Always false where on-screen capture is not part of the build; see [ScreenCapture]. */
     fun isAccessibilityGranted(context: Context): Boolean {
+        val component = ScreenCapture.component(context) ?: return false
         val enabled = Settings.Secure.getString(
             context.contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
         ) ?: return false
-        val component = ComponentName(context, PaymentScreenAccessibilityService::class.java)
         val splitter = TextUtils.SimpleStringSplitter(':').apply { setString(enabled) }
         return splitter.any { ComponentName.unflattenFromString(it)?.equals(component) == true }
     }

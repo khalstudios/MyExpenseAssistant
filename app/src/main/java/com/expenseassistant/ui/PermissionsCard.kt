@@ -12,6 +12,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -25,6 +29,7 @@ fun PermissionsCard(
 ) {
     if (notificationAccessGranted) return
     val context = LocalContext.current
+    var showDisclosure by remember { mutableStateOf(false) }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -35,8 +40,20 @@ fun PermissionsCard(
             PermissionRow(
                 title = "Notification access",
                 description = "Required to read payment confirmations from GPay, PhonePe and Paytm.",
-            ) { context.openSettings(PermissionStatus.notificationAccessIntent()) }
+            ) { showDisclosure = true }
         }
+    }
+
+    // Consent is asked for here, before the user reaches the system screen that grants it.
+    if (showDisclosure) {
+        DisclosureDialog(
+            disclosure = Disclosures.Notifications,
+            onAccept = {
+                showDisclosure = false
+                context.openSettings(PermissionStatus.notificationAccessIntent())
+            },
+            onDismiss = { showDisclosure = false },
+        )
     }
 }
 
