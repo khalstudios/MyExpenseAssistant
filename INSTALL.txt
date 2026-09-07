@@ -1,0 +1,68 @@
+EXPENSE ASSISTANT - TEST BUILD INSTALL
+Android 8.0 or newer. Takes about 3 minutes.
+
+Android blocks this app the first time. That is expected: the app reads
+payment notifications, and Play Protect blocks any app installed outside
+the Play Store that asks for that. There is no "install anyway" button,
+so you switch the scan off for a minute and back on.
+
+
+1. TURN THE SCAN OFF
+   Play Store > your profile picture > Play Protect > gear icon >
+   "Scan apps with Play Protect" > OFF > confirm
+
+2. INSTALL
+   Open the .apk file > Install
+   If it says the app can't install apps, allow it on the screen it
+   offers, then go back and tap Install again.
+   Already have an older Expense Assistant? Uninstall it first.
+
+3. TURN THE SCAN BACK ON   <-- please don't skip this
+   Same path as step 1 > ON
+
+4. UNLOCK RESTRICTED SETTINGS   (Android 13 and newer)
+   Settings > Apps > Expense Assistant > 3-dot menu, top right >
+   "Allow restricted settings"
+   Not in the menu? Your Android doesn't need it. Go to step 5.
+
+5. GIVE IT NOTIFICATION ACCESS
+   Open the app > "Finish setup" card > Enable > Continue >
+   switch on Expense Assistant in the list Android shows
+
+Skip 4 or 5 and the app records nothing and looks broken.
+
+
+CHECK IT WORKS
+Pay for something small over UPI. It should appear on the home screen
+within a second or two.
+
+WHAT TO TRY
+- Are amount, payee and category right?
+- Long-press a transaction to fix its category. It remembers that
+  merchant next time.
+- Add a cash payment with the + button.
+- Set a budget, then watch the Budget tab.
+- Profile > Your data: CSV export, backup, automatic backups.
+- The ? button, top right, replays the tutorial.
+
+NOT IN THIS BUILD
+Reading payment confirmation screens. This build captures from
+notifications only, so a payment app that finishes without posting a
+notification will be missed. Expected - just note it.
+
+GOOD TO KNOW
+- The app has no internet permission. Your transactions, contacts and
+  notifications cannot leave the phone.
+- No ads, no analytics. Uninstalling deletes everything it stored.
+- Your build number is in Profile. Quote it when reporting a bug.
+
+TROUBLE
+- "App blocked to protect your device", only an OK button:
+  step 1 didn't take. Check the toggle is really off, install again.
+- "App not installed": an older build is still there. Uninstall it.
+  That erases whatever it had recorded.
+- Notification toggle greyed out: that's step 4.
+- Installed but recording nothing: that's step 5. Profile > Capture
+  should say "Enabled".
+
+Anything else: send a screenshot, your phone model and Android version.
