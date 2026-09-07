@@ -1,5 +1,6 @@
 package com.expenseassistant.ui.insights
 
+import android.graphics.Paint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -9,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -21,13 +22,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.expenseassistant.data.model.Category
 import com.expenseassistant.data.model.Direction
 import com.expenseassistant.ui.CardElevation
+import com.expenseassistant.ui.category.color
 import com.expenseassistant.ui.formatMinor
 import com.expenseassistant.ui.rememberSoftGradient
 import java.text.SimpleDateFormat
@@ -35,7 +42,13 @@ import java.util.Calendar
 import java.util.Locale
 import kotlin.math.max
 
-private data class TrendBucket(val label: String, val spendMinor: Long)
+private data class TrendBucket(val label: String, val spendMinor: Long, val categorySpendMinor: Map<Category, Long>)
+
+private data class TrendSeries(
+    val color: Color,
+    val valuesMinor: List<Long>,
+    val finalLabel: String,
+)
 
 @Composable
 fun SpendingTrendsCard(state: AnalyticsUiState, modifier: Modifier = Modifier) {
@@ -55,7 +68,7 @@ fun SpendingTrendsCard(state: AnalyticsUiState, modifier: Modifier = Modifier) {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Filled.ShowChart,
+                    imageVector = Icons.AutoMirrored.Filled.ShowChart,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )
@@ -76,6 +89,12 @@ fun SpendingTrendsCard(state: AnalyticsUiState, modifier: Modifier = Modifier) {
                 TrendSectionHeader("Cumulative spend", formatMinor(totalSpend))
                 CumulativeSpendChart(buckets)
                 TrendAxisLabels(buckets)
+                val categorySeries = buckets.categoryTrendSeries()
+                if (categorySeries.size > 1) {
+                    TrendSectionHeader("Category momentum", "Top categories")
+                    CategoryMomentumChart(categorySeries)
+                    TrendAxisLabels(buckets)
+                }
                 TrendSectionHeader("${state.range.label}-wise spending", "Avg. ${formatMinor(totalSpend / buckets.size)}")
                 PeriodSpendBars(buckets)
                 TrendAxisLabels(buckets)
@@ -97,6 +116,74 @@ private fun TrendSectionHeader(label: String, value: String) {
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+private fun CategoryMomentumChart(series: List<TrendSeries>) {
+    val grid = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+    val axis = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val maximum = max(series.maxOfOrNull { it.valuesMinor.maxOrNull() ?: 0L } ?: 0L, 1L).toFloat()
+
+    Canvas(Modifier.fillMaxWidth().height(190.dp)) {
+        val leftPadding = 42.dp.toPx()
+        val rightPadding = 88.dp.toPx()
+        val topPadding = 12.dp.toPx()
+        val bottomPadding = 26.dp.toPx()
+        val chartWidth = size.width - leftPadding - rightPadding
+        val chartHeight = size.height - topPadding - bottomPadding
+        val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 11.sp.toPx()
+            color = labelColor.toArgb()
+        }
+
+        repeat(4) { index ->
+            val y = topPadding + chartHeight * index / 3f
+            drawLine(
+                color = grid,
+                start = Offset(leftPadding, y),
+                end = Offset(leftPadding + chartWidth, y),
+                strokeWidth = 1.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 6.dp.toPx())),
+            )
+            val value = maximum * (1f - index / 3f)
+            drawContext.canvas.nativeCanvas.drawText(
+                formatMinor(value.toLong()),
+                0f,
+                y + 4.dp.toPx(),
+                labelPaint,
+            )
+        }
+
+        drawLine(axis, Offset(leftPadding, topPadding), Offset(leftPadding, topPadding + chartHeight), strokeWidth = 1.5.dp.toPx())
+        drawLine(axis, Offset(leftPadding, topPadding + chartHeight), Offset(leftPadding + chartWidth, topPadding + chartHeight), strokeWidth = 1.5.dp.toPx())
+
+        series.forEach { trend ->
+            val path = Path()
+            trend.valuesMinor.forEachIndexed { index, amount ->
+                val x = leftPadding + chartWidth * index / (trend.valuesMinor.size - 1).coerceAtLeast(1)
+                val y = topPadding + chartHeight * (1f - amount / maximum)
+                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(path = path, color = trend.color.copy(alpha = 0.28f), style = Stroke(width = 7.dp.toPx()))
+            drawPath(path = path, color = trend.color, style = Stroke(width = 3.dp.toPx()))
+            trend.valuesMinor.forEachIndexed { index, amount ->
+                val x = leftPadding + chartWidth * index / (trend.valuesMinor.size - 1).coerceAtLeast(1)
+                val y = topPadding + chartHeight * (1f - amount / maximum)
+                drawCircle(trend.color, radius = 3.2.dp.toPx(), center = Offset(x, y))
+            }
+
+            val lastValue = trend.valuesMinor.lastOrNull() ?: 0L
+            val labelY = topPadding + chartHeight * (1f - lastValue / maximum)
+            labelPaint.color = trend.color.toArgb()
+            drawContext.canvas.nativeCanvas.drawText(
+                trend.finalLabel,
+                leftPadding + chartWidth + 10.dp.toPx(),
+                labelY + 4.dp.toPx(),
+                labelPaint,
+            )
+        }
     }
 }
 
@@ -230,13 +317,52 @@ private fun AnalyticsUiState.spendingTrendBuckets(): List<TrendBucket> {
                 AnalyticsRange.YEAR -> add(Calendar.MONTH, 1)
             }
         }
+        val periodTransactions = transactions
+            .asSequence()
+            .filter { it.direction == Direction.DEBIT }
+            .filter { it.occurredAt >= bucketStart.timeInMillis && it.occurredAt < bucketEnd.timeInMillis }
+            .toList()
         TrendBucket(
             label = labelFormat.format(bucketStart.time),
-            spendMinor = transactions
-                .asSequence()
-                .filter { it.direction == Direction.DEBIT }
-                .filter { it.occurredAt >= bucketStart.timeInMillis && it.occurredAt < bucketEnd.timeInMillis }
-                .sumOf { it.amountMinor },
+            spendMinor = periodTransactions.sumOf { it.amountMinor },
+            categorySpendMinor = periodTransactions
+                .groupBy { it.category }
+                .mapValues { (_, transactions) -> transactions.sumOf { it.amountMinor } },
         )
+    }
+}
+
+private fun List<TrendBucket>.categoryTrendSeries(): List<TrendSeries> {
+    val topCategories = flatMap { bucket -> bucket.categorySpendMinor.entries }
+        .groupBy({ it.key }, { it.value })
+        .mapValues { (_, amounts) -> amounts.sum() }
+        .toList()
+        .sortedByDescending { it.second }
+        .take(4)
+        .map { it.first }
+
+    if (topCategories.isEmpty()) return emptyList()
+
+    val categorySeries = topCategories.map { category ->
+        val cumulative = runningAmounts { bucket -> bucket.categorySpendMinor[category] ?: 0L }
+        TrendSeries(
+            color = category.color,
+            valuesMinor = cumulative,
+            finalLabel = "${category.displayName.take(10)} ${formatMinor(cumulative.last())}",
+        )
+    }
+    val allCumulative = runningAmounts { it.spendMinor }
+    return categorySeries + TrendSeries(
+        color = Color(0xFF9E9E9E),
+        valuesMinor = allCumulative,
+        finalLabel = "All ${formatMinor(allCumulative.last())}",
+    )
+}
+
+private fun List<TrendBucket>.runningAmounts(valueForBucket: (TrendBucket) -> Long): List<Long> {
+    var total = 0L
+    return map { bucket ->
+        total += valueForBucket(bucket)
+        total
     }
 }

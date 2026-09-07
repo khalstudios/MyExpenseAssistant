@@ -13,6 +13,9 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -58,6 +61,7 @@ import com.expenseassistant.ui.add.AddTransactionScreen
 import com.expenseassistant.ui.budget.BudgetBreakdownScreen
 import com.expenseassistant.ui.budget.BudgetScreen
 import com.expenseassistant.ui.detail.TransactionDetailScreen
+import com.expenseassistant.ui.history.AllTransactionsScreen
 import com.expenseassistant.ui.insights.InsightsScreen
 import com.expenseassistant.ui.tag.TagScreen
 import com.expenseassistant.ui.category.CategoryScreen
@@ -71,7 +75,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AppTheme {
-                Surface {
+                Surface(color = MaterialTheme.colorScheme.background) {
                     val context = LocalContext.current
                     val iconStore = remember { ServiceLocator.categoryIconStore(context) }
                     val iconOverrides by iconStore.overrides.collectAsStateWithLifecycle()
@@ -94,6 +98,7 @@ private sealed interface Route {
     data class CategoryTransactions(val category: Category) : Route
     data class TagTransactions(val tag: String) : Route
     data object NeedsReview : Route
+    data object AllTransactions : Route
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -109,6 +114,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     val customCategories by viewModel.customCategories.collectAsStateWithLifecycle()
     val summaryScope by viewModel.summaryScope.collectAsStateWithLifecycle()
     val needsReview by viewModel.needsReviewTransactions.collectAsStateWithLifecycle()
+    val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var tab by remember { mutableStateOf(Tab.HOME) }
@@ -116,10 +122,24 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
 
     var notificationAccess by remember { mutableStateOf(PermissionStatus.isNotificationAccessGranted(context)) }
 
+    val userPreferences = remember { ServiceLocator.userPreferences(context) }
+    var showBackupNotice by remember {
+        mutableStateOf(userPreferences.autoBackupSettings() == null && !userPreferences.isBackupNoticeDismissed())
+    }
+    var openAutoBackupSetup by remember { mutableStateOf(false) }
+
     // Re-check after the user returns from system settings.
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             notificationAccess = PermissionStatus.isNotificationAccessGranted(context)
+            showBackupNotice = userPreferences.autoBackupSettings() == null && !userPreferences.isBackupNoticeDismissed()
+        }
+    }
+
+    // Re-check after the user sets up backups from the Profile tab and comes back.
+    LaunchedEffect(tab) {
+        if (tab == Tab.HOME) {
+            showBackupNotice = userPreferences.autoBackupSettings() == null && !userPreferences.isBackupNoticeDismissed()
         }
     }
 
@@ -171,7 +191,12 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         is Route.Detail -> {
             // Looked up straight from the database so transactions outside the visible period still open.
             val transactionFlow = remember(current.id) { viewModel.observeTransaction(current.id) }
-            val transaction by transactionFlow.collectAsStateWithLifecycle(initialValue = null)
+            // Seeded from the already-loaded list so the first frame isn't blank while Room emits.
+            val seed = remember(current.id, allTransactions, recentState) {
+                allTransactions.firstOrNull { it.id == current.id }
+                    ?: recentState.transactions.firstOrNull { it.id == current.id }
+            }
+            val transaction by transactionFlow.collectAsStateWithLifecycle(initialValue = seed)
             transaction?.let { detail ->
                 TransactionDetailScreen(
                     transaction = detail,
@@ -185,8 +210,11 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     tagSuggestions = tagSuggestions,
                     onOpenTag = { tag -> route = Route.TagTransactions(tag) },
                 )
-            }
-            // Nothing to fall through to while the row loads, or if it was just deleted.
+            } ?: Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+            )
             return
         }
 
@@ -235,6 +263,19 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     onOpenTransaction = { id -> route = Route.Detail(id) },
                 )
             }
+            return
+        }
+
+        Route.AllTransactions -> {
+            AllTransactionsScreen(
+                transactions = allTransactions,
+                onBack = { route = Route.Main },
+                onOpenTransaction = { id -> route = Route.Detail(id) },
+                onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
+                onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
+                customCategories = customCategories,
+                onDelete = { id -> viewModel.delete(id) },
+            )
             return
         }
 
@@ -309,6 +350,15 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
             Tab.HOME -> HomeScreen(
                 state = recentState,
                 notificationAccessGranted = notificationAccess,
+                showBackupNotice = showBackupNotice,
+                onEnableBackup = {
+                    openAutoBackupSetup = true
+                    tab = Tab.PROFILE
+                },
+                onDismissBackupNotice = {
+                    userPreferences.dismissBackupNotice()
+                    showBackupNotice = false
+                },
                 onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
                 onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
                 customCategories = customCategories,
@@ -316,6 +366,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 onSummaryScopeChange = viewModel::setSummaryScope,
                 budgetState = monthlyBudgetAnalytics,
                 onOpenNeedsReview = { route = Route.NeedsReview },
+                onOpenAllTransactions = { route = Route.AllTransactions },
                 onDelete = { id -> viewModel.delete(id) },
                 onOpenTransaction = { id -> route = Route.Detail(id) },
                 modifier = Modifier.padding(padding),
@@ -345,6 +396,8 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
             Tab.PROFILE -> AccountScreen(
                 onOpenBudgets = { route = Route.Budgets },
                 onOpenNeedsReview = { route = Route.NeedsReview },
+                openAutoBackupSetup = openAutoBackupSetup,
+                onAutoBackupSetupHandled = { openAutoBackupSetup = false },
                 modifier = Modifier.padding(padding),
             )
         }

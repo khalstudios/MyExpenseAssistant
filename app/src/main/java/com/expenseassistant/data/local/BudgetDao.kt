@@ -13,6 +13,9 @@ interface BudgetDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(budget: BudgetEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(budgets: List<BudgetEntity>)
+
     @Query("DELETE FROM budgets WHERE categoryKey = :key")
     suspend fun delete(key: String)
 

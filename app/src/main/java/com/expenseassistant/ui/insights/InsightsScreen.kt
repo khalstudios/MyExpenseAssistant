@@ -80,7 +80,7 @@ fun InsightsScreen(
                 onResetToCurrent = onResetToCurrent,
             )
         }
-        item { SpendChartCard(state) }
+        item { SpendChartCard(state, onOpenCategory) }
         if (state.slices.isNotEmpty()) {
             item { CategoryListCard(state, onOpenCategory) }
         }
@@ -206,7 +206,7 @@ private fun TagSpendBarChart(tags: List<TagUsage>, onOpenTag: (String) -> Unit) 
 }
 
 @Composable
-private fun SpendChartCard(state: AnalyticsUiState) {
+private fun SpendChartCard(state: AnalyticsUiState, onOpenCategory: (Category) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
@@ -230,7 +230,11 @@ private fun SpendChartCard(state: AnalyticsUiState) {
             if (state.slices.isEmpty()) {
                 EmptyChartPlaceholder()
             } else {
-                CategoryPieChart(slices = state.slices, totalMinor = state.totalSpendMinor)
+                CategoryRankedBarChart(
+                    slices = state.slices,
+                    totalMinor = state.totalSpendMinor,
+                    onOpenCategory = onOpenCategory,
+                )
             }
         }
     }
@@ -264,6 +268,7 @@ private fun CategoryListCard(state: AnalyticsUiState, onOpenCategory: (Category)
                     style = MaterialTheme.typography.titleSmall,
                 )
             }
+            CategoryPieChart(slices = state.slices, totalMinor = state.totalSpendMinor)
             HorizontalDivider()
             CategorySpendList(state.slices, onOpenCategory)
         }

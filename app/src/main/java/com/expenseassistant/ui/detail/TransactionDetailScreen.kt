@@ -1,11 +1,6 @@
 package com.expenseassistant.ui.detail
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -167,33 +162,27 @@ fun TransactionDetailScreen(
             )
         },
         floatingActionButton = {
-            AnimatedVisibility(
-                visible = isDirty,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut(),
+            FloatingActionButton(
+                onClick = {
+                    if (isValid) {
+                        onSave(edits)
+                        onBack()
+                    }
+                },
+                containerColor = if (isValid) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+                contentColor = if (isValid) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
             ) {
-                FloatingActionButton(
-                    onClick = {
-                        if (isValid) {
-                            onSave(edits)
-                            onBack()
-                        }
-                    },
-                    containerColor = if (isValid) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                    contentColor = if (isValid) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                ) {
-                    Icon(Icons.Filled.Save, contentDescription = "Save changes")
-                }
+                Icon(Icons.Filled.Save, contentDescription = "Save changes")
             }
-        },
+                }
     ) { padding ->
         Column(
             Modifier
@@ -218,6 +207,7 @@ fun TransactionDetailScreen(
                 onPickDate = { pickingDate = true },
                 onPickTime = { pickingTime = true },
             )
+            NotesCard(description) { description = it }
             PaymentModeAndTagsCard(
                 paymentMode = paymentMode,
                 onPaymentModeChange = { paymentMode = it },
@@ -226,7 +216,6 @@ fun TransactionDetailScreen(
                 onTagsChange = { tags = it },
                 onOpenTag = { tag -> leave { onOpenTag(tag) } },
             )
-            NotesCard(description) { description = it }
             MetadataCard(transaction)
             // Keeps the last card clear of the floating save button.
             Spacer(Modifier.height(72.dp))

@@ -57,9 +57,15 @@ Automatic capture stores every completed payment notification it can parse, even
 
 In **Account** under **Capture**, enable *Contact names* to let the app match the merchant name parsed from newly captured payments to a similar phone-contact name. The app does not inspect phone numbers in notifications or screen captures. A contact name is used only when it is the clear match; it becomes the transaction merchant while the original parsed counterparty is retained in Notes. Each result, including no match, is cached locally by merchant name so the phone contacts provider is not queried again for repeat payments. Contact access is optional and contact data is only read on-device during the first lookup.
 
+### Backups
+
+In **Account** under **Your data**, select **Back up your data** and choose Google Drive (or another storage provider) in Android's file picker. The backup contains your transactions, budgets, learned merchant categories, profile, and category icon choices. **Restore from backup** replaces those items currently stored on the device, so make a current backup first when needed.
+
+You can also enable **Automatic backups** once, choose either every 15 days or monthly, then select a Google Drive folder. The app retains access only to that selected folder and creates future dated backup files there without asking again. Android may delay scheduled work for battery, storage, or connectivity reasons, so backups run approximately at the selected interval. Turn off automatic backups at any time from Account. The app does not store Google account credentials.
+
 ## Privacy
 
-- No internet permission is declared — data cannot leave the device.
+- No internet permission is declared. Data leaves the device only when you explicitly save a backup or CSV through Android's document picker, such as to Google Drive.
 - Only packages listed in [PaymentApps.kt](app/src/main/java/com/expenseassistant/parser/PaymentApps.kt) are read; every other notification is discarded before parsing.
 - The accessibility service is scoped via `android:packageNames` to four UPI apps and only acts on screens containing success wording.
 - Contacts are accessed only after the user enables the optional *Contact names* permission in Account.

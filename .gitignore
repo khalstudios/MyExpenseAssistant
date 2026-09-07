@@ -12,3 +12,5 @@ local.properties
 
 # Hand-copied build outputs for sideloading
 *.apk
+
+.kotlin/

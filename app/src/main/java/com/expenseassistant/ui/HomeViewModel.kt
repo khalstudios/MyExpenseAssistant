@@ -108,6 +108,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     fun observeTransaction(id: Long) = repository.observeById(id)
 
+    /** Complete history for the "See more" screen, independent of the home summary scope. */
+    val allTransactions: StateFlow<List<TransactionEntity>> = repository.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     /** Every low-confidence transaction, regardless of period, for the "needs a category" screen. */
     val needsReviewTransactions: StateFlow<List<TransactionEntity>> = repository.observeAll()
         .map { transactions -> transactions.filter { it.needsCategoryReview } }

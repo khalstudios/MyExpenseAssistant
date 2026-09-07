@@ -24,6 +24,13 @@ class CategoryIconStore(context: Context) {
         _overrides.value = _overrides.value - categoryKey
     }
 
+    fun replaceAll(overrides: Map<String, String>) {
+        prefs.edit().clear().apply {
+            overrides.forEach { (categoryKey, iconKey) -> putString(categoryKey, iconKey) }
+        }.apply()
+        _overrides.value = overrides
+    }
+
     private fun loadAll(): Map<String, String> =
         prefs.all.mapNotNull { (key, value) -> (value as? String)?.let { key to it } }.toMap()
 }

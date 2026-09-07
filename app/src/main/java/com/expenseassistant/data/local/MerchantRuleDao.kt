@@ -12,6 +12,9 @@ interface MerchantRuleDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(rule: MerchantRule)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(rules: List<MerchantRule>)
+
     @Query("SELECT * FROM merchant_rules WHERE merchantKey = :key LIMIT 1")
     suspend fun find(key: String): MerchantRule?
 

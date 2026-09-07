@@ -49,12 +49,17 @@ import com.expenseassistant.ui.insights.AnalyticsUiState
 import com.expenseassistant.ui.insights.CategoryPieChart
 import com.expenseassistant.ui.insights.PieSlice
 
+private const val MillisPerDay = 24L * 60 * 60 * 1000
+
 @OptIn(ExperimentalFoundationApi::class)
 
 @Composable
 fun HomeScreen(
     state: HomeUiState,
     notificationAccessGranted: Boolean,
+    showBackupNotice: Boolean = false,
+    onEnableBackup: () -> Unit = {},
+    onDismissBackupNotice: () -> Unit = {},
     onCategoryChange: (Long, Category) -> Unit,
     onCategoryChangeCustom: (Long, String, String, String) -> Unit = { _, _, _, _ -> },
     customCategories: List<CustomCategoryOption> = emptyList(),
@@ -68,6 +73,7 @@ fun HomeScreen(
     tagFilter: String? = null,
     needsReviewFilter: Boolean = false,
     onOpenNeedsReview: () -> Unit = {},
+    onOpenAllTransactions: () -> Unit = {},
     onClearFilter: () -> Unit = {},
     transactionOverride: List<TransactionEntity>? = null,
     modifier: Modifier = Modifier,
@@ -87,6 +93,11 @@ fun HomeScreen(
         .toList()
         .sortedByDescending { it.first }
 
+    // The home feed only shows today plus the two previous days; everything else lives behind "See more".
+    val recentOnly = !hasFilter && transactionOverride == null
+    val recentCutoff = startOfDay(System.currentTimeMillis() - 2 * MillisPerDay)
+    val shownDays = if (recentOnly) days.filter { it.first >= recentCutoff } else days
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -95,6 +106,11 @@ fun HomeScreen(
         if (!hasFilter && transactionOverride == null) {
             item {
                 PermissionsCard(notificationAccessGranted)
+            }
+            if (showBackupNotice) {
+                item {
+                    BackupNoticeCard(onEnable = onEnableBackup, onDismiss = onDismissBackupNotice)
+                }
             }
             item { SectionHeader("Income & Expenditure", topPadding = 0.dp) }
             item { SummaryCard(state, summaryScope, onSummaryScopeChange, onOpenNeedsReview) }
@@ -114,17 +130,21 @@ fun HomeScreen(
             SectionHeader(if (filterLabel == null) "Latest activity" else "$filterLabel activity")
         }
 
-        if (visible.isEmpty()) {
+        if (shownDays.isEmpty()) {
             item {
                 Text(
-                    if (filterLabel == null) "No transactions this month." else "No transactions found.",
+                    when {
+                        filterLabel != null -> "No transactions found."
+                        recentOnly -> "No transactions in the last 3 days."
+                        else -> "No transactions this month."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
 
-        items(days, key = { it.first }) { (dayStart, dayTransactions) ->
+        items(shownDays, key = { it.first }) { (dayStart, dayTransactions) ->
             DayGroupCard(
                 dayStart = dayStart,
                 transactions = dayTransactions,
@@ -132,6 +152,14 @@ fun HomeScreen(
                 onEditCategory = { editing = it },
                 onDelete = onDelete,
             )
+        }
+
+        if (recentOnly) {
+            item {
+                TextButton(onClick = onOpenAllTransactions, modifier = Modifier.fillMaxWidth()) {
+                    Text("See more")
+                }
+            }
         }
 
         if (hasFilter) {

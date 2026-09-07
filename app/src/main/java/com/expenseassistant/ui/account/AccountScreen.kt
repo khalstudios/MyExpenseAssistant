@@ -18,12 +18,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Accessibility
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.RateReview
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -33,6 +35,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -58,6 +61,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expenseassistant.data.prefs.UserProfile
+import com.expenseassistant.data.prefs.BackupInterval
 import com.expenseassistant.service.PermissionStatus
 import com.expenseassistant.ui.CardElevation
 import com.expenseassistant.ui.formatMinor
@@ -73,16 +77,23 @@ fun AccountScreen(
     modifier: Modifier = Modifier,
     onOpenBudgets: () -> Unit = {},
     onOpenNeedsReview: () -> Unit = {},
+    openAutoBackupSetup: Boolean = false,
+    onAutoBackupSetupHandled: () -> Unit = {},
     viewModel: AccountViewModel = viewModel(factory = AccountViewModel.Factory),
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val count by viewModel.transactionCount.collectAsStateWithLifecycle()
     val earliest by viewModel.earliest.collectAsStateWithLifecycle()
+    val autoBackupSettings by viewModel.autoBackupSettings.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scrollState = rememberScrollState()
 
     var editingProfile by remember { mutableStateOf(false) }
     var confirmingClear by remember { mutableStateOf(false) }
+    var restoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var configuringAutoBackup by remember { mutableStateOf(false) }
+    var selectedBackupInterval by remember { mutableStateOf(BackupInterval.FIFTEEN_DAYS) }
     var notificationAccess by remember { mutableStateOf(PermissionStatus.isNotificationAccessGranted(context)) }
     var accessibility by remember { mutableStateOf(PermissionStatus.isAccessibilityGranted(context)) }
     var contactsAccess by remember { mutableStateOf(PermissionStatus.isContactsAccessGranted(context)) }
@@ -106,6 +117,33 @@ fun AccountScreen(
         }
     }
 
+    val backupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        viewModel.backup(uri) { succeeded ->
+            scope.launch { snackbarHostState.showMessage(if (succeeded) "Backup saved" else "Backup failed") }
+        }
+    }
+
+    val automaticBackupFolderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        viewModel.enableAutoBackup(uri, selectedBackupInterval) { succeeded ->
+            scope.launch {
+                snackbarHostState.showMessage(
+                    if (succeeded) "Automatic backups enabled" else "Could not access that folder"
+                )
+                scrollState.animateScrollTo(scrollState.maxValue)
+            }
+        }
+    }
+
+    val restoreLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> restoreUri = uri }
+
     // System settings can change while we are backgrounded, so re-read on every resume.
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -115,11 +153,20 @@ fun AccountScreen(
         }
     }
 
+    // Arriving here from the home screen's backup notice opens the setup dialog straight away.
+    LaunchedEffect(openAutoBackupSetup) {
+        if (openAutoBackupSetup) {
+            selectedBackupInterval = autoBackupSettings?.interval ?: BackupInterval.FIFTEEN_DAYS
+            configuringAutoBackup = true
+            onAutoBackupSetupHandled()
+        }
+    }
+
     Box(modifier.fillMaxSize()) {
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -173,6 +220,36 @@ fun AccountScreen(
                     onClick = { exportLauncher.launch(viewModel.suggestedFileName()) },
                 )
                 SettingRow(
+                    icon = Icons.Filled.Backup,
+                    title = "Back up your data",
+                    subtitle = "Save transactions, budgets, and settings; choose Google Drive in the picker",
+                    actionLabel = "Back up",
+                    onClick = { backupLauncher.launch(viewModel.suggestedBackupFileName()) },
+                )
+                SettingRow(
+                    icon = Icons.Filled.Backup,
+                    title = "Automatic backups",
+                    subtitle = autoBackupSettings?.let { "${it.interval.label}; backup folder selected" }
+                        ?: "Save a backup every 15 days or monthly",
+                    actionLabel = if (autoBackupSettings == null) "Set up" else "Change",
+                    onClick = {
+                        selectedBackupInterval = autoBackupSettings?.interval ?: BackupInterval.FIFTEEN_DAYS
+                        configuringAutoBackup = true
+                    },
+                )
+                if (autoBackupSettings != null) {
+                    TextButton(onClick = viewModel::disableAutoBackup) {
+                        Text("Turn off automatic backups")
+                    }
+                }
+                SettingRow(
+                    icon = Icons.Filled.Restore,
+                    title = "Restore from backup",
+                    subtitle = "Replace the data currently on this device",
+                    actionLabel = "Restore",
+                    onClick = { restoreLauncher.launch(arrayOf("application/json", "text/json")) },
+                )
+                SettingRow(
                     icon = Icons.Filled.DeleteForever,
                     title = "Delete all transactions",
                     subtitle = "Cannot be undone",
@@ -204,6 +281,77 @@ fun AccountScreen(
             },
         )
     }
+
+    restoreUri?.let { uri ->
+        RestoreBackupDialog(
+            onDismiss = { restoreUri = null },
+            onConfirm = {
+                restoreUri = null
+                viewModel.restore(uri) { succeeded ->
+                    scope.launch {
+                        snackbarHostState.showMessage(
+                            if (succeeded) "Backup restored" else "Restore failed: select an Expense Assistant backup"
+                        )
+                    }
+                }
+            },
+        )
+    }
+
+    if (configuringAutoBackup) {
+        AutoBackupDialog(
+            selectedInterval = selectedBackupInterval,
+            onIntervalSelected = { selectedBackupInterval = it },
+            onDismiss = { configuringAutoBackup = false },
+            onConfirm = {
+                configuringAutoBackup = false
+                automaticBackupFolderLauncher.launch(null)
+            },
+        )
+    }
+}
+
+@Composable
+private fun AutoBackupDialog(
+    selectedInterval: BackupInterval,
+    onIntervalSelected: (BackupInterval) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Set up automatic backups") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Choose how often to create a backup. You will select its folder next.")
+                BackupInterval.entries.forEach { interval ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = selectedInterval == interval,
+                            onClick = { onIntervalSelected(interval) },
+                        )
+                        TextButton(onClick = { onIntervalSelected(interval) }) { Text(interval.label) }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Choose folder") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun RestoreBackupDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Restore this backup?") },
+        text = { Text("This replaces your current transactions, budgets, learned categories, profile, and category icons.") },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Restore") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

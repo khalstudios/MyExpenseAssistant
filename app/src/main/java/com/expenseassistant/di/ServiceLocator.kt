@@ -2,6 +2,7 @@ package com.expenseassistant.di
 
 import android.content.Context
 import com.expenseassistant.categorize.Categorizer
+import com.expenseassistant.data.backup.BackupArchive
 import com.expenseassistant.data.local.AppDatabase
 import com.expenseassistant.data.prefs.CategoryIconStore
 import com.expenseassistant.data.prefs.UserPreferences
@@ -16,6 +17,7 @@ object ServiceLocator {
     @Volatile private var budgets: BudgetRepository? = null
     @Volatile private var preferences: UserPreferences? = null
     @Volatile private var categoryIcons: CategoryIconStore? = null
+    @Volatile private var backupArchive: BackupArchive? = null
 
     fun repository(context: Context): TransactionRepository = repository ?: synchronized(this) {
         repository ?: run {
@@ -44,5 +46,13 @@ object ServiceLocator {
 
     fun categoryIconStore(context: Context): CategoryIconStore = categoryIcons ?: synchronized(this) {
         categoryIcons ?: CategoryIconStore(context).also { categoryIcons = it }
+    }
+
+    fun backupArchive(context: Context): BackupArchive = backupArchive ?: synchronized(this) {
+        backupArchive ?: BackupArchive(
+            database = AppDatabase.get(context),
+            preferences = userPreferences(context),
+            categoryIcons = categoryIconStore(context),
+        ).also { backupArchive = it }
     }
 }

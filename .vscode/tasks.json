@@ -1,0 +1,72 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Verify debug Kotlin compilation",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:compileDebugKotlin",
+				"--no-daemon",
+				"--no-configuration-cache"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Verify debug Kotlin compilation",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:compileDebugKotlin",
+				"--no-daemon",
+				"--no-configuration-cache"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build debug and run unit tests",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:assembleDebug",
+				":app:testDebugUnitTest",
+				"--no-daemon",
+				"--no-configuration-cache"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Verify backup archive compilation",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:compileDebugKotlin",
+				"--no-daemon",
+				"--no-configuration-cache"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build debug and run unit tests",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:assembleDebug",
+				":app:testDebugUnitTest",
+				"--no-daemon",
+				"--no-configuration-cache"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}
