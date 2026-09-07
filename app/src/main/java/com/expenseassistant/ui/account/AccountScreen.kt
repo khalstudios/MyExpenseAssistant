@@ -283,7 +283,8 @@ fun AccountScreen(
     pendingDisclosure?.let { access ->
         val disclosure = when (access) {
             CaptureAccess.NOTIFICATIONS -> Disclosures.Notifications
-            CaptureAccess.SCREEN_READING -> Disclosures.ScreenReading
+            // Null only in builds without on-screen capture, where this row does not exist.
+            CaptureAccess.SCREEN_READING -> Disclosures.ScreenReading ?: return@let
             CaptureAccess.CONTACTS -> Disclosures.Contacts
         }
         DisclosureDialog(
