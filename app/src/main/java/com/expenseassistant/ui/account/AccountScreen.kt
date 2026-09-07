@@ -61,6 +61,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.expenseassistant.BuildConfig
 import com.expenseassistant.data.prefs.UserProfile
 import com.expenseassistant.data.prefs.BackupInterval
 import com.expenseassistant.service.PermissionStatus
@@ -223,6 +224,7 @@ fun AccountScreen(
                 InfoRow("Transactions recorded", count.toString())
                 InfoRow("Tracking since", earliest?.let { formatTimestamp(it) } ?: "No data yet")
                 InfoRow("Stored", "On this device only")
+                InfoRow("App version", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
                 SettingRow(
                     icon = Icons.Filled.Download,
                     title = "Export to CSV",

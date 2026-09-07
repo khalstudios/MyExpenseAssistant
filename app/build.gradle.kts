@@ -75,6 +75,8 @@ android {
 
     buildFeatures {
         compose = true
+        // Surfaces the version in Profile so testers can report which build they are on.
+        buildConfig = true
     }
 
     packaging {
