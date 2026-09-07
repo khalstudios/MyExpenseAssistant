@@ -24,13 +24,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -127,6 +132,8 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         mutableStateOf(userPreferences.autoBackupSettings() == null && !userPreferences.isBackupNoticeDismissed())
     }
     var openAutoBackupSetup by remember { mutableStateOf(false) }
+    var helpMenuOpen by remember { mutableStateOf(false) }
+    var showTutorial by remember { mutableStateOf(false) }
 
     // Re-check after the user returns from system settings.
     LaunchedEffect(lifecycleOwner) {
@@ -144,12 +151,22 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     }
 
     // Budget alerts need runtime permission from Android 13 onwards.
+    var permissionPromptSettled by remember {
+        mutableStateOf(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
+    }
     val postNotifications = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { }
+    ) { permissionPromptSettled = true }
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             postNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    // The walkthrough runs itself once, after the system permission prompt is out of the way.
+    LaunchedEffect(permissionPromptSettled) {
+        if (permissionPromptSettled && !userPreferences.isTutorialSeen()) {
+            showTutorial = true
         }
     }
 
@@ -291,7 +308,24 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text(topBarTitle) })
+            TopAppBar(
+                title = { Text(topBarTitle) },
+                actions = {
+                    IconButton(onClick = { helpMenuOpen = true }) {
+                        Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Help")
+                    }
+                    DropdownMenu(expanded = helpMenuOpen, onDismissRequest = { helpMenuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Tutorial") },
+                            leadingIcon = { Icon(Icons.Filled.School, contentDescription = null) },
+                            onClick = {
+                                helpMenuOpen = false
+                                showTutorial = true
+                            },
+                        )
+                    }
+                },
+            )
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -401,6 +435,15 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 modifier = Modifier.padding(padding),
             )
         }
+    }
+
+    if (showTutorial) {
+        TutorialDialog(
+            onDismiss = {
+                showTutorial = false
+                userPreferences.markTutorialSeen()
+            },
+        )
     }
 }
 

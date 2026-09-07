@@ -62,6 +62,12 @@ class UserPreferences(context: Context) {
         prefs.edit().putBoolean(KEY_BACKUP_NOTICE_DISMISSED, true).apply()
     }
 
+    fun isTutorialSeen(): Boolean = prefs.getBoolean(KEY_TUTORIAL_SEEN, false)
+
+    fun markTutorialSeen() {
+        prefs.edit().putBoolean(KEY_TUTORIAL_SEEN, true).apply()
+    }
+
     private companion object {
         const val KEY_NAME = "name"
         const val KEY_EMAIL = "email"
@@ -69,5 +75,6 @@ class UserPreferences(context: Context) {
         const val KEY_BACKUP_INTERVAL = "backup_interval"
         const val KEY_BACKUP_FOLDER_URI = "backup_folder_uri"
         const val KEY_BACKUP_NOTICE_DISMISSED = "backup_notice_dismissed"
+        const val KEY_TUTORIAL_SEEN = "tutorial_seen"
     }
 }
