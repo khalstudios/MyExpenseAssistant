@@ -29,6 +29,8 @@ object PaymentTextParser {
 
     private val SUCCESS_HINTS = listOf(
         "success", "successful", "completed", "paid", "sent", "debited", "credited",
+        // Card spends never say "paid" or "debited" - the whole message is built around "spent".
+        "spent",
         "received", "done", "transaction of",
     )
 
@@ -48,6 +50,10 @@ object PaymentTextParser {
         Regex("""\bto\s+([A-Za-z0-9&'@._\- ]{2,60}?)$MERCHANT_END""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:at|from)\s+([A-Za-z0-9&'@._\- ]{2,60}?)$MERCHANT_END""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:vpa|upi id)\s*:?\s*([A-Za-z0-9._\-]{2,40}@[A-Za-z]{2,20})""", RegexOption.IGNORE_CASE),
+        // Card spends name the merchant last, after the date: "...on 12-Sep-26 on BLINK COMMERCE".
+        // The leading letter keeps the date in that same "on ..." shape from being read as a name.
+        // Last in the list, so it only applies once every sharper pattern has come up empty.
+        Regex("""\bon\s+([A-Za-z][A-Za-z0-9&'@._\- ]{1,59}?)$MERCHANT_END""", RegexOption.IGNORE_CASE),
     )
 
     private val REFERENCE = Regex(

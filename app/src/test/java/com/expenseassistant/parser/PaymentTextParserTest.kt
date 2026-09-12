@@ -59,6 +59,25 @@ class PaymentTextParserTest {
     }
 
     @Test
+    fun `parses icici card spend sms naming the merchant after the date`() {
+        val text = "INR 1,009.00 spent using ICICI Bank Card XX6010 on 12-Sep-26 on BLINK COMMERCE . " +
+            "Avl Limit: INR 46,441.48. If not you, call 1800 2662/SMS BLOCK 6010 to 9215676766."
+        val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
+        assertNotNull(result)
+        assertEquals(100900L, result!!.amountMinor)
+        assertEquals(Direction.DEBIT, result.direction)
+        assertEquals("BLINK COMMERCE", result.merchantRaw)
+    }
+
+    @Test
+    fun `does not mistake an available limit for the amount spent`() {
+        val text = "INR 250.00 spent using ICICI Bank Card XX6010 on 12-Sep-26 on ZEPTO . Avl Limit: INR 46,441.48."
+        val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
+        assertNotNull(result)
+        assertEquals(25000L, result!!.amountMinor)
+    }
+
+    @Test
     fun `parses hdfc multiline sent sms`() {
         val text = "Sent Rs.15.00\nFrom HDFC Bank A/C *7519\nTo TANVI SEVAK\nOn 03/09/26\nRef 198506244129"
         val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
