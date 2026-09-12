@@ -1,5 +1,10 @@
 MyExpenseAssistant - Build, Test, and Run on Phone
 
+The app has two flavors: "direct" (sideloading, full capture) and "play"
+(the Play Store build). Everything below uses direct - that is the one to
+put on your own phone. Every Gradle task name has to name the flavor;
+plain :app:assembleDebug or :app:testDebugUnitTest is ambiguous and fails.
+
 Prerequisites
 - Connect the Android phone through USB.
 - Enable Developer options and USB debugging.
@@ -15,7 +20,7 @@ The phone should appear with the status: device
 
 $gradle = "$env:LOCALAPPDATA\Gradle\gradle-8.9\bin\gradle.bat"
 
-& $gradle :app:assembleDebug :app:testDebugUnitTest `
+& $gradle :app:assembleDirectDebug :app:testDirectDebugUnitTest `
   --no-daemon `
   --no-configuration-cache `
   --console=plain
@@ -24,12 +29,21 @@ A successful run ends with:
 
 BUILD SUCCESSFUL
 
+The same rule applies to every other variant task. The ones you may need:
+
+  :app:assembleDirectDebug        debug APK for your phone
+  :app:testDirectDebugUnitTest    unit tests
+  :app:assembleDirectRelease      signed sideload APK
+  :app:assemblePlayRelease        signed Play APK
+  :app:bundlePlayRelease          Play upload bundle (.aab)
+  :app:build                      every variant, plus lint and tests
+
 3. Install/update the app on the phone
 
 $adb = 'C:\Users\shard\AppData\Local\Android\Sdk\platform-tools\adb.exe'
 
 & $adb install -r `
-  'D:\My Projects\AI_Assisted\MyExpenseAssistant\app\build\outputs\apk\debug\app-debug.apk'
+  'D:\My Projects\AI_Assisted\MyExpenseAssistant\app\build\outputs\apk\direct\debug\app-direct-debug.apk'
 
 The -r flag updates the installed app while preserving transaction data and settings.
 
@@ -43,13 +57,23 @@ The -r flag updates the installed app while preserving transaction data and sett
 & $adb shell dumpsys package com.expenseassistant |
   Select-String 'lastUpdateTime'
 
+If this build changed the Room schema version, this is the run that proves
+the migration works: -r keeps the existing database, so the app has to
+migrate your real data on first launch. Open it and check your transactions
+are still listed. A migration that throws crashes the app on startup.
+
 APK locations
 
-Gradle build output:
-D:\My Projects\AI_Assisted\MyExpenseAssistant\app\build\outputs\apk\debug\app-debug.apk
+Debug build for your phone:
+D:\My Projects\AI_Assisted\MyExpenseAssistant\app\build\outputs\apk\direct\debug\app-direct-debug.apk
 
-Handy transferable APK:
-D:\My Projects\AI_Assisted\MyExpenseAssistant\MyExpenseAssistant.apk
+Signed builds to share come from scripts/release.sh, which copies them to
+the repo root as MyExpenseAssistant-direct-release.apk (sideloading),
+MyExpenseAssistant-play-test.apk and MyExpenseAssistant-play-release.aab.
+
+Anything under app\build\outputs\apk\debug\ or a bare MyExpenseAssistant.apk
+in the repo root predates the play/direct split. Those are stale - delete
+them rather than installing them.
 
 Terminal note
 

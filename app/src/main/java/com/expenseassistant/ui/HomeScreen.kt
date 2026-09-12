@@ -508,7 +508,7 @@ private fun TransactionRow(
         CategoryBadge(transaction, size = 44.dp)
         Column(Modifier.weight(1f)) {
             Text(
-                transaction.merchant,
+                transaction.displayTitle,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,

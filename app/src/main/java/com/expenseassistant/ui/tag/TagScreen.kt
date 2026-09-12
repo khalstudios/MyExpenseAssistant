@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.expenseassistant.data.model.Direction
 import com.expenseassistant.data.model.TransactionEntity
@@ -153,7 +154,12 @@ private fun TagTransactionRow(transaction: TransactionEntity, onClick: () -> Uni
         ) {
             CategoryBadge(transaction, size = 42.dp)
             Column(Modifier.weight(1f)) {
-                Text(transaction.merchant, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    transaction.displayTitle,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(
                     "${transaction.displayCategoryName} \u00b7 ${formatTimestamp(transaction.occurredAt)}",
                     style = MaterialTheme.typography.bodySmall,

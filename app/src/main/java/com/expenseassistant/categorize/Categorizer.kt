@@ -10,6 +10,8 @@ data class CategoryGuess(
     val category: Category,
     val confidence: Float,
     val merchantDisplayName: String? = null,
+    val tags: List<String> = emptyList(),
+    val note: String? = null,
 )
 
 /**
@@ -25,7 +27,7 @@ class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
 
         if (key != null) {
             merchantRuleDao.find(key)?.let {
-                return CategoryGuess(it.category, 0.99f, it.displayName)
+                return CategoryGuess(it.category, 0.99f, it.displayName, it.tags, it.note)
             }
         }
 
@@ -55,12 +57,7 @@ class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
         val key = merchantKey(merchantRaw) ?: return
         val existing = merchantRuleDao.find(key)
         merchantRuleDao.upsert(
-            MerchantRule(
-                merchantKey = key,
-                category = category,
-                displayName = existing?.displayName,
-                hitCount = (existing?.hitCount ?: 0) + 1,
-            )
+            ruleFor(key, existing).copy(category = category)
         )
     }
 
@@ -68,14 +65,34 @@ class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
         val key = merchantKey(merchantRaw) ?: return
         val existing = merchantRuleDao.find(key)
         merchantRuleDao.upsert(
-            MerchantRule(
-                merchantKey = key,
-                category = existing?.category ?: Category.OTHER,
-                displayName = displayName.trim().takeIf { it.isNotEmpty() },
-                hitCount = (existing?.hitCount ?: 0) + 1,
+            ruleFor(key, existing).copy(displayName = displayName.trim().takeIf { it.isNotEmpty() })
+        )
+    }
+
+    /**
+     * Remembers the tags and note the user last saved for a merchant so the next payment to the
+     * same place arrives already carrying them. Saving with an empty list clears what was learned.
+     */
+    suspend fun learnTagsAndNote(merchantRaw: String?, tags: List<String>, note: String?) {
+        val key = merchantKey(merchantRaw) ?: return
+        val existing = merchantRuleDao.find(key)
+        merchantRuleDao.upsert(
+            ruleFor(key, existing).copy(
+                tags = tags.map { it.trim() }.filter { it.isNotEmpty() },
+                note = note?.trim()?.takeIf { it.isNotEmpty() },
             )
         )
     }
+
+    /** Carries every field of an existing rule forward so one lesson never erases another. */
+    private fun ruleFor(key: String, existing: MerchantRule?) = MerchantRule(
+        merchantKey = key,
+        category = existing?.category ?: Category.OTHER,
+        displayName = existing?.displayName,
+        tags = existing?.tags.orEmpty(),
+        note = existing?.note,
+        hitCount = (existing?.hitCount ?: 0) + 1,
+    )
 
     suspend fun forgetAll() = merchantRuleDao.deleteAll()
 

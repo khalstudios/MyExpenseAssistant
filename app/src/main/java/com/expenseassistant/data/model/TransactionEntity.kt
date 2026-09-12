@@ -12,7 +12,8 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "transactions",
     indices = [
-        Index(value = ["dedupeKey"]),
+        // Unique: the last line of defence against one payment being captured twice.
+        Index(value = ["dedupeKey"], unique = true),
         Index(value = ["occurredAt"]),
     ],
 )
@@ -44,4 +45,26 @@ data class TransactionEntity(
 ) {
     @get:Ignore
     val amount: Double get() = amountMinor / 100.0
+
+    /**
+     * The note the user actually wrote, if any. Capture parks the raw merchant string in
+     * [description] when it differs from the display name, and echoing that back is not a note.
+     */
+    @get:Ignore
+    val userNote: String?
+        get() {
+            val trimmed = description?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+            return trimmed.takeUnless {
+                it.equals(merchantRaw?.trim(), ignoreCase = true) ||
+                    it.equals(merchant.trim(), ignoreCase = true)
+            }
+        }
+
+    /**
+     * What a transaction list row leads with: the note the user wrote, when there is one, and the
+     * merchant name otherwise. A note is the more useful label once the user has bothered to add
+     * one, and the merchant is still shown on the detail screen.
+     */
+    @get:Ignore
+    val displayTitle: String get() = userNote ?: merchant
 }

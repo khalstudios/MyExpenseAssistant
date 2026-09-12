@@ -97,12 +97,14 @@ class BackupArchive(
 
     private fun ruleToJson(rule: MerchantRule) = JSONObject().apply {
         put("merchantKey", rule.merchantKey); put("category", rule.category.name); put("displayName", rule.displayName)
+        put("tags", JSONArray(rule.tags)); put("note", rule.note)
         put("hitCount", rule.hitCount); put("updatedAt", rule.updatedAt)
     }
 
     private fun ruleFromJson(json: JSONObject) = MerchantRule(
         merchantKey = json.getString("merchantKey"), category = enumValueOf(json.getString("category")),
-        displayName = json.nullableString("displayName"), hitCount = json.getInt("hitCount"), updatedAt = json.getLong("updatedAt"),
+        displayName = json.nullableString("displayName"), tags = json.optionalArray("tags")?.strings().orEmpty(),
+        note = json.nullableString("note"), hitCount = json.getInt("hitCount"), updatedAt = json.getLong("updatedAt"),
     )
 
     private fun budgetToJson(budget: BudgetEntity) = JSONObject().apply {
@@ -122,6 +124,9 @@ class BackupArchive(
     )
 
     private fun JSONObject.requiredArray(key: String): JSONArray = getJSONArray(key)
+
+    /** Backups written before merchant rules learned tags simply leave the key out. */
+    private fun JSONObject.optionalArray(key: String): JSONArray? = optJSONArray(key)
 
     private fun <T> JSONArray.map(transform: (JSONObject) -> T): List<T> =
         List(length()) { index -> transform(getJSONObject(index)) }

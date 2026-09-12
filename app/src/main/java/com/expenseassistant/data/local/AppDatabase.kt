@@ -14,7 +14,7 @@ import com.expenseassistant.data.model.TransactionEntity
 
 @Database(
     entities = [TransactionEntity::class, MerchantRule::class, BudgetEntity::class, ContactNameCache::class],
-    version = 9,
+    version = 11,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -100,6 +100,30 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Merchant rules now also remember the tags and note last saved for that merchant.
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE merchant_rules ADD COLUMN tags TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE merchant_rules ADD COLUMN note TEXT")
+            }
+        }
+
+        /**
+         * Restores the unique dedupe index that version 9 downgraded to a plain one, which let the
+         * same payment be stored once per capture path. Existing keys are random UUIDs, so the
+         * cleanup below is a no-op in practice and only guards the index creation.
+         */
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "DELETE FROM transactions WHERE id NOT IN " +
+                        "(SELECT MIN(id) FROM transactions GROUP BY dedupeKey)"
+                )
+                db.execSQL("DROP INDEX IF EXISTS index_transactions_dedupeKey")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_transactions_dedupeKey ON transactions (dedupeKey)")
+            }
+        }
+
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -114,6 +138,8 @@ abstract class AppDatabase : RoomDatabase() {
                 MIGRATION_6_7,
                 MIGRATION_7_8,
                 MIGRATION_8_9,
+                MIGRATION_9_10,
+                MIGRATION_10_11,
             )
                 .build().also { instance = it }
         }

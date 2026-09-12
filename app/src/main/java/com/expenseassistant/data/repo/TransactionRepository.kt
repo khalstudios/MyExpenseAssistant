@@ -1,5 +1,6 @@
 package com.expenseassistant.data.repo
 
+import android.util.Log
 import com.expenseassistant.categorize.Categorizer
 import com.expenseassistant.data.local.ContactNameCacheDao
 import com.expenseassistant.data.local.TransactionDao
@@ -14,7 +15,9 @@ import com.expenseassistant.parser.ParsedPayment
 import com.expenseassistant.parser.PaymentModeDetector
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.security.MessageDigest
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 data class TagUsage(val tag: String, val count: Int, val spentMinor: Long = 0L)
 
@@ -123,13 +126,57 @@ class TransactionRepository(
             customCategoryIcon = customCategoryIcon,
         )
         if (customCategoryName == null) categorizer.learn(merchant, category)
+        learnTagsAndNote(entity, tags, description)
         return transactionDao.insert(entity).also { id ->
             budgetNotifier?.onTransactionRecorded(entity.copy(id = id))
         }
     }
 
-    /** Stores every parsed payment notification or payment-success screen. */
+    /**
+     * Stores a captured payment. Returns the new row id, or null when it was a duplicate: one
+     * payment routinely reaches us twice, as an app notification and again as a bank alert or a
+     * payment-success screen.
+     */
     suspend fun ingest(payment: ParsedPayment, captureSource: CaptureSource): Long? {
+        val dedupeKey = dedupeKey(payment)
+        if (transactionDao.findByDedupeKey(dedupeKey) != null) {
+            Log.d(TAG, "Skipping duplicate capture: same dedupe key already stored")
+            return null
+        }
+
+        // A shared reference id is the strongest duplicate signal, so it wins regardless of timing.
+        payment.referenceId?.takeIf { it.isNotBlank() }?.let { reference ->
+            transactionDao.findByReference(reference)?.let { existing ->
+                Log.d(TAG, "Skipping duplicate of ${existing.id}: same reference $reference")
+                return null
+            }
+        }
+
+        val window = TimeUnit.MINUTES.toMillis(DEDUPE_WINDOW_MINUTES)
+        val similar = transactionDao.findSimilar(
+            amountMinor = payment.amountMinor,
+            direction = payment.direction.name,
+            from = payment.occurredAt - window,
+            to = payment.occurredAt + window,
+        )
+        if (similar != null) {
+            Log.d(TAG, "Skipping near-duplicate of transaction ${similar.id}")
+            return null
+        }
+
+        val captureWindow = TimeUnit.MINUTES.toMillis(CAPTURE_DEDUPE_WINDOW_MINUTES)
+        val now = System.currentTimeMillis()
+        val recentlyCaptured = transactionDao.findRecentlyCaptured(
+            amountMinor = payment.amountMinor,
+            direction = payment.direction.name,
+            from = now - captureWindow,
+            to = now + captureWindow,
+        )
+        if (recentlyCaptured != null) {
+            Log.d(TAG, "Skipping duplicate of ${recentlyCaptured.id}: same amount captured moments ago")
+            return null
+        }
+
         val guess = categorizer.categorize(payment)
         val originalMerchant = payment.merchantRaw?.trim()?.takeIf { it.isNotEmpty() }
         val contactName = originalMerchant?.takeIf { guess.merchantDisplayName == null }?.let { merchant ->
@@ -160,13 +207,14 @@ class TransactionRepository(
             rawText = payment.rawText,
             referenceId = payment.referenceId,
             occurredAt = payment.occurredAt,
-            description = originalMerchant?.takeIf { merchantName != it },
+            description = guess.note ?: originalMerchant?.takeIf { merchantName != it },
+            tags = guess.tags,
             paymentMode = PaymentModeDetector.detect(payment.rawText, payment.sourcePackage),
-            dedupeKey = "capture:${UUID.randomUUID()}",
+            dedupeKey = dedupeKey,
         )
-        return transactionDao.insert(entity).also { id ->
-            budgetNotifier?.onTransactionRecorded(entity.copy(id = id))
-        }
+        // The unique index is the last line of defence: two capture paths can race here.
+        return transactionDao.insert(entity).takeIf { it > 0 }
+            ?.also { id -> budgetNotifier?.onTransactionRecorded(entity.copy(id = id)) }
     }
 
     fun observeById(id: Long): Flow<TransactionEntity?> = transactionDao.observeById(id)
@@ -190,7 +238,9 @@ class TransactionRepository(
 
     suspend fun updateDescription(id: Long, description: String?) {
         val existing = transactionDao.findById(id) ?: return
-        transactionDao.update(existing.copy(description = description?.takeIf { it.isNotBlank() }))
+        val note = description?.takeIf { it.isNotBlank() }
+        transactionDao.update(existing.copy(description = note))
+        learnTagsAndNote(existing, existing.tags, note)
     }
 
     suspend fun updateTags(id: Long, tags: List<String>) {
@@ -199,6 +249,7 @@ class TransactionRepository(
             .filter { it.isNotEmpty() }
             .distinctBy { it.lowercase() }
         transactionDao.update(existing.copy(tags = cleaned))
+        learnTagsAndNote(existing, cleaned, existing.description)
     }
 
     suspend fun updatePaymentMode(id: Long, mode: PaymentMode) {
@@ -274,7 +325,48 @@ class TransactionRepository(
         if (merchantRenamed) {
             categorizer.learnDisplayName(existing.merchantRaw ?: existing.merchant, trimmedMerchant)
         }
+        learnTagsAndNote(existing, cleanedTags, description)
+    }
+
+    /**
+     * Teaches the merchant rule the tags and note this transaction now carries, so the next payment
+     * to the same merchant is filled in the same way. The last save wins, so clearing tags here
+     * also stops them being copied forward.
+     */
+    private suspend fun learnTagsAndNote(existing: TransactionEntity, tags: List<String>, note: String?) {
+        categorizer.learnTagsAndNote(
+            merchantRaw = existing.merchantRaw ?: existing.merchant,
+            tags = tags,
+            // userNote drops a note that only echoes the merchant, which capture fills in itself.
+            note = existing.copy(description = note).userNote,
+        )
     }
 
     suspend fun delete(id: Long) = transactionDao.delete(id)
+
+    /**
+     * A stable fingerprint for one payment, so the same payment seen twice produces the same key
+     * and the unique index rejects the second copy. Falls back to amount + merchant + a coarse
+     * time bucket when the alert carries no reference id.
+     */
+    private fun dedupeKey(payment: ParsedPayment): String {
+        val reference = payment.referenceId?.lowercase()
+        val raw = if (reference != null) {
+            "ref:$reference"
+        } else {
+            val bucket = payment.occurredAt / TimeUnit.MINUTES.toMillis(DEDUPE_WINDOW_MINUTES)
+            "amt:${payment.amountMinor}|dir:${payment.direction}|m:${Categorizer.merchantKey(payment.merchantRaw)}|t:$bucket"
+        }
+        return MessageDigest.getInstance("SHA-256")
+            .digest(raw.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+    }
+
+    private companion object {
+        const val TAG = "TransactionRepository"
+        const val DEDUPE_WINDOW_MINUTES = 3L
+
+        /** Duplicate alerts for one payment land within seconds; a few minutes is a safe net. */
+        const val CAPTURE_DEDUPE_WINDOW_MINUTES = 5L
+    }
 }
