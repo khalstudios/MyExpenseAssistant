@@ -38,7 +38,8 @@ class BackupArchive(
 
         val transactions = archive.requiredArray("transactions").map(::transactionFromJson)
         val rules = archive.requiredArray("merchantRules").map(::ruleFromJson)
-        val budgets = archive.requiredArray("budgets").map(::budgetFromJson)
+        // Two retired categories can collapse onto one key, which is the budgets' primary key.
+        val budgets = archive.requiredArray("budgets").map(::budgetFromJson).distinctBy { it.categoryKey }
         val profile = profileFromJson(archive.getJSONObject("profile"))
         val icons = archive.getJSONObject("categoryIcons").keys().asSequence()
             .associateWith { key -> archive.getJSONObject("categoryIcons").getString(key) }
@@ -84,7 +85,7 @@ class BackupArchive(
     private fun transactionFromJson(json: JSONObject) = TransactionEntity(
         id = json.getLong("id"), amountMinor = json.getLong("amountMinor"), currency = json.getString("currency"),
         direction = enumValueOf(json.getString("direction")), merchantRaw = json.nullableString("merchantRaw"),
-        merchant = json.getString("merchant"), category = enumValueOf(json.getString("category")),
+        merchant = json.getString("merchant"), category = Category.fromName(json.getString("category")),
         categoryConfidence = json.getDouble("categoryConfidence").toFloat(), sourcePackage = json.nullableString("sourcePackage"),
         sourceApp = json.getString("sourceApp"), captureSource = enumValueOf(json.getString("captureSource")),
         rawText = json.getString("rawText"), referenceId = json.nullableString("referenceId"),
@@ -102,7 +103,7 @@ class BackupArchive(
     }
 
     private fun ruleFromJson(json: JSONObject) = MerchantRule(
-        merchantKey = json.getString("merchantKey"), category = enumValueOf(json.getString("category")),
+        merchantKey = json.getString("merchantKey"), category = Category.fromName(json.getString("category")),
         displayName = json.nullableString("displayName"), tags = json.optionalArray("tags")?.strings().orEmpty(),
         note = json.nullableString("note"), hitCount = json.getInt("hitCount"), updatedAt = json.getLong("updatedAt"),
     )
@@ -112,7 +113,7 @@ class BackupArchive(
     }
 
     private fun budgetFromJson(json: JSONObject) = BudgetEntity(
-        categoryKey = json.getString("categoryKey"), limitMinor = json.getLong("limitMinor"), updatedAt = json.getLong("updatedAt"),
+        categoryKey = Category.currentKey(json.getString("categoryKey")), limitMinor = json.getLong("limitMinor"), updatedAt = json.getLong("updatedAt"),
     )
 
     private fun profileToJson(profile: UserProfile) = JSONObject().apply {

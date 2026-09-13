@@ -6,12 +6,11 @@ import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CarRepair
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Handyman
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.LocalGroceryStore
@@ -22,6 +21,7 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.RequestQuote
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Roofing
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShoppingBag
@@ -56,7 +56,8 @@ val Category.icon: ImageVector
         Category.TAXES -> Icons.Filled.RequestQuote
         Category.INSURANCE -> Icons.Filled.Shield
         Category.GIFTS_AND_DONATION -> Icons.Filled.CardGiftcard
-        Category.MAINTENANCE -> Icons.Filled.Handyman
+        Category.HOUSE_EXPENSE -> Icons.Filled.Roofing
+        Category.VEHICLE_EXPENSE -> Icons.Filled.CarRepair
         Category.PERSONAL_CARE -> Icons.Filled.Spa
         Category.HOBBIES -> Icons.Filled.Palette
         Category.INCOME -> Icons.Filled.Payments
@@ -91,7 +92,8 @@ val Category.color: Color
         Category.TAXES -> Color(0xFF546E7A)
         Category.INSURANCE -> Color(0xFF00838F)
         Category.GIFTS_AND_DONATION -> Color(0xFFFF8A65)
-        Category.MAINTENANCE -> Color(0xFFF9A825)
+        Category.HOUSE_EXPENSE -> Color(0xFFF9A825)
+        Category.VEHICLE_EXPENSE -> Color(0xFF9E9D24)
         Category.PERSONAL_CARE -> Color(0xFF26A69A)
         Category.HOBBIES -> Color(0xFFAB47BC)
         Category.INCOME -> Color(0xFF2E7D32)

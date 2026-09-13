@@ -14,7 +14,7 @@ import com.expenseassistant.data.model.TransactionEntity
 
 @Database(
     entities = [TransactionEntity::class, MerchantRule::class, BudgetEntity::class, ContactNameCache::class],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -124,6 +124,18 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Maintenance is split into House Expense and Vehicle Expense. Nothing records which one an
+         * old entry was, so everything moves to House Expense for the user to re-file as needed.
+         */
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("UPDATE transactions SET category = 'HOUSE_EXPENSE' WHERE category = 'MAINTENANCE'")
+                db.execSQL("UPDATE merchant_rules SET category = 'HOUSE_EXPENSE' WHERE category = 'MAINTENANCE'")
+                db.execSQL("UPDATE budgets SET categoryKey = 'HOUSE_EXPENSE' WHERE categoryKey = 'MAINTENANCE'")
+            }
+        }
+
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -140,6 +152,7 @@ abstract class AppDatabase : RoomDatabase() {
                 MIGRATION_8_9,
                 MIGRATION_9_10,
                 MIGRATION_10_11,
+                MIGRATION_11_12,
             )
                 .build().also { instance = it }
         }

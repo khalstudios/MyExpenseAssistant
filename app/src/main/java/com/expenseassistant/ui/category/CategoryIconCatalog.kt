@@ -6,6 +6,7 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CarRepair
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.ChildCare
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.RequestQuote
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Roofing
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Shield
@@ -51,10 +53,12 @@ object CategoryIconCatalog {
         "groceries" to Icons.Filled.LocalGroceryStore,
         "transport" to Icons.Filled.DirectionsBus,
         "car" to Icons.Filled.DirectionsCar,
+        "car_repair" to Icons.Filled.CarRepair,
         "fuel" to Icons.Filled.LocalGasStation,
         "shopping" to Icons.Filled.ShoppingBag,
         "bills" to Icons.AutoMirrored.Filled.ReceiptLong,
         "home" to Icons.Filled.Home,
+        "roofing" to Icons.Filled.Roofing,
         "repair" to Icons.Filled.HomeRepairService,
         "handyman" to Icons.Filled.Handyman,
         "spa" to Icons.Filled.Spa,
@@ -108,7 +112,8 @@ object CategoryIconCatalog {
         Category.TAXES -> "tax"
         Category.INSURANCE -> "shield"
         Category.GIFTS_AND_DONATION -> "gift"
-        Category.MAINTENANCE -> "handyman"
+        Category.HOUSE_EXPENSE -> "roofing"
+        Category.VEHICLE_EXPENSE -> "car_repair"
         Category.PERSONAL_CARE -> "spa"
         Category.HOBBIES -> "palette"
         Category.INCOME -> "payments"
