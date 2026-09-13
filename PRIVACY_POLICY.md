@@ -62,4 +62,4 @@ published at the same location.
 
 ## Contact
 
-Questions about this policy or your data: **<your-contact-email>**
+Questions about this policy or your data: **shardulmane3@gmail.com**
