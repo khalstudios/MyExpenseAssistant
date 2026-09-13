@@ -268,7 +268,7 @@ private fun CategoryListCard(state: AnalyticsUiState, onOpenCategory: (Category)
                     style = MaterialTheme.typography.titleSmall,
                 )
             }
-            CategoryPieChart(slices = state.slices, totalMinor = state.totalSpendMinor)
+            CategoryPieChart(slices = state.slices)
             HorizontalDivider()
             CategorySpendList(state.slices, onOpenCategory)
         }

@@ -1,7 +1,5 @@
 package com.expenseassistant.ui.insights
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,21 +18,27 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.expenseassistant.data.model.Category
 import com.expenseassistant.ui.category.CategoryBadge
 import com.expenseassistant.ui.category.color
 import com.expenseassistant.ui.formatMinor
+import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 data class PieSlice(
     val category: Category,
@@ -121,7 +125,7 @@ private fun RankedCategoryBar(slice: PieSlice, maxFraction: Float, onOpenCategor
                     .background(slice.category.color.copy(alpha = 0.86f)),
             )
             Text(
-                text = "${(slice.fraction * 100).toInt()}%",
+                text = "${(slice.fraction * 100).roundToInt()}%",
                 modifier = Modifier.padding(horizontal = 8.dp),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
@@ -139,73 +143,100 @@ private fun RankedCategoryBar(slice: PieSlice, maxFraction: Float, onOpenCategor
     }
 }
 
+/**
+ * Thick donut starting at twelve o'clock, with slices divided by thin lines in the card colour and
+ * each slice's share printed inside it when there is room.
+ */
 @Composable
 fun CategoryPieChart(
     slices: List<PieSlice>,
-    totalMinor: Long,
     modifier: Modifier = Modifier,
+    separatorColor: Color = MaterialTheme.colorScheme.surface,
 ) {
-    val sweepProgress by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec = tween(durationMillis = 700),
-        label = "pieSweep",
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.titleSmall.copy(
+        color = Color.White,
+        fontWeight = FontWeight.Medium,
     )
-    val trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f)
+    val drawn = slices.filter { it.fraction > 0f }
 
-    Box(
-        modifier = modifier
+    Canvas(
+        modifier
             .fillMaxWidth()
-            .aspectRatio(1f),
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(Modifier.fillMaxWidth().aspectRatio(1f)) {
-            val thickness = size.minDimension * 0.16f
-            val inset = thickness / 2f
-            val arcSize = Size(size.width - thickness, size.height - thickness)
-
-            drawArc(
-                color = trackColor,
-                startAngle = -90f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = Offset(inset, inset),
-                size = arcSize,
-                style = Stroke(width = thickness),
-            )
-
-            var startAngle = -90f
-            slices.forEach { slice ->
-                val fullSweep = slice.fraction * 360f
-                val gap = minOf(4f, fullSweep * 0.18f)
-                val sweep = (fullSweep - gap) * sweepProgress
-                if (sweep > 0f) {
-                    drawArc(
-                        color = slice.category.color,
-                        startAngle = startAngle + (gap / 2f),
-                        sweepAngle = sweep,
-                        useCenter = false,
-                        topLeft = Offset(inset, inset),
-                        size = arcSize,
-                        style = Stroke(width = thickness, cap = StrokeCap.Round),
-                    )
+            .aspectRatio(1f)
+            .semantics {
+                contentDescription = drawn.joinToString(prefix = "Spending by category: ") {
+                    "${it.category.displayName} ${percentLabel(it.fraction)}"
                 }
-                startAngle += fullSweep
+            }
+    ) {
+        val outerRadius = size.minDimension / 2f
+        val innerRadius = outerRadius * DONUT_HOLE_RATIO
+        val thickness = outerRadius - innerRadius
+        val ringRadius = innerRadius + thickness / 2f
+
+        // Filled wedges with the hole punched out afterwards; a thick stroked arc leaves a visible
+        // seam where the renderer joins its segments.
+        var startAngle = -90f
+        drawn.forEach { slice ->
+            val sweep = slice.fraction * 360f
+            drawArc(
+                color = slice.category.color,
+                startAngle = startAngle,
+                sweepAngle = sweep,
+                useCenter = true,
+                topLeft = Offset(center.x - outerRadius, center.y - outerRadius),
+                size = Size(outerRadius * 2f, outerRadius * 2f),
+            )
+            startAngle += sweep
+        }
+
+        // Straight dividers keep an even width however thin the slice, unlike angular gaps.
+        if (drawn.size > 1) {
+            val dividerWidth = 2.dp.toPx()
+            startAngle = -90f
+            drawn.forEach { slice ->
+                val direction = unitVector(startAngle)
+                drawLine(
+                    color = separatorColor,
+                    start = center,
+                    end = center + direction * (outerRadius + 1f),
+                    strokeWidth = dividerWidth,
+                )
+                startAngle += slice.fraction * 360f
             }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Total spent", style = MaterialTheme.typography.labelMedium)
-            Text(
-                formatMinor(totalMinor),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                "${slices.size} ${if (slices.size == 1) "category" else "categories"}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        drawCircle(color = separatorColor, radius = innerRadius, center = center)
+
+        startAngle = -90f
+        drawn.forEach { slice ->
+            val sweep = slice.fraction * 360f
+            if (slice.fraction >= MIN_LABEL_FRACTION) {
+                val layout = textMeasurer.measure(percentLabel(slice.fraction), labelStyle)
+                // Only label a slice whose ring segment is wide enough to hold the text.
+                val arcLength = ringRadius * Math.toRadians(sweep.toDouble()).toFloat()
+                if (arcLength > layout.size.width + 8.dp.toPx() && thickness > layout.size.height) {
+                    val labelCenter = center + unitVector(startAngle + sweep / 2f) * ringRadius
+                    drawText(
+                        textLayoutResult = layout,
+                        topLeft = labelCenter - Offset(layout.size.width / 2f, layout.size.height / 2f),
+                    )
+                }
+            }
+            startAngle += sweep
         }
     }
+}
+
+private const val DONUT_HOLE_RATIO = 0.5f
+private const val MIN_LABEL_FRACTION = 0.05f
+
+private fun percentLabel(fraction: Float): String =
+    String.format(Locale.getDefault(), "%.1f%%", fraction * 100f)
+
+private fun unitVector(angleDegrees: Float): Offset {
+    val radians = Math.toRadians(angleDegrees.toDouble())
+    return Offset(cos(radians).toFloat(), sin(radians).toFloat())
 }
 
 @Composable
@@ -242,7 +273,7 @@ fun CategorySpendList(
                         trackColor = slice.category.color.copy(alpha = 0.15f),
                     )
                     Text(
-                        "${(slice.fraction * 100).toInt()}% \u00b7 ${slice.transactionCount} " +
+                        "${(slice.fraction * 100).roundToInt()}% \u00b7 ${slice.transactionCount} " +
                             if (slice.transactionCount == 1) "transaction" else "transactions",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

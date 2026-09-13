@@ -456,7 +456,6 @@ private fun CategoryBreakdown(
             ) {
                 CategoryPieChart(
                     slices = slices,
-                    totalMinor = totalMinor,
                     modifier = Modifier.widthIn(max = 260.dp),
                 )
             }
