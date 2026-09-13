@@ -40,6 +40,22 @@ object MerchantKeywords {
             "recharge", "postpaid", "prepaid", "bill payment", "municipal", "society maintenance",
         ),
         Category.RENT to listOf("rent", "landlord", "nobroker", "housing.com", "lease", "pg rent"),
+        Category.HOUSE_EXPENSE to listOf(
+            "urban company", "urbanclap", "housejoy", "plumber", "plumbing", "electrician",
+            "carpenter", "pest control", "painter", "locksmith", "home repair", "home services",
+            "appliance repair", "ac repair", "ac service", "deep cleaning", "cleaning service",
+            "water purifier", "aquaguard", "kent ro",
+        ),
+        Category.VEHICLE_EXPENSE to listOf(
+            "car service", "car servicing", "bike service", "bike servicing", "two wheeler service",
+            "car wash", "garage", "mechanic", "gomechanic", "pitstop", "tyre", "tyres",
+            // Parts and brands. Some ("apollo tyre", "bajaj auto", "ola electric") are spelled out
+            // in full so they outrank a shorter keyword from another category.
+            "apollo tyre", "mrf tyre", "ceat", "bridgestone", "michelin", "spare parts",
+            "auto parts", "maruti suzuki", "hyundai motor", "tata motors", "royal enfield",
+            "hero motocorp", "tvs motor", "bajaj auto", "honda motorcycle", "ola electric",
+            "ather energy", "pollution check",
+        ),
         Category.ENTERTAINMENT to listOf(
             "netflix", "prime video", "hotstar", "jiocinema", "sonyliv", "zee5", "spotify",
             "youtube premium", "gaana", "wynk", "bookmyshow", "pvr", "inox", "cinepolis",
