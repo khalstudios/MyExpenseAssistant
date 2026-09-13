@@ -30,12 +30,17 @@ class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
             return CategoryGuess(Category.INCOME, 0.55f)
         }
 
-        merchantKey(payment.merchantRaw)?.let { key ->
-            merchantRuleDao.find(key)?.let {
-                return CategoryGuess(it.category, 0.99f, it.displayName, it.tags)
-            }
+        val rule = merchantKey(payment.merchantRaw)?.let { merchantRuleDao.find(it) }
+        // A rule saved only for a name or tags carries OTHER because no category was ever taught.
+        // It must not pin the merchant to Unknown, so the category comes from the layers below.
+        if (rule != null && rule.category != Category.OTHER) {
+            return CategoryGuess(rule.category, 0.99f, rule.displayName, rule.tags)
         }
+        val guess = builtInGuess(payment)
+        return if (rule == null) guess else guess.copy(merchantDisplayName = rule.displayName, tags = rule.tags)
+    }
 
+    private fun builtInGuess(payment: ParsedPayment): CategoryGuess {
         MerchantKeywords.match(payment.merchantRaw.orEmpty())?.let { (category, len) ->
             return CategoryGuess(category, confidenceFor(len, exactField = true))
         }
