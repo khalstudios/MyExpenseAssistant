@@ -47,7 +47,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -72,6 +74,7 @@ import com.expenseassistant.ui.tag.TagScreen
 import com.expenseassistant.ui.category.CategoryScreen
 import com.expenseassistant.ui.category.LocalCategoryIconOverrides
 import com.expenseassistant.di.ServiceLocator
+import java.util.UUID
 
 class MainActivity : ComponentActivity() {
 
@@ -96,7 +99,6 @@ class MainActivity : ComponentActivity() {
 private enum class Tab(val label: String) { HOME("Home"), INSIGHTS("Insights"), BUDGET("Budget"), PROFILE("Profile") }
 
 private sealed interface Route {
-    data object Main : Route
     data object Add : Route
     data object Budgets : Route
     data class Detail(val id: Long) : Route
@@ -105,6 +107,11 @@ private sealed interface Route {
     data object NeedsReview : Route
     data object AllTransactions : Route
 }
+
+/** One opened screen; [key] is unique per visit so the same screen opened twice keeps separate state. */
+private data class BackStackEntry(val route: Route, val key: String = UUID.randomUUID().toString())
+
+private const val MAIN_STATE_KEY = "main"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,7 +130,18 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var tab by remember { mutableStateOf(Tab.HOME) }
-    var route by remember { mutableStateOf<Route>(Route.Main) }
+    // Screens opened over the tabs, newest last. Each one keeps its own saved state, so going back
+    // returns to the previous screen scrolled to where it was left.
+    val backStack = remember { mutableStateListOf<BackStackEntry>() }
+    val saveableStateHolder = rememberSaveableStateHolder()
+    fun navigate(route: Route) {
+        // A double tap on a row would otherwise open the same screen twice.
+        if (backStack.lastOrNull()?.route != route) backStack.add(BackStackEntry(route))
+    }
+    fun goBack() {
+        // Drop the closed screen's state so opening it again starts fresh.
+        backStack.removeLastOrNull()?.let { saveableStateHolder.removeState(it.key) }
+    }
 
     var notificationAccess by remember { mutableStateOf(PermissionStatus.isNotificationAccessGranted(context)) }
 
@@ -170,133 +188,130 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         }
     }
 
-    BackHandler(enabled = route != Route.Main) { route = Route.Main }
+    BackHandler(enabled = backStack.isNotEmpty()) { goBack() }
 
-    when (val current = route) {
-        Route.Add -> {
-            AddTransactionScreen(
-                onBack = { route = Route.Main },
-                onSave = { input ->
-                    viewModel.addManualTransaction(
-                        amountMinor = input.amountMinor,
-                        direction = input.direction,
-                        merchant = input.merchant,
-                        category = input.category,
-                        customCategoryName = input.customCategoryName,
-                        customCategoryColor = input.customCategoryColor,
-                        customCategoryIcon = input.customCategoryIcon,
-                        paymentMode = input.paymentMode,
-                        occurredAt = input.occurredAt,
-                        description = input.description,
-                        tags = input.tags,
+    val top = backStack.lastOrNull()
+    if (top != null) {
+        saveableStateHolder.SaveableStateProvider(top.key) {
+            when (val current = top.route) {
+                Route.Add -> {
+                    AddTransactionScreen(
+                        onBack = { goBack() },
+                        onSave = { input ->
+                            viewModel.addManualTransaction(
+                                amountMinor = input.amountMinor,
+                                direction = input.direction,
+                                merchant = input.merchant,
+                                category = input.category,
+                                customCategoryName = input.customCategoryName,
+                                customCategoryColor = input.customCategoryColor,
+                                customCategoryIcon = input.customCategoryIcon,
+                                paymentMode = input.paymentMode,
+                                occurredAt = input.occurredAt,
+                                description = input.description,
+                                tags = input.tags,
+                            )
+                            goBack()
+                        },
+                        customCategories = customCategories,
                     )
-                    route = Route.Main
-                },
-                customCategories = customCategories,
-            )
-            return
-        }
+                }
 
-        Route.Budgets -> {
-            BudgetScreen(
-                onBack = { route = Route.Main },
-                onOpenCategory = { route = Route.CategoryTransactions(it) },
-            )
-            return
-        }
+                Route.Budgets -> {
+                    BudgetScreen(
+                        onBack = { goBack() },
+                        onOpenCategory = { navigate(Route.CategoryTransactions(it)) },
+                    )
+                }
 
-        is Route.Detail -> {
-            // Looked up straight from the database so transactions outside the visible period still open.
-            val transactionFlow = remember(current.id) { viewModel.observeTransaction(current.id) }
-            // Seeded from the already-loaded list so the first frame isn't blank while Room emits.
-            val seed = remember(current.id, allTransactions, recentState) {
-                allTransactions.firstOrNull { it.id == current.id }
-                    ?: recentState.transactions.firstOrNull { it.id == current.id }
+                is Route.Detail -> {
+                    // Looked up straight from the database so transactions outside the visible period still open.
+                    val transactionFlow = remember(current.id) { viewModel.observeTransaction(current.id) }
+                    // Seeded from the already-loaded list so the first frame isn't blank while Room emits.
+                    val seed = remember(current.id, allTransactions, recentState) {
+                        allTransactions.firstOrNull { it.id == current.id }
+                            ?: recentState.transactions.firstOrNull { it.id == current.id }
+                    }
+                    val transaction by transactionFlow.collectAsStateWithLifecycle(initialValue = seed)
+                    transaction?.let { detail ->
+                        TransactionDetailScreen(
+                            transaction = detail,
+                            onBack = { goBack() },
+                            onSave = { edits -> viewModel.saveDetails(detail.id, edits) },
+                            onDelete = {
+                                viewModel.delete(detail.id)
+                                goBack()
+                            },
+                            customCategories = customCategories,
+                            tagSuggestions = tagSuggestions,
+                            onOpenTag = { tag -> navigate(Route.TagTransactions(tag)) },
+                        )
+                    } ?: Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background),
+                    )
+                }
+
+                is Route.CategoryTransactions -> {
+                    val categoryList = (state.transactions + analytics.transactions)
+                        .distinctBy { it.id }
+                        .filter { it.category == current.category }
+                    CategoryScreen(
+                        category = current.category,
+                        transactions = categoryList,
+                        onBack = { goBack() },
+                        onOpenTransaction = { id -> navigate(Route.Detail(id)) },
+                        onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
+                        onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
+                        customCategories = customCategories,
+                        onDelete = { id -> viewModel.delete(id) },
+                    )
+                }
+
+                Route.NeedsReview -> {
+                    HomeScreen(
+                        state = recentState,
+                        notificationAccessGranted = notificationAccess,
+                        onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
+                        onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
+                        customCategories = customCategories,
+                        onDelete = { id -> viewModel.delete(id) },
+                        onOpenTransaction = { id -> navigate(Route.Detail(id)) },
+                        needsReviewFilter = true,
+                        transactionOverride = needsReview,
+                        onClearFilter = { goBack() },
+                    )
+                }
+
+                is Route.TagTransactions -> {
+                    var tagTransactions by remember(current.tag) { mutableStateOf<List<TransactionEntity>?>(null) }
+                    LaunchedEffect(current.tag) { tagTransactions = viewModel.transactionsForTag(current.tag) }
+                    val list = tagTransactions
+                    if (list != null) {
+                        TagScreen(
+                            tag = current.tag,
+                            transactions = list,
+                            onBack = { goBack() },
+                            onOpenTransaction = { id -> navigate(Route.Detail(id)) },
+                        )
+                    }
+                }
+
+                Route.AllTransactions -> {
+                    AllTransactionsScreen(
+                        transactions = allTransactions,
+                        onBack = { goBack() },
+                        onOpenTransaction = { id -> navigate(Route.Detail(id)) },
+                        onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
+                        onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
+                        customCategories = customCategories,
+                        onDelete = { id -> viewModel.delete(id) },
+                    )
+                }
             }
-            val transaction by transactionFlow.collectAsStateWithLifecycle(initialValue = seed)
-            transaction?.let { detail ->
-                TransactionDetailScreen(
-                    transaction = detail,
-                    onBack = { route = Route.Main },
-                    onSave = { edits -> viewModel.saveDetails(detail.id, edits) },
-                    onDelete = {
-                        viewModel.delete(detail.id)
-                        route = Route.Main
-                    },
-                    customCategories = customCategories,
-                    tagSuggestions = tagSuggestions,
-                    onOpenTag = { tag -> route = Route.TagTransactions(tag) },
-                )
-            } ?: Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
-            )
-            return
         }
-
-        is Route.CategoryTransactions -> {
-            val categoryList = (state.transactions + analytics.transactions)
-                .distinctBy { it.id }
-                .filter { it.category == current.category }
-            CategoryScreen(
-                category = current.category,
-                transactions = categoryList,
-                onBack = { route = Route.Main },
-                onOpenTransaction = { id -> route = Route.Detail(id) },
-                onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
-                onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
-                customCategories = customCategories,
-                onDelete = { id -> viewModel.delete(id) },
-            )
-            return
-        }
-
-        Route.NeedsReview -> {
-            HomeScreen(
-                state = recentState,
-                notificationAccessGranted = notificationAccess,
-                onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
-                onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
-                customCategories = customCategories,
-                onDelete = { id -> viewModel.delete(id) },
-                onOpenTransaction = { id -> route = Route.Detail(id) },
-                needsReviewFilter = true,
-                transactionOverride = needsReview,
-                onClearFilter = { route = Route.Main },
-            )
-            return
-        }
-
-        is Route.TagTransactions -> {
-            var tagTransactions by remember(current.tag) { mutableStateOf<List<TransactionEntity>?>(null) }
-            LaunchedEffect(current.tag) { tagTransactions = viewModel.transactionsForTag(current.tag) }
-            val list = tagTransactions
-            if (list != null) {
-                TagScreen(
-                    tag = current.tag,
-                    transactions = list,
-                    onBack = { route = Route.Main },
-                    onOpenTransaction = { id -> route = Route.Detail(id) },
-                )
-            }
-            return
-        }
-
-        Route.AllTransactions -> {
-            AllTransactionsScreen(
-                transactions = allTransactions,
-                onBack = { route = Route.Main },
-                onOpenTransaction = { id -> route = Route.Detail(id) },
-                onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
-                onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
-                customCategories = customCategories,
-                onDelete = { id -> viewModel.delete(id) },
-            )
-            return
-        }
-
-        Route.Main -> Unit
+        return
     }
 
     val topBarTitle = when (tab) {
@@ -329,7 +344,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { route = Route.Add },
+                onClick = { navigate(Route.Add) },
                 modifier = Modifier.offset(y = 54.dp),
                 containerColor = MaterialTheme.colorScheme.primary,
             ) {
@@ -380,60 +395,63 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
             }
         },
     ) { padding ->
-        when (tab) {
-            Tab.HOME -> HomeScreen(
-                state = recentState,
-                notificationAccessGranted = notificationAccess,
-                showBackupNotice = showBackupNotice,
-                onEnableBackup = {
-                    openAutoBackupSetup = true
-                    tab = Tab.PROFILE
-                },
-                onDismissBackupNotice = {
-                    userPreferences.dismissBackupNotice()
-                    showBackupNotice = false
-                },
-                onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
-                onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
-                customCategories = customCategories,
-                summaryScope = summaryScope,
-                onSummaryScopeChange = viewModel::setSummaryScope,
-                budgetState = monthlyBudgetAnalytics,
-                onOpenNeedsReview = { route = Route.NeedsReview },
-                onOpenAllTransactions = { route = Route.AllTransactions },
-                onDelete = { id -> viewModel.delete(id) },
-                onOpenTransaction = { id -> route = Route.Detail(id) },
-                modifier = Modifier.padding(padding),
-            )
+        // Keeps the visible tab's scroll position while a screen is open on top of it.
+        saveableStateHolder.SaveableStateProvider(MAIN_STATE_KEY) {
+            when (tab) {
+                Tab.HOME -> HomeScreen(
+                    state = recentState,
+                    notificationAccessGranted = notificationAccess,
+                    showBackupNotice = showBackupNotice,
+                    onEnableBackup = {
+                        openAutoBackupSetup = true
+                        tab = Tab.PROFILE
+                    },
+                    onDismissBackupNotice = {
+                        userPreferences.dismissBackupNotice()
+                        showBackupNotice = false
+                    },
+                    onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
+                    onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
+                    customCategories = customCategories,
+                    summaryScope = summaryScope,
+                    onSummaryScopeChange = viewModel::setSummaryScope,
+                    budgetState = monthlyBudgetAnalytics,
+                    onOpenNeedsReview = { navigate(Route.NeedsReview) },
+                    onOpenAllTransactions = { navigate(Route.AllTransactions) },
+                    onDelete = { id -> viewModel.delete(id) },
+                    onOpenTransaction = { id -> navigate(Route.Detail(id)) },
+                    modifier = Modifier.padding(padding),
+                )
 
-            Tab.INSIGHTS -> InsightsScreen(
-                state = analytics,
-                recurring = recurring,
-                tagUsage = tagUsage,
-                onRangeChange = viewModel::setRange,
-                onShiftPeriod = viewModel::shiftPeriod,
-                onJumpTo = viewModel::jumpTo,
-                onResetToCurrent = viewModel::resetToCurrent,
-                onOpenCategory = { route = Route.CategoryTransactions(it) },
-                onOpenTag = { tag -> route = Route.TagTransactions(tag) },
-                onOpenNeedsReview = { route = Route.NeedsReview },
-                modifier = Modifier.padding(padding),
-            )
+                Tab.INSIGHTS -> InsightsScreen(
+                    state = analytics,
+                    recurring = recurring,
+                    tagUsage = tagUsage,
+                    onRangeChange = viewModel::setRange,
+                    onShiftPeriod = viewModel::shiftPeriod,
+                    onJumpTo = viewModel::jumpTo,
+                    onResetToCurrent = viewModel::resetToCurrent,
+                    onOpenCategory = { navigate(Route.CategoryTransactions(it)) },
+                    onOpenTag = { tag -> navigate(Route.TagTransactions(tag)) },
+                    onOpenNeedsReview = { navigate(Route.NeedsReview) },
+                    modifier = Modifier.padding(padding),
+                )
 
-            Tab.BUDGET -> BudgetBreakdownScreen(
-                state = monthlyBudgetAnalytics,
-                onManageBudgets = { route = Route.Budgets },
-                onOpenCategory = { route = Route.CategoryTransactions(it) },
-                modifier = Modifier.padding(padding),
-            )
+                Tab.BUDGET -> BudgetBreakdownScreen(
+                    state = monthlyBudgetAnalytics,
+                    onManageBudgets = { navigate(Route.Budgets) },
+                    onOpenCategory = { navigate(Route.CategoryTransactions(it)) },
+                    modifier = Modifier.padding(padding),
+                )
 
-            Tab.PROFILE -> AccountScreen(
-                onOpenBudgets = { route = Route.Budgets },
-                onOpenNeedsReview = { route = Route.NeedsReview },
-                openAutoBackupSetup = openAutoBackupSetup,
-                onAutoBackupSetupHandled = { openAutoBackupSetup = false },
-                modifier = Modifier.padding(padding),
-            )
+                Tab.PROFILE -> AccountScreen(
+                    onOpenBudgets = { navigate(Route.Budgets) },
+                    onOpenNeedsReview = { navigate(Route.NeedsReview) },
+                    openAutoBackupSetup = openAutoBackupSetup,
+                    onAutoBackupSetupHandled = { openAutoBackupSetup = false },
+                    modifier = Modifier.padding(padding),
+                )
+            }
         }
     }
 
