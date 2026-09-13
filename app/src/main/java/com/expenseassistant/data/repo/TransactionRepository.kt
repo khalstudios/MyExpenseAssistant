@@ -125,8 +125,8 @@ class TransactionRepository(
             customCategoryColor = customCategoryColor,
             customCategoryIcon = customCategoryIcon,
         )
-        if (customCategoryName == null) categorizer.learn(merchant, category)
-        learnTagsAndNote(entity, tags, description)
+        if (customCategoryName == null) categorizer.learn(merchant, direction, category)
+        categorizer.learnTags(merchant, direction, tags)
         return transactionDao.insert(entity).also { id ->
             budgetNotifier?.onTransactionRecorded(entity.copy(id = id))
         }
@@ -207,7 +207,7 @@ class TransactionRepository(
             rawText = payment.rawText,
             referenceId = payment.referenceId,
             occurredAt = payment.occurredAt,
-            description = guess.note ?: originalMerchant?.takeIf { merchantName != it },
+            description = originalMerchant?.takeIf { merchantName != it },
             tags = guess.tags,
             paymentMode = PaymentModeDetector.detect(payment.rawText, payment.sourcePackage),
             dedupeKey = dedupeKey,
@@ -232,15 +232,13 @@ class TransactionRepository(
             )
         )
         if (customName == null) {
-            categorizer.learn(existing.merchantRaw ?: existing.merchant, category)
+            categorizer.learn(existing.merchantRaw ?: existing.merchant, existing.direction, category)
         }
     }
 
     suspend fun updateDescription(id: Long, description: String?) {
         val existing = transactionDao.findById(id) ?: return
-        val note = description?.takeIf { it.isNotBlank() }
-        transactionDao.update(existing.copy(description = note))
-        learnTagsAndNote(existing, existing.tags, note)
+        transactionDao.update(existing.copy(description = description?.takeIf { it.isNotBlank() }))
     }
 
     suspend fun updateTags(id: Long, tags: List<String>) {
@@ -249,7 +247,7 @@ class TransactionRepository(
             .filter { it.isNotEmpty() }
             .distinctBy { it.lowercase() }
         transactionDao.update(existing.copy(tags = cleaned))
-        learnTagsAndNote(existing, cleaned, existing.description)
+        categorizer.learnTags(existing.merchantRaw ?: existing.merchant, existing.direction, cleaned)
     }
 
     suspend fun updatePaymentMode(id: Long, mode: PaymentMode) {
@@ -319,27 +317,15 @@ class TransactionRepository(
                 userCorrected = true,
             )
         )
+        // Learn against the saved direction, so a transaction edited into income teaches nothing.
+        val learnFrom = existing.merchantRaw ?: existing.merchant
         if (categoryChanged && customCategoryName == null) {
-            categorizer.learn(existing.merchantRaw ?: existing.merchant, category)
+            categorizer.learn(learnFrom, direction, category)
         }
         if (merchantRenamed) {
-            categorizer.learnDisplayName(existing.merchantRaw ?: existing.merchant, trimmedMerchant)
+            categorizer.learnDisplayName(learnFrom, direction, trimmedMerchant)
         }
-        learnTagsAndNote(existing, cleanedTags, description)
-    }
-
-    /**
-     * Teaches the merchant rule the tags and note this transaction now carries, so the next payment
-     * to the same merchant is filled in the same way. The last save wins, so clearing tags here
-     * also stops them being copied forward.
-     */
-    private suspend fun learnTagsAndNote(existing: TransactionEntity, tags: List<String>, note: String?) {
-        categorizer.learnTagsAndNote(
-            merchantRaw = existing.merchantRaw ?: existing.merchant,
-            tags = tags,
-            // userNote drops a note that only echoes the merchant, which capture fills in itself.
-            note = existing.copy(description = note).userNote,
-        )
+        categorizer.learnTags(learnFrom, direction, cleanedTags)
     }
 
     suspend fun delete(id: Long) = transactionDao.delete(id)

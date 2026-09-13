@@ -11,30 +11,29 @@ data class CategoryGuess(
     val confidence: Float,
     val merchantDisplayName: String? = null,
     val tags: List<String> = emptyList(),
-    val note: String? = null,
 )
 
 /**
  * Layered classifier:
- *  1. Rules the user taught the app (highest confidence).
+ *  1. Rules the user taught the app (highest confidence). Spending only; income ignores them.
  *  2. Built-in merchant/keyword knowledge base.
  *  3. Structural heuristics (UPI handle to a person, credits, amount bands).
  */
 class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
 
     suspend fun categorize(payment: ParsedPayment): CategoryGuess {
-        val key = merchantKey(payment.merchantRaw)
-
-        if (key != null) {
-            merchantRuleDao.find(key)?.let {
-                return CategoryGuess(it.category, 0.99f, it.displayName, it.tags, it.note)
-            }
-        }
-
+        // Income never picks up merchant rules: money coming in from a merchant should not inherit
+        // the category, name or tags the user taught for paying them.
         if (payment.direction == Direction.CREDIT) {
             val fromKeywords = MerchantKeywords.match(payment.rawText)
             if (fromKeywords?.first == Category.INCOME) return CategoryGuess(Category.INCOME, 0.85f)
             return CategoryGuess(Category.INCOME, 0.55f)
+        }
+
+        merchantKey(payment.merchantRaw)?.let { key ->
+            merchantRuleDao.find(key)?.let {
+                return CategoryGuess(it.category, 0.99f, it.displayName, it.tags)
+            }
         }
 
         MerchantKeywords.match(payment.merchantRaw.orEmpty())?.let { (category, len) ->
@@ -53,16 +52,16 @@ class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
     }
 
     /** Called when the user re-categorises a transaction so future ones match. */
-    suspend fun learn(merchantRaw: String?, category: Category) {
-        val key = merchantKey(merchantRaw) ?: return
+    suspend fun learn(merchantRaw: String?, direction: Direction, category: Category) {
+        val key = learnableKey(merchantRaw, direction) ?: return
         val existing = merchantRuleDao.find(key)
         merchantRuleDao.upsert(
             ruleFor(key, existing).copy(category = category)
         )
     }
 
-    suspend fun learnDisplayName(merchantRaw: String?, displayName: String) {
-        val key = merchantKey(merchantRaw) ?: return
+    suspend fun learnDisplayName(merchantRaw: String?, direction: Direction, displayName: String) {
+        val key = learnableKey(merchantRaw, direction) ?: return
         val existing = merchantRuleDao.find(key)
         merchantRuleDao.upsert(
             ruleFor(key, existing).copy(displayName = displayName.trim().takeIf { it.isNotEmpty() })
@@ -70,19 +69,21 @@ class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
     }
 
     /**
-     * Remembers the tags and note the user last saved for a merchant so the next payment to the
-     * same place arrives already carrying them. Saving with an empty list clears what was learned.
+     * Remembers the tags the user last saved for a merchant so the next payment to the same place
+     * arrives already carrying them. Saving with an empty list clears what was learned. Notes are
+     * not learned: they describe one transaction, not the merchant.
      */
-    suspend fun learnTagsAndNote(merchantRaw: String?, tags: List<String>, note: String?) {
-        val key = merchantKey(merchantRaw) ?: return
+    suspend fun learnTags(merchantRaw: String?, direction: Direction, tags: List<String>) {
+        val key = learnableKey(merchantRaw, direction) ?: return
         val existing = merchantRuleDao.find(key)
         merchantRuleDao.upsert(
-            ruleFor(key, existing).copy(
-                tags = tags.map { it.trim() }.filter { it.isNotEmpty() },
-                note = note?.trim()?.takeIf { it.isNotEmpty() },
-            )
+            ruleFor(key, existing).copy(tags = tags.map { it.trim() }.filter { it.isNotEmpty() })
         )
     }
+
+    /** Only spending teaches merchant rules, mirroring [categorize], which skips them for income. */
+    private fun learnableKey(merchantRaw: String?, direction: Direction): String? =
+        if (direction == Direction.CREDIT) null else merchantKey(merchantRaw)
 
     /** Carries every field of an existing rule forward so one lesson never erases another. */
     private fun ruleFor(key: String, existing: MerchantRule?) = MerchantRule(
@@ -90,7 +91,8 @@ class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
         category = existing?.category ?: Category.OTHER,
         displayName = existing?.displayName,
         tags = existing?.tags.orEmpty(),
-        note = existing?.note,
+        // Notes are no longer learned; this drops any an earlier version stored on the rule.
+        note = null,
         hitCount = (existing?.hitCount ?: 0) + 1,
     )
 

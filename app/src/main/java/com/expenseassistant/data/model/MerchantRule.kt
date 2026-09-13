@@ -4,10 +4,13 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Learned mapping created whenever the user re-categorises or edits a merchant's transaction.
- * Alongside the category we remember the display name, tags and note the user last saved, so the
- * next payment to the same merchant arrives already filled in.
+ * Learned mapping created whenever the user re-categorises or edits a merchant's spending
+ * transaction. Alongside the category we remember the display name and tags the user last saved,
+ * so the next payment to the same merchant arrives already filled in. Income neither teaches nor
+ * uses these rules.
  * These take priority over the built-in keyword rules.
+ *
+ * [note] is no longer learned or applied; the column stays so older databases and backups load.
  */
 @Entity(tableName = "merchant_rules")
 data class MerchantRule(

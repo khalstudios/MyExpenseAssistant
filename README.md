@@ -24,7 +24,7 @@ AccessibilityService ────────┘        (regex)         (rules +
 
 Categorisation is a layered classifier rather than a single lookup:
 
-1. **Learned rules** — every time you correct a category or rename a captured merchant, the normalised merchant key (`Swiggy Private Limited` → `swiggy`) is stored in `merchant_rules` and wins next time. A saved rename becomes the display name for future matching payments; category rules have confidence `0.99`.
+1. **Learned rules** — every time you correct a category or rename a captured merchant, the normalised merchant key (`Swiggy Private Limited` → `swiggy`) is stored in `merchant_rules` and wins next time. A saved rename becomes the display name for future matching payments, and the tags you save are carried forward too; category rules have confidence `0.99`. Notes are never copied to later payments, and income transactions neither create nor use learned rules.
 2. **Knowledge base** — ~250 merchant/keyword patterns across 15 categories, longest match first, checked against the merchant field before the raw text. Confidence `0.6–0.95`.
 3. **Heuristics** — credits default to income; payments to a personal VPA or a 1–3 word personal name become `Transfer to People`. Confidence `0.55–0.6`.
 
