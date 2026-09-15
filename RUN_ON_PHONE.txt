@@ -1,9 +1,7 @@
 MyExpenseAssistant - Build, Test, and Run on Phone
 
-The app has two flavors: "direct" (sideloading, full capture) and "play"
-(the Play Store build). Everything below uses direct - that is the one to
-put on your own phone. Every Gradle task name has to name the flavor;
-plain :app:assembleDebug or :app:testDebugUnitTest is ambiguous and fails.
+There is one build of the app: the same APK goes on your phone, to testers
+and (as an .aab) to Play.
 
 Prerequisites
 - Connect the Android phone through USB.
@@ -20,7 +18,7 @@ The phone should appear with the status: device
 
 $gradle = "$env:LOCALAPPDATA\Gradle\gradle-8.9\bin\gradle.bat"
 
-& $gradle :app:assembleDirectDebug :app:testDirectDebugUnitTest `
+& $gradle :app:assembleDebug :app:testDebugUnitTest `
   --no-daemon `
   --no-configuration-cache `
   --console=plain
@@ -29,21 +27,20 @@ A successful run ends with:
 
 BUILD SUCCESSFUL
 
-The same rule applies to every other variant task. The ones you may need:
+Other tasks you may need:
 
-  :app:assembleDirectDebug        debug APK for your phone
-  :app:testDirectDebugUnitTest    unit tests
-  :app:assembleDirectRelease      signed sideload APK
-  :app:assemblePlayRelease        signed Play APK
-  :app:bundlePlayRelease          Play upload bundle (.aab)
-  :app:build                      every variant, plus lint and tests
+  :app:assembleDebug        debug APK for your phone
+  :app:testDebugUnitTest    unit tests
+  :app:assembleRelease      signed APK for sideloading and testers
+  :app:bundleRelease        Play upload bundle (.aab)
+  :app:build                debug and release, plus lint and tests
 
 3. Install/update the app on the phone
 
 $adb = 'C:\Users\shard\AppData\Local\Android\Sdk\platform-tools\adb.exe'
 
 & $adb install -r `
-  'D:\My Projects\AI_Assisted\MyExpenseAssistant\app\build\outputs\apk\direct\debug\app-direct-debug.apk'
+  'D:\My Projects\AI_Assisted\MyExpenseAssistant\app\build\outputs\apk\debug\app-debug.apk'
 
 The -r flag updates the installed app while preserving transaction data and settings.
 
@@ -65,15 +62,16 @@ are still listed. A migration that throws crashes the app on startup.
 APK locations
 
 Debug build for your phone:
-D:\My Projects\AI_Assisted\MyExpenseAssistant\app\build\outputs\apk\direct\debug\app-direct-debug.apk
+D:\My Projects\AI_Assisted\MyExpenseAssistant\app\build\outputs\apk\debug\app-debug.apk
 
 Signed builds to share come from scripts/release.sh, which copies them to
-the repo root as MyExpenseAssistant-direct-release.apk (sideloading),
-MyExpenseAssistant-play-test.apk and MyExpenseAssistant-play-release.aab.
+the repo root as KahanGayaPaisa-release.apk (sideloading and testers)
+and KahanGayaPaisa-release.aab (Play upload).
 
-Anything under app\build\outputs\apk\debug\ or a bare MyExpenseAssistant.apk
-in the repo root predates the play/direct split. Those are stale - delete
-them rather than installing them.
+Anything under app\build\outputs\apk\direct\ or app\build\outputs\apk\play\,
+and any MyExpenseAssistant-direct-*, MyExpenseAssistant-play-* or bare
+MyExpenseAssistant.apk in the repo root, comes from the retired play/direct
+builds. Those are stale - delete them rather than installing them.
 
 Terminal note
 

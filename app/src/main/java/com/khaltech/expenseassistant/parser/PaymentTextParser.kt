@@ -9,7 +9,7 @@ import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 /**
- * Turns free-form payment text (notification body, SMS, or on-screen text) into a
+ * Turns free-form payment text (an app notification or an SMS) into a
  * [ParsedPayment]. Returns null when the text is not a completed money movement.
  */
 object PaymentTextParser {
@@ -58,7 +58,7 @@ object PaymentTextParser {
         "collect request", "requesting", "asked you", "offer", "cashback up to", "win ",
     )
 
-    // Screen text has no punctuation, so every pattern must stop at a trailing keyword.
+    // Notification text often has no punctuation, so every pattern must stop at a trailing keyword.
     private const val MERCHANT_END = """(?=\s+(?:on|via|from|using|ref(?:no)?|upi|utr|txn|for|at|success|successful|completed|to)\b|[.,\n]|$)"""
 
     private val MERCHANT_PATTERNS = listOf(
@@ -83,19 +83,6 @@ object PaymentTextParser {
         "your", "you", "account", "a/c", "bank", "upi", "wallet", "the", "and", "balance",
     )
 
-    /** Only a completed payment screen says this; history rows never do. */
-    private val STRONG_SUCCESS = Regex(
-        """\b(payment|transaction|transfer|money)?\s*(is\s+)?success(ful|fully)?\b""",
-        RegexOption.IGNORE_CASE,
-    )
-
-    /** Wording that only appears on list, history or search screens. */
-    private val HISTORY_HINTS = listOf(
-        "transaction history", "all transactions", "payment history", "passbook",
-        "statement", "view all", "search transactions", "recent transactions",
-        "this month", "last month", "filter", "yesterday",
-    )
-
     private val DATE_ISO = Regex("""\b(\d{4})-(\d{2})-(\d{2})\b""")
     private val DATE_NUMERIC = Regex("""\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b""")
     private val DATE_TEXTUAL = Regex(
@@ -106,33 +93,16 @@ object PaymentTextParser {
 
     private val MONTHS = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 
-    /** How many separate amounts a genuine confirmation may show. */
-    const val MAX_AMOUNTS_ON_CONFIRMATION = 2
-
-    fun amountCount(text: String): Int = AMOUNT.findAll(text).count()
-
-    fun looksLikeHistoryScreen(text: String): Boolean {
-        val lower = text.lowercase()
-        return HISTORY_HINTS.any { lower.contains(it) } ||
-            amountCount(text) > MAX_AMOUNTS_ON_CONFIRMATION
-    }
-
-    /**
-     * @param requireStrongSuccess rejects anything that is not an explicit "payment successful"
-     * confirmation. Used for screen capture, where a scrolled history list would otherwise
-     * look like dozens of live payments.
-     */
     fun parse(
         text: String,
         sourcePackage: String,
         occurredAt: Long = System.currentTimeMillis(),
-        requireStrongSuccess: Boolean = false,
         sender: String? = null,
     ): ParsedPayment? {
         val normalized = text.replace('\u00A0', ' ').replace(Regex("\\s+"), " ").trim()
         if (normalized.isEmpty()) return null
 
-        if (!requireStrongSuccess && PaymentApps.carriesBankAlerts(sourcePackage)) {
+        if (PaymentApps.carriesBankAlerts(sourcePackage)) {
             when (val result = BankSmsParser.parse(text, sender)) {
                 is BankSmsResult.Transaction -> return fromBankAlert(result.transaction, normalized, sourcePackage, occurredAt)
                 BankSmsResult.NotATransaction -> return null
@@ -144,11 +114,6 @@ object PaymentTextParser {
         val lower = normalized.lowercase()
         if (FAILURE_HINTS.any { lower.contains(it) }) return null
         if (SUCCESS_HINTS.none { lower.contains(it) }) return null
-
-        if (requireStrongSuccess) {
-            if (!STRONG_SUCCESS.containsMatchIn(normalized)) return null
-            if (looksLikeHistoryScreen(normalized)) return null
-        }
 
         val amountMinor = extractAmountMinor(normalized) ?: return null
         if (amountMinor <= 0) return null

@@ -152,7 +152,7 @@ class BackupArchive(
         private const val FORMAT_VERSION = 1
         private val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd-HHmm", Locale.US)
 
-        fun fileName(prefix: String = "expense-assistant-backup"): String =
+        fun fileName(prefix: String = "kahan-gaya-paisa-backup"): String =
             "$prefix-${DATE_FORMAT.format(Date())}.json"
     }
 }

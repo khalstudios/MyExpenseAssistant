@@ -28,20 +28,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // Google Play restricts the Accessibility API to accessibility purposes, so on-screen payment
-    // capture ships only in the direct-download build. See app/src/direct/ and app/src/play/.
-    flavorDimensions += "distribution"
-
-    productFlavors {
-        create("play") {
-            dimension = "distribution"
-        }
-        create("direct") {
-            dimension = "distribution"
-            versionNameSuffix = "-direct"
-        }
-    }
-
     signingConfigs {
         create("release") {
             if (keystorePropertiesFile.exists()) {

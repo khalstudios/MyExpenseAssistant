@@ -26,7 +26,8 @@
 ## Privacy And Permissions
 
 - The app is intentionally offline: do not add internet access or telemetry without explicit approval.
-- Notification and accessibility capture are policy-sensitive. Keep accessibility optional, narrowly package-scoped, and clearly user initiated.
+- Capture is notification-only. Notification access is policy-sensitive: keep it disclosed in-app and user initiated. Do not add an accessibility service, screen reading, or the SMS permission without explicit approval.
+- There is a single build variant (no product flavors); do not reintroduce flavors without explicit approval.
 - Do not broaden captured packages or permissions without updating relevant configuration, documentation, and tests.
 
 ## Testing And Validation
@@ -36,7 +37,7 @@
 - For Kotlin and Compose changes, run:
 
 ```powershell
-./gradlew :app:assembleDirectDebug :app:testDirectDebugUnitTest :app:testPlayDebugUnitTest --no-daemon --no-configuration-cache
+./gradlew :app:assembleDebug :app:testDebugUnitTest --no-daemon --no-configuration-cache
 ```
 
 - For device deployment, install `app/build/outputs/apk/debug/app-debug.apk` with ADB after a successful build.

@@ -315,7 +315,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     }
 
     val topBarTitle = when (tab) {
-        Tab.HOME -> "Expense Assistant"
+        Tab.HOME -> "Kahan Gaya Paisa"
         Tab.INSIGHTS -> "Insights"
         Tab.BUDGET -> "Budget"
         Tab.PROFILE -> "Profile"

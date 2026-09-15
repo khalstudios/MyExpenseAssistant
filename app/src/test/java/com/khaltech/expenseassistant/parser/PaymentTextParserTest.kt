@@ -2,7 +2,6 @@ package com.khaltech.expenseassistant.parser
 
 import com.khaltech.expenseassistant.data.model.Direction
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -158,27 +157,6 @@ class PaymentTextParserTest {
     }
 
     @Test
-    fun `screen capture rejects a scrolled history list`() {
-        val history = "Transaction history Paid to Swiggy \u20b9249 Paid to Uber \u20b9180 Paid to Zepto \u20b9640"
-        assertNull(PaymentTextParser.parse(history, gpay, requireStrongSuccess = true))
-    }
-
-    @Test
-    fun `screen capture rejects a single history row without a success banner`() {
-        val row = "Paid to Swiggy \u20b9249 12 Aug 2026"
-        assertNull(PaymentTextParser.parse(row, gpay, requireStrongSuccess = true))
-    }
-
-    @Test
-    fun `screen capture accepts a live confirmation screen`() {
-        val screen = "Payment successful \u20b9249 Paid to Swiggy UPI Ref No 512345678901"
-        val result = PaymentTextParser.parse(screen, gpay, requireStrongSuccess = true)
-        assertNotNull(result)
-        assertEquals(24900L, result!!.amountMinor)
-        assertEquals("Swiggy", result.merchantRaw)
-    }
-
-    @Test
     fun `uses the date written in the text when it is clearly older`() {
         val capturedAt = System.currentTimeMillis()
         val text = "Rs.1,250.00 debited from A/c XX1234 to UBER INDIA on 12-05-2026"
@@ -195,15 +173,5 @@ class PaymentTextParserTest {
         val result = PaymentTextParser.parse("You paid \u20b9100 to Swiggy on $today", gpay, capturedAt)
         assertNotNull(result)
         assertEquals(capturedAt, result!!.occurredAt)
-    }
-
-    @Test
-    fun `flags screens showing many amounts as history`() {
-        assertTrue(
-            PaymentTextParser.looksLikeHistoryScreen("\u20b9100 \u20b9200 \u20b9300 \u20b9400")
-        )
-        assertFalse(
-            PaymentTextParser.looksLikeHistoryScreen("Payment successful \u20b9249 Paid to Swiggy")
-        )
     }
 }

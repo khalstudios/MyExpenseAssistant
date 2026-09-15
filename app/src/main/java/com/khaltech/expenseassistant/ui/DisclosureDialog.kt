@@ -33,7 +33,7 @@ object Disclosures {
 
     val Notifications = Disclosure(
         title = "Read payment notifications?",
-        summary = "This is how Expense Assistant records spending without you typing every payment in.",
+        summary = "This is how Kahan Gaya Paisa records spending without you typing every payment in.",
         points = listOf(
             DisclosurePoint(
                 "What it reads",
@@ -74,12 +74,6 @@ object Disclosures {
         ),
         confirmLabel = "Continue",
     )
-
-    /**
-     * Only present where on-screen capture ships; null in the Play build, which carries neither
-     * the service nor any text describing it. See ScreenCaptureDisclosure per flavor.
-     */
-    val ScreenReading: Disclosure? = ScreenCaptureDisclosure
 }
 
 @Composable

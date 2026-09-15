@@ -14,7 +14,7 @@ data class ParsedPayment(
     val sourcePackage: String,
     val sourceApp: String,
     val occurredAt: Long,
-    // Filled in only for bank alerts; app notifications and payment screens do not state them.
+    // Filled in only for bank alerts; app notifications do not state them.
     val bankName: String? = null,
     val accountType: AccountType? = null,
     val accountLast4: String? = null,

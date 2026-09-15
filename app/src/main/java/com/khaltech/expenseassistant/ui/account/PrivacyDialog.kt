@@ -12,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.khaltech.expenseassistant.service.ScreenCapture
 
 /**
  * The in-app privacy summary. Mirrors PRIVACY_POLICY.md in the repository root, which is the
@@ -30,21 +29,15 @@ fun PrivacyDialog(onDismiss: () -> Unit) {
             ) {
                 Section(
                     "Nothing leaves this phone",
-                    "Expense Assistant has no internet permission, so it cannot upload your " +
+                    "Kahan Gaya Paisa has no internet permission, so it cannot upload your " +
                         "transactions, contacts or notifications. There are no ads, no analytics " +
                         "and no third-party tracking.",
                 )
                 Section(
                     "What it reads",
-                    buildString {
-                        append("Payment notifications, once you enable that access, for the amount, ")
-                        append("payee and time. Contact names, if you turn that on, so transfers ")
-                        append("show a name instead of a number.")
-                        if (ScreenCapture.AVAILABLE) {
-                            append(" Payment success screens in GPay, PhonePe, Paytm and BHIM, if ")
-                            append("you enable screen reading.")
-                        }
-                    },
+                    "Payment notifications and bank SMS alerts, once you enable notification access, " +
+                        "for the amount, payee and time. Contact names, if you turn that on, so " +
+                        "transfers show a name instead of a number.",
                 )
                 Section(
                     "What it stores",

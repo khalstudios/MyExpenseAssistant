@@ -1,8 +1,8 @@
-# Privacy Policy — Expense Assistant
+# Privacy Policy — Kahan Gaya Paisa
 
 **Effective date:** 7 September 2026
 
-Expense Assistant records your spending on your own phone. This policy explains what the app
+Kahan Gaya Paisa records your spending on your own phone. This policy explains what the app
 reads, what it stores, and what leaves your device.
 
 ## The short version
@@ -20,13 +20,13 @@ and can be revoked at any time in Android Settings.
 | --- | --- | --- |
 | Notification access | Notifications posted by payment and banking apps: amount, merchant or payee, and time | To record payments automatically instead of you typing them in |
 | Contacts (optional) | Names and phone numbers from your contact list | So a transfer shows a person's name instead of a phone number or UPI ID |
-| Screen reading (direct-download build only) | Visible text on payment confirmation screens in GPay, PhonePe, Paytm and BHIM | To catch payments that complete without posting a notification |
 
-The screen reading feature uses an Android accessibility service and is **not** included in the
-Google Play build of the app.
+The app does not use an accessibility service and does not read what is on your screen. It does
+not request the SMS permission: bank SMS alerts are read only from the notification your messaging
+app posts.
 
-Notifications from apps other than payment and banking apps are ignored. Screen text is read only
-in the specific payment apps listed above, and only on screens that indicate a completed payment.
+Notifications from apps other than payment, banking and messaging apps are ignored, and messages
+that are not payment or bank transaction alerts are discarded without being stored.
 
 ## What the app stores, and where
 

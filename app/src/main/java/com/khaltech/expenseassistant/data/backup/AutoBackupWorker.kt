@@ -18,7 +18,7 @@ class AutoBackupWorker(appContext: Context, parameters: WorkerParameters) : Coro
             withContext(Dispatchers.IO) {
                 val directory = DocumentFile.fromTreeUri(applicationContext, Uri.parse(settings.folderUri))
                     ?: throw IOException("Backup folder is unavailable")
-                val fileName = BackupArchive.fileName("expense-assistant-auto")
+                val fileName = BackupArchive.fileName("kahan-gaya-paisa-auto")
                 val destination = directory.createFile("application/json", fileName)
                     ?: throw IOException("Could not create backup file")
                 applicationContext.contentResolver.openOutputStream(destination.uri)?.bufferedWriter()?.use { writer ->

@@ -134,8 +134,7 @@ class TransactionRepository(
 
     /**
      * Stores a captured payment. Returns the new row id, or null when it was a duplicate: one
-     * payment routinely reaches us twice, as an app notification and again as a bank alert or a
-     * payment-success screen.
+     * payment routinely reaches us twice, as an app notification and again as a bank alert.
      */
     suspend fun ingest(payment: ParsedPayment, captureSource: CaptureSource): Long? {
         val dedupeKey = dedupeKey(payment)

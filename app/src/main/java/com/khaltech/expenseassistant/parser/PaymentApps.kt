@@ -48,12 +48,4 @@ object PaymentApps {
 
     fun displayName(packageName: String?): String =
         known[packageName] ?: packageName?.substringAfterLast('.')?.replaceFirstChar { it.uppercase() } ?: "Unknown"
-
-    /** Packages whose success screens the accessibility service should scan. */
-    val screenScanTargets = setOf(
-        "com.google.android.apps.nbu.paisa.user",
-        "com.phonepe.app",
-        "net.one97.paytm",
-        "in.org.npci.upiapp",
-    )
 }

@@ -53,7 +53,7 @@ private val TutorialSteps = listOf(
     TutorialStep(
         icon = Icons.Filled.AutoAwesome,
         title = "Welcome",
-        summary = "Expense Assistant keeps a running record of your spending without you typing in every payment.",
+        summary = "Kahan Gaya Paisa keeps a running record of your spending without you typing in every payment.",
         points = listOf(
             "It reads the payment confirmations your apps already show you, sorts them into categories and adds up the month for you.",
             "Everything stays on this phone. Nothing is uploaded anywhere.",
@@ -64,8 +64,7 @@ private val TutorialSteps = listOf(
         title = "Automatic capture",
         summary = "Payments arrive on their own once you grant access under Profile › Capture.",
         points = listOf(
-            "Notification access lets the app read payment alerts from GPay, PhonePe and Paytm.",
-            "Screen reading catches payments that never post a notification.",
+            "Notification access lets the app read payment alerts from GPay, PhonePe, Paytm and your bank's SMS.",
             "Contact names turn person-to-person transfers into a real name instead of a number.",
         ),
     ),

@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.DeleteForever
@@ -65,7 +64,6 @@ import com.khaltech.expenseassistant.BuildConfig
 import com.khaltech.expenseassistant.data.prefs.UserProfile
 import com.khaltech.expenseassistant.data.prefs.BackupInterval
 import com.khaltech.expenseassistant.service.PermissionStatus
-import com.khaltech.expenseassistant.service.ScreenCapture
 import com.khaltech.expenseassistant.ui.CardElevation
 import com.khaltech.expenseassistant.ui.DisclosureDialog
 import com.khaltech.expenseassistant.ui.Disclosures
@@ -77,7 +75,7 @@ import com.khaltech.expenseassistant.ui.toMinorUnits
 import kotlinx.coroutines.launch
 
 /** The sensitive-access grants offered in the Capture section, each behind a disclosure. */
-private enum class CaptureAccess { NOTIFICATIONS, SCREEN_READING, CONTACTS }
+private enum class CaptureAccess { NOTIFICATIONS, CONTACTS }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,7 +103,6 @@ fun AccountScreen(
     var configuringAutoBackup by remember { mutableStateOf(false) }
     var selectedBackupInterval by remember { mutableStateOf(BackupInterval.FIFTEEN_DAYS) }
     var notificationAccess by remember { mutableStateOf(PermissionStatus.isNotificationAccessGranted(context)) }
-    var accessibility by remember { mutableStateOf(PermissionStatus.isAccessibilityGranted(context)) }
     var contactsAccess by remember { mutableStateOf(PermissionStatus.isContactsAccessGranted(context)) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -158,7 +155,6 @@ fun AccountScreen(
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             notificationAccess = PermissionStatus.isNotificationAccessGranted(context)
-            accessibility = PermissionStatus.isAccessibilityGranted(context)
             contactsAccess = PermissionStatus.isContactsAccessGranted(context)
         }
     }
@@ -204,14 +200,6 @@ fun AccountScreen(
                     subtitle = if (notificationAccess) "Enabled" else "Disabled",
                     onClick = { pendingDisclosure = CaptureAccess.NOTIFICATIONS },
                 )
-                if (ScreenCapture.AVAILABLE) {
-                    SettingRow(
-                        icon = Icons.Filled.Accessibility,
-                        title = "Screen reading",
-                        subtitle = if (accessibility) "Enabled" else "Disabled",
-                        onClick = { pendingDisclosure = CaptureAccess.SCREEN_READING },
-                    )
-                }
                 SettingRow(
                     icon = Icons.Filled.Contacts,
                     title = "Contact names",
@@ -285,8 +273,6 @@ fun AccountScreen(
     pendingDisclosure?.let { access ->
         val disclosure = when (access) {
             CaptureAccess.NOTIFICATIONS -> Disclosures.Notifications
-            // Null only in builds without on-screen capture, where this row does not exist.
-            CaptureAccess.SCREEN_READING -> Disclosures.ScreenReading ?: return@let
             CaptureAccess.CONTACTS -> Disclosures.Contacts
         }
         DisclosureDialog(
@@ -297,8 +283,6 @@ fun AccountScreen(
                 when (access) {
                     CaptureAccess.NOTIFICATIONS ->
                         runCatching { context.startActivity(PermissionStatus.notificationAccessIntent()) }
-                    CaptureAccess.SCREEN_READING ->
-                        runCatching { context.startActivity(PermissionStatus.accessibilityIntent()) }
                     CaptureAccess.CONTACTS ->
                         contactsLauncher.launch(android.Manifest.permission.READ_CONTACTS)
                 }
@@ -339,7 +323,7 @@ fun AccountScreen(
                 viewModel.restore(uri) { succeeded ->
                     scope.launch {
                         snackbarHostState.showMessage(
-                            if (succeeded) "Backup restored" else "Restore failed: select an Expense Assistant backup"
+                            if (succeeded) "Backup restored" else "Restore failed: select a Kahan Gaya Paisa backup"
                         )
                     }
                 }

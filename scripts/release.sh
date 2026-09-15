@@ -16,21 +16,19 @@ if [ ! -f keystore.properties ]; then
     exit 1
 fi
 
-echo "==> Building play + direct release artifacts"
-./gradlew.bat bundlePlayRelease assemblePlayRelease assembleDirectRelease
+echo "==> Building release artifacts"
+./gradlew.bat bundleRelease assembleRelease
 
 echo "==> Copying to repo root"
-cp app/build/outputs/bundle/playRelease/app-play-release.aab MyExpenseAssistant-play-release.aab
-cp app/build/outputs/apk/play/release/app-play-release.apk MyExpenseAssistant-play-test.apk
-cp app/build/outputs/apk/direct/release/app-direct-release.apk MyExpenseAssistant-direct-release.apk
+cp app/build/outputs/bundle/release/app-release.aab KahanGayaPaisa-release.aab
+cp app/build/outputs/apk/release/app-release.apk KahanGayaPaisa-release.apk
 
 echo
 grep -E "versionCode|versionName" app/build.gradle.kts | sed 's/^ */  /'
 echo
-echo "  Upload to Play:      MyExpenseAssistant-play-release.aab"
-echo "  Share with testers:  MyExpenseAssistant-play-test.apk"
-echo "  Full-capability:     MyExpenseAssistant-direct-release.apk"
+echo "  Upload to Play:      KahanGayaPaisa-release.aab"
+echo "  Share with testers:  KahanGayaPaisa-release.apk"
 echo
 # Not reproducible build-to-build - use it to check a transfer, not to identify a build.
 echo "==> SHA-256 of this build"
-sha256sum MyExpenseAssistant-play-test.apk
+sha256sum KahanGayaPaisa-release.apk

@@ -42,7 +42,7 @@ data class TransactionEntity(
     val customCategoryName: String? = null,
     val customCategoryColor: String? = null,
     val customCategoryIcon: String? = null,
-    // What the bank alert stated; null for app notifications, screen captures and manual entries.
+    // What the bank alert stated; null for app notifications and manual entries.
     val bankName: String? = null,
     val accountType: AccountType? = null,
     val accountLast4: String? = null,

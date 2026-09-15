@@ -41,7 +41,7 @@ object CsvExporter {
     }
 
     fun fileName(): String =
-        "expense-assistant-${SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())}.csv"
+        "kahan-gaya-paisa-${SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())}.csv"
 
     private fun String.escapeCsv(): String {
         val needsQuoting = any { it == ',' || it == '"' || it == '\n' || it == '\r' }

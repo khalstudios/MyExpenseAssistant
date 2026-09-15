@@ -1,20 +1,18 @@
-# Expense Assistant
+# Kahan Gaya Paisa
 
-Android app that auto-records UPI/card expenses by reading payment notifications (Google Pay, PhonePe, Paytm, BHIM, bank SMS) and, as a fallback, payment success screens. Transactions are categorised automatically and everything stays on-device.
+Kahan Gaya Paisa ("where did the money go?") is an Android app that auto-records UPI/card expenses by reading payment notifications (Google Pay, PhonePe, Paytm, BHIM) and bank SMS alerts. Transactions are categorised automatically and everything stays on-device.
 
 ## How it works
 
 ```
-NotificationListenerService ─┐
-                             ├─> PaymentTextParser ─> Categorizer ─> TransactionRepository ─> Room ─> Compose UI
-AccessibilityService ────────┘        (regex)         (rules +          (dedupe)
-                                                    learned rules)
+NotificationListenerService ─> PaymentTextParser ─> Categorizer ─> TransactionRepository ─> Room ─> Compose UI
+                               (BankSmsParser for     (rules +          (dedupe)
+                                SMS and bank apps)  learned rules)
 ```
 
 | Layer | Location | Responsibility |
 | --- | --- | --- |
 | Capture | [PaymentNotificationListener.kt](app/src/main/java/com/khaltech/expenseassistant/service/PaymentNotificationListener.kt) | Reads notifications from whitelisted payment packages only |
-| Capture (fallback) | [PaymentScreenAccessibilityService.kt](app/src/main/java/com/khaltech/expenseassistant/service/PaymentScreenAccessibilityService.kt) | Scrapes "Payment successful" screens when no notification is posted |
 | Parse | [PaymentTextParser.kt](app/src/main/java/com/khaltech/expenseassistant/parser/PaymentTextParser.kt) | Extracts amount, direction, merchant, UPI reference; rejects failed/pending/collect-request/promo text |
 | Parse (bank alerts) | [BankSmsParser.kt](app/src/main/java/com/khaltech/expenseassistant/parser/bank/BankSmsParser.kt), [Banks.kt](app/src/main/java/com/khaltech/expenseassistant/parser/bank/Banks.kt) | SMS and bank-app notifications: identifies the bank from the sender header or its name, classifies the type, extracts account/card last 4 digits, counterparty, reference and balance |
 | Categorise | [Categorizer.kt](app/src/main/java/com/khaltech/expenseassistant/categorize/Categorizer.kt) | User-taught rules → keyword knowledge base → structural heuristics, each with a confidence score |
@@ -56,17 +54,16 @@ gradle wrapper --gradle-version 8.9
 ## Enabling capture on device
 
 1. Install and open the app.
-2. Tap **Enable** next to *Notification access* → toggle "Expense Assistant" in the system list.
-3. Optionally tap **Enable** next to *Screen reading* → Settings ▸ Accessibility ▸ Installed apps ▸ Expense Assistant.
-4. Make a UPI payment. It appears within a second or two.
+2. Tap **Enable** next to *Notification access* → toggle "Kahan Gaya Paisa" in the system list.
+3. Make a UPI payment. It appears within a second or two.
 
-The accessibility path is only needed for apps that show a success screen but post no notification. Notification access alone covers GPay, PhonePe, Paytm and bank SMS.
+Notification access covers GPay, PhonePe, Paytm and bank SMS. There is no screen reading or accessibility service; a payment that posts neither an app notification nor a bank SMS can be added with **+**.
 
 Automatic capture stores every completed payment notification it can parse, even when the merchant or category is unavailable or inaccurate. In those cases, the source app is used as the merchant name and the transaction can be corrected later.
 
 ### Contact names
 
-In **Account** under **Capture**, enable *Contact names* to let the app match the merchant name parsed from newly captured payments to a similar phone-contact name. The app does not inspect phone numbers in notifications or screen captures. A contact name is used only when it is the clear match; it becomes the transaction merchant while the original parsed counterparty is retained in Notes. Each result, including no match, is cached locally by merchant name so the phone contacts provider is not queried again for repeat payments. Contact access is optional and contact data is only read on-device during the first lookup.
+In **Account** under **Capture**, enable *Contact names* to let the app match the merchant name parsed from newly captured payments to a similar phone-contact name. The app does not inspect phone numbers in notifications. A contact name is used only when it is the clear match; it becomes the transaction merchant while the original parsed counterparty is retained in Notes. Each result, including no match, is cached locally by merchant name so the phone contacts provider is not queried again for repeat payments. Contact access is optional and contact data is only read on-device during the first lookup.
 
 ### Backups
 
@@ -78,16 +75,16 @@ You can also enable **Automatic backups** once, choose either every 15 days or m
 
 - No internet permission is declared. Data leaves the device only when you explicitly save a backup or CSV through Android's document picker, such as to Google Drive.
 - Only packages listed in [PaymentApps.kt](app/src/main/java/com/khaltech/expenseassistant/parser/PaymentApps.kt) are read; every other notification is discarded before parsing.
-- The accessibility service is scoped via `android:packageNames` to four UPI apps and only acts on screens containing success wording.
+- No accessibility service and no SMS permission: bank SMS are read only from the notifications messaging apps post.
 - Contacts are accessed only after the user enables the optional *Contact names* permission in Account.
 
 ## Play Store note
 
-Accessibility services and notification listeners are policy-sensitive. If you publish this, you must complete the **Permissions Declaration Form**, and the accessibility service must be presented as an optional, clearly-explained feature (as it is here) rather than a requirement.
+Notification listeners are policy-sensitive. If you publish this, declare the notification access use in Play Console, and keep the in-app disclosure shown before the system settings screen opens. The same build is uploaded to Play and shared as an APK; `scripts/release.sh` produces both.
 
 ## Extending
 
-- **More apps**: add the package to `PaymentApps.known`, and to `accessibility_service_config.xml` if screen scanning is needed.
+- **More apps**: add the package to `PaymentApps.known`, and to `bankAlertPackages` if it is an SMS or bank app.
 - **More merchants**: add keywords to `MerchantKeywords.rules`.
 - **New text formats**: add a regex to `PaymentTextParser.MERCHANT_PATTERNS` and a case to [PaymentTextParserTest.kt](app/src/test/java/com/khaltech/expenseassistant/parser/PaymentTextParserTest.kt).
 - **More banks or sender headers**: add a `Bank` to `Banks.all` with its headers and the names it signs messages with.
