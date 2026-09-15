@@ -21,6 +21,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccountBalance
@@ -41,6 +45,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -112,6 +117,9 @@ private sealed interface Route {
 private data class BackStackEntry(val route: Route, val key: String = UUID.randomUUID().toString())
 
 private const val MAIN_STATE_KEY = "main"
+
+/** A little shorter than Material's 80dp navigation bar. */
+private val BottomBarHeight = 68.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -324,7 +332,8 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(topBarTitle) },
+                navigationIcon = { AppLogo(Modifier.padding(start = 16.dp, end = 4.dp)) },
+                title = { Text(topBarTitle, fontWeight = FontWeight.SemiBold) },
                 actions = {
                     IconButton(onClick = { helpMenuOpen = true }) {
                         Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Help")
@@ -353,8 +362,12 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         },
         floatingActionButtonPosition = FabPosition.Center,
         bottomBar = {
+            // Material's bar is 80dp with no height setting; the fixed height also has to cover the
+            // system navigation area the bar pads itself above.
+            val systemNavHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             NavigationBar(
                 modifier = Modifier
+                    .height(BottomBarHeight + systemNavHeight)
                     .clip(
                         RoundedCornerShape(
                             topStart = 24.dp,
