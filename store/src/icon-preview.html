@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Icon preview</title>
+<style>
+  body { margin: 0; background: #e9ecef; font: 14px "Segoe UI", sans-serif; }
+  .row { display: flex; gap: 28px; align-items: center; padding: 24px; }
+  .row.dark { background: #1c1c1f; color: #ddd; }
+  figure { margin: 0; text-align: center; }
+  img { display: block; }
+  .square { border-radius: 22%; }
+  .circle { border-radius: 50%; }
+  .play { width: 256px; height: 256px; border-radius: 20%; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <figure><img class="play" src="icon-play.svg"><figcaption>Play icon</figcaption></figure>
+    <figure><img class="circle" src="icon-play.svg" width="96"><figcaption>Circle mask</figcaption></figure>
+    <figure><img class="square" src="icon-play.svg" width="96"><figcaption>Squircle</figcaption></figure>
+    <figure><img class="circle" src="icon-play.svg" width="48"><figcaption>48 px</figcaption></figure>
+    <figure><img class="circle" src="icon-play.svg" width="32"><figcaption>32 px</figcaption></figure>
+  </div>
+  <div class="row dark">
+    <figure><img class="circle" src="icon-play.svg" width="96"><figcaption>On dark</figcaption></figure>
+    <figure><img class="square" src="icon-play.svg" width="64"><figcaption>64 px</figcaption></figure>
+  </div>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!--
+  Kahan Gaya Paisa app icon. Drawn on the 108-unit adaptive icon canvas: Android shows the middle
+  72 units (18-90) and keeps the 66-unit circle around the centre safe from masking. The launcher
+  vectors in app/src/main/res mirror these shapes.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00897B"/>
+      <stop offset="1" stop-color="#004D40"/>
+    </linearGradient>
+    <radialGradient id="coin" cx="0.38" cy="0.34" r="0.75">
+      <stop offset="0" stop-color="#FFD978"/>
+      <stop offset="1" stop-color="#F5A623"/>
+    </radialGradient>
+  </defs>
+
+  <!-- background layer -->
+  <rect width="108" height="108" fill="url(#bg)"/>
+
+  <!-- foreground layer -->
+  <!-- nudged 2 units right and down so the lens and handle together sit on the centre -->
+  <g id="foreground" transform="translate(2 2)">
+    <!-- handle -->
+    <line x1="62.5" y1="62.5" x2="71" y2="71" stroke="#E0785F" stroke-width="8" stroke-linecap="round"/>
+    <!-- lens rim and coin -->
+    <circle cx="48" cy="48" r="20" fill="url(#coin)" stroke="#FFF8EC" stroke-width="5"/>
+    <!-- rupee sign -->
+    <g transform="translate(33 31.5) scale(0.3)" fill="none" stroke="#00473E" stroke-width="9"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M28 22H72"/>
+      <path d="M28 40H72"/>
+      <path d="M44 22C62 22 66 31 66 40C66 50 58 58 44 58H30L66 88"/>
+    </g>
+    <!-- glint on the lens -->
+    <path d="M36 41A13.5 13.5 0 0 1 43 34.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.55"
+          stroke-width="2.2" stroke-linecap="round"/>
+  </g>
+</svg>

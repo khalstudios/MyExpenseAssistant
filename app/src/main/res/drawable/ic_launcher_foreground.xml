@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon foreground: a magnifying glass over a rupee coin. Mirrors store/src/icon.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="2"
+        android:translateY="2">
+        <!-- handle -->
+        <path
+            android:pathData="M62.5,62.5L71,71"
+            android:strokeColor="#FFE0785F"
+            android:strokeLineCap="round"
+            android:strokeWidth="8" />
+        <!-- coin -->
+        <path android:pathData="M48,28a20,20 0,1 1,0 40a20,20 0,1 1,0 -40z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="43.2"
+                    android:centerY="41.6"
+                    android:gradientRadius="30">
+                    <item android:offset="0" android:color="#FFFFD978" />
+                    <item android:offset="1" android:color="#FFF5A623" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- lens rim -->
+        <path
+            android:pathData="M48,28a20,20 0,1 1,0 40a20,20 0,1 1,0 -40z"
+            android:strokeColor="#FFFFF8EC"
+            android:strokeWidth="5" />
+        <!-- rupee sign -->
+        <group
+            android:scaleX="0.3"
+            android:scaleY="0.3"
+            android:translateX="33"
+            android:translateY="31.5">
+            <path
+                android:pathData="M28,22H72M28,40H72M44,22C62,22 66,31 66,40C66,50 58,58 44,58H30L66,88"
+                android:strokeColor="#FF00473E"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round"
+                android:strokeWidth="9" />
+        </group>
+        <!-- glint -->
+        <path
+            android:pathData="M36,41A13.5,13.5 0,0 1,43 34.5"
+            android:strokeColor="#8CFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeWidth="2.2" />
+    </group>
+</vector>

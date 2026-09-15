@@ -56,13 +56,13 @@ class TransactionNotifier(private val context: Context) {
         // The lock screen shows only that something was recorded, never the amount or payee.
         val appName = context.getString(R.string.app_name)
         val publicVersion = Notification.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_icon)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(appName)
             .setContentText(TITLE)
             .build()
 
         val notification = Notification.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_icon)
+            .setSmallIcon(R.drawable.ic_notification)
             // Collapsed: the app name, then one line saying what was recorded. Expanded adds the details.
             .setContentTitle(appName)
             .setContentText(headline)
