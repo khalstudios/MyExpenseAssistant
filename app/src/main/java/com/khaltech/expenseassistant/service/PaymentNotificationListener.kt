@@ -28,7 +28,10 @@ class PaymentNotificationListener : NotificationListenerService() {
 
         scope.launch {
             runCatching {
-                val payment = PaymentTextParser.parse(text, packageName, sbn.postTime) ?: return@runCatching
+                // SMS apps title the notification with the sender header ("VM-HDFCBK-S"), which names the bank.
+                val sender = sbn.notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+                val payment = PaymentTextParser.parse(text, packageName, sbn.postTime, sender = sender)
+                    ?: return@runCatching
                 val id = ServiceLocator.repository(applicationContext)
                     .ingest(payment, CaptureSource.NOTIFICATION)
                 if (id != null) Log.d(TAG, "Recorded transaction $id from $packageName")

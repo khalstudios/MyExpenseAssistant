@@ -1,6 +1,10 @@
 package com.khaltech.expenseassistant.parser
 
 import com.khaltech.expenseassistant.data.model.Direction
+import com.khaltech.expenseassistant.data.model.TransactionType
+import com.khaltech.expenseassistant.parser.bank.BankSmsParser
+import com.khaltech.expenseassistant.parser.bank.BankSmsResult
+import com.khaltech.expenseassistant.parser.bank.BankTransaction
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
@@ -123,9 +127,19 @@ object PaymentTextParser {
         sourcePackage: String,
         occurredAt: Long = System.currentTimeMillis(),
         requireStrongSuccess: Boolean = false,
+        sender: String? = null,
     ): ParsedPayment? {
         val normalized = text.replace('\u00A0', ' ').replace(Regex("\\s+"), " ").trim()
         if (normalized.isEmpty()) return null
+
+        if (!requireStrongSuccess && PaymentApps.carriesBankAlerts(sourcePackage)) {
+            when (val result = BankSmsParser.parse(text, sender)) {
+                is BankSmsResult.Transaction -> return fromBankAlert(result.transaction, normalized, sourcePackage, occurredAt)
+                BankSmsResult.NotATransaction -> return null
+                // Wallet and merchant SMS name no bank or account; the general rules below still apply.
+                BankSmsResult.Unrecognised -> Unit
+            }
+        }
 
         val lower = normalized.lowercase()
         if (FAILURE_HINTS.any { lower.contains(it) }) return null
@@ -153,6 +167,32 @@ object PaymentTextParser {
             sourcePackage = sourcePackage,
             sourceApp = PaymentApps.displayName(sourcePackage),
             occurredAt = resolveOccurredAt(normalized, occurredAt),
+        )
+    }
+
+    private fun fromBankAlert(
+        transaction: BankTransaction,
+        normalized: String,
+        sourcePackage: String,
+        occurredAt: Long,
+    ): ParsedPayment? {
+        // Card spends were recorded one by one; the bill payment would count them a second time.
+        if (transaction.type == TransactionType.CREDIT_CARD_BILL_PAYMENT) return null
+        return ParsedPayment(
+            amountMinor = transaction.amountMinor,
+            currency = "INR",
+            direction = transaction.direction,
+            merchantRaw = transaction.counterparty,
+            referenceId = transaction.referenceId,
+            rawText = normalized,
+            sourcePackage = sourcePackage,
+            sourceApp = PaymentApps.displayName(sourcePackage),
+            occurredAt = resolveOccurredAt(normalized, occurredAt),
+            bankName = transaction.bank?.name,
+            accountType = transaction.accountType,
+            accountLast4 = transaction.accountLast4,
+            transactionType = transaction.type,
+            availableBalanceMinor = transaction.availableBalanceMinor,
         )
     }
 

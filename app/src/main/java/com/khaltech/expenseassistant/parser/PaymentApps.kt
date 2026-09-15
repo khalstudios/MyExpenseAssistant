@@ -21,6 +21,7 @@ object PaymentApps {
         "com.google.android.apps.messaging" to "SMS",
         "com.samsung.android.messaging" to "SMS",
         "com.android.mms" to "SMS",
+        "com.truecaller" to "SMS",
         "com.sbi.lotusintouch" to "SBI",
         "com.snapwork.hdfc" to "HDFC Bank",
         "com.csam.icici.bank.imobile" to "ICICI Bank",
@@ -28,7 +29,22 @@ object PaymentApps {
         "com.msf.kbank.mobile" to "Kotak",
     )
 
+    /** SMS apps and bank apps: their notifications carry bank alerts rather than UPI-app wording. */
+    private val bankAlertPackages = setOf(
+        "com.google.android.apps.messaging",
+        "com.samsung.android.messaging",
+        "com.android.mms",
+        "com.truecaller",
+        "com.sbi.lotusintouch",
+        "com.snapwork.hdfc",
+        "com.csam.icici.bank.imobile",
+        "com.axis.mobile",
+        "com.msf.kbank.mobile",
+    )
+
     fun isSupported(packageName: String?): Boolean = packageName != null && known.containsKey(packageName)
+
+    fun carriesBankAlerts(packageName: String?): Boolean = packageName in bankAlertPackages
 
     fun displayName(packageName: String?): String =
         known[packageName] ?: packageName?.substringAfterLast('.')?.replaceFirstChar { it.uppercase() } ?: "Unknown"

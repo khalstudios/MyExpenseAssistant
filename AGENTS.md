@@ -31,12 +31,12 @@
 
 ## Testing And Validation
 
-- When changing parser behavior, update or add focused cases in `PaymentTextParserTest`.
+- When changing parser behavior, update or add focused cases in `PaymentTextParserTest`, or `BankSmsParserTest` for bank alerts.
 - When changing persistence models, migrations, or Room queries, verify schema output and affected repository tests.
 - For Kotlin and Compose changes, run:
 
 ```powershell
-./gradlew :app:assembleDebug :app:testDebugUnitTest --no-daemon --no-configuration-cache
+./gradlew :app:assembleDirectDebug :app:testDirectDebugUnitTest :app:testPlayDebugUnitTest --no-daemon --no-configuration-cache
 ```
 
 - For device deployment, install `app/build/outputs/apk/debug/app-debug.apk` with ADB after a successful build.

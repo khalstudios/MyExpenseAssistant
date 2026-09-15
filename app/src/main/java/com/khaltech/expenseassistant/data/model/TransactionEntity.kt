@@ -42,6 +42,12 @@ data class TransactionEntity(
     val customCategoryName: String? = null,
     val customCategoryColor: String? = null,
     val customCategoryIcon: String? = null,
+    // What the bank alert stated; null for app notifications, screen captures and manual entries.
+    val bankName: String? = null,
+    val accountType: AccountType? = null,
+    val accountLast4: String? = null,
+    val transactionType: TransactionType? = null,
+    val availableBalanceMinor: Long? = null,
 ) {
     @get:Ignore
     val amount: Double get() = amountMinor / 100.0

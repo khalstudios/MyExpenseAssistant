@@ -1,10 +1,12 @@
 package com.khaltech.expenseassistant.data.local
 
 import androidx.room.TypeConverter
+import com.khaltech.expenseassistant.data.model.AccountType
 import com.khaltech.expenseassistant.data.model.CaptureSource
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.PaymentMode
+import com.khaltech.expenseassistant.data.model.TransactionType
 
 class Converters {
     @TypeConverter fun categoryToString(value: Category): String = value.name
@@ -18,6 +20,12 @@ class Converters {
 
     @TypeConverter fun paymentModeToString(value: PaymentMode): String = value.name
     @TypeConverter fun stringToPaymentMode(value: String): PaymentMode = PaymentMode.fromName(value)
+
+    @TypeConverter fun transactionTypeToString(value: TransactionType?): String? = value?.name
+    @TypeConverter fun stringToTransactionType(value: String?): TransactionType? = TransactionType.fromName(value)
+
+    @TypeConverter fun accountTypeToString(value: AccountType?): String? = value?.name
+    @TypeConverter fun stringToAccountType(value: String?): AccountType? = AccountType.fromName(value)
 
     @TypeConverter fun tagsToString(value: List<String>): String = value.joinToString("\u001F")
     @TypeConverter fun stringToTags(value: String): List<String> =

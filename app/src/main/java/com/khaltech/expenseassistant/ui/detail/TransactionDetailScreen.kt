@@ -65,6 +65,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.khaltech.expenseassistant.data.model.AccountType
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.PaymentMode
@@ -532,6 +533,12 @@ private fun NotesCard(description: String, onChange: (String) -> Unit) {
 private fun MetadataCard(transaction: TransactionEntity) {
     SectionCard("Metadata") {
         MetaRow("Source", "${transaction.sourceApp} (${transaction.captureSource.name.lowercase()})")
+        accountLabel(transaction)?.let { MetaRow("Account", it) }
+        transaction.transactionType?.let { MetaRow("Type", it.displayName) }
+        transaction.availableBalanceMinor?.let {
+            val label = if (transaction.accountType == AccountType.CREDIT_CARD) "Available limit" else "Balance after"
+            MetaRow(label, formatMinor(it))
+        }
         transaction.referenceId?.let { MetaRow("Reference", it) }
         MetaRow("Captured on", formatTimestamp(transaction.createdAt))
         MetaRow(
@@ -549,6 +556,14 @@ private fun MetadataCard(transaction: TransactionEntity) {
             )
         }
     }
+}
+
+/** "HDFC Bank · Credit card ••1234", or whichever parts the bank alert stated. */
+private fun accountLabel(transaction: TransactionEntity): String? {
+    val account = transaction.accountType?.let { type ->
+        listOfNotNull(type.displayName, transaction.accountLast4?.let { "••$it" }).joinToString(" ")
+    }
+    return listOfNotNull(transaction.bankName, account).joinToString(" · ").takeIf { it.isNotEmpty() }
 }
 
 @Composable

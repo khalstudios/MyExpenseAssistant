@@ -16,9 +16,20 @@ AccessibilityService ────────┘        (regex)         (rules +
 | Capture | [PaymentNotificationListener.kt](app/src/main/java/com/khaltech/expenseassistant/service/PaymentNotificationListener.kt) | Reads notifications from whitelisted payment packages only |
 | Capture (fallback) | [PaymentScreenAccessibilityService.kt](app/src/main/java/com/khaltech/expenseassistant/service/PaymentScreenAccessibilityService.kt) | Scrapes "Payment successful" screens when no notification is posted |
 | Parse | [PaymentTextParser.kt](app/src/main/java/com/khaltech/expenseassistant/parser/PaymentTextParser.kt) | Extracts amount, direction, merchant, UPI reference; rejects failed/pending/collect-request/promo text |
+| Parse (bank alerts) | [BankSmsParser.kt](app/src/main/java/com/khaltech/expenseassistant/parser/bank/BankSmsParser.kt), [Banks.kt](app/src/main/java/com/khaltech/expenseassistant/parser/bank/Banks.kt) | SMS and bank-app notifications: identifies the bank from the sender header or its name, classifies the type, extracts account/card last 4 digits, counterparty, reference and balance |
 | Categorise | [Categorizer.kt](app/src/main/java/com/khaltech/expenseassistant/categorize/Categorizer.kt) | User-taught rules → keyword knowledge base → structural heuristics, each with a confidence score |
 | Store | [TransactionRepository.kt](app/src/main/java/com/khaltech/expenseassistant/data/repo/TransactionRepository.kt) | Deduplicates (UPI ref, or amount+direction+merchant within 3 min) and persists |
 | UI | [HomeScreen.kt](app/src/main/java/com/khaltech/expenseassistant/ui/HomeScreen.kt) | Monthly totals, category breakdown, per-transaction category override |
+
+### Bank SMS
+
+Alerts reach the app as SMS-app notifications (Google Messages, Samsung Messages, the stock `com.android.mms`, Truecaller) or bank-app notifications. The app does not request the SMS permission. The notification title is the sender header, such as `VM-HDFCBK-S`, which identifies the bank; headers ending in `-P` (promotional) are ignored.
+
+About 45 banks and card issuers are recognised, and the transaction type is classified as UPI, ATM withdrawal, card swipe, online card payment, NEFT, IMPS, RTGS, auto-debit (NACH/ECS/mandate), salary, interest, bank charges, refund/reversal, cash deposit or cheque. The bank, account or card last 4 digits, type and balance are stored with the transaction and shown under **Metadata** on its detail screen.
+
+Not recorded: OTPs, failed, declined or pending transactions, future debits ("will be debited"), statements and due reminders, collect requests, mandate setup, and promotions. Credit card bill payments are recognised and skipped on both sides (the bank debit and the card's "payment received"), because the card spends were already recorded one by one.
+
+A message with no bank, account or UPI detail falls back to the general parser, so wallet and merchant SMS still work.
 
 ### The "intelligence"
 
@@ -79,3 +90,5 @@ Accessibility services and notification listeners are policy-sensitive. If you p
 - **More apps**: add the package to `PaymentApps.known`, and to `accessibility_service_config.xml` if screen scanning is needed.
 - **More merchants**: add keywords to `MerchantKeywords.rules`.
 - **New text formats**: add a regex to `PaymentTextParser.MERCHANT_PATTERNS` and a case to [PaymentTextParserTest.kt](app/src/test/java/com/khaltech/expenseassistant/parser/PaymentTextParserTest.kt).
+- **More banks or sender headers**: add a `Bank` to `Banks.all` with its headers and the names it signs messages with.
+- **A bank alert parsed wrongly**: paste the real message, with account numbers masked, as a case in [BankSmsParserTest.kt](app/src/test/java/com/khaltech/expenseassistant/parser/bank/BankSmsParserTest.kt), then adjust the pattern in `BankSmsParser`.

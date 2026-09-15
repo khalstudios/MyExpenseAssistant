@@ -14,7 +14,7 @@ import com.khaltech.expenseassistant.data.model.TransactionEntity
 
 @Database(
     entities = [TransactionEntity::class, MerchantRule::class, BudgetEntity::class, ContactNameCache::class],
-    version = 12,
+    version = 13,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -136,6 +136,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Bank alerts now record the bank, account, rail and balance they state. Older rows stay null.
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN bankName TEXT")
+                db.execSQL("ALTER TABLE transactions ADD COLUMN accountType TEXT")
+                db.execSQL("ALTER TABLE transactions ADD COLUMN accountLast4 TEXT")
+                db.execSQL("ALTER TABLE transactions ADD COLUMN transactionType TEXT")
+                db.execSQL("ALTER TABLE transactions ADD COLUMN availableBalanceMinor INTEGER")
+            }
+        }
+
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -153,6 +164,7 @@ abstract class AppDatabase : RoomDatabase() {
                 MIGRATION_9_10,
                 MIGRATION_10_11,
                 MIGRATION_11_12,
+                MIGRATION_12_13,
             )
                 .build().also { instance = it }
         }

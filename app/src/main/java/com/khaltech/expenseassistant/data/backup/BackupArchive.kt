@@ -2,6 +2,7 @@ package com.khaltech.expenseassistant.data.backup
 
 import androidx.room.withTransaction
 import com.khaltech.expenseassistant.data.local.AppDatabase
+import com.khaltech.expenseassistant.data.model.AccountType
 import com.khaltech.expenseassistant.data.model.BudgetEntity
 import com.khaltech.expenseassistant.data.model.CaptureSource
 import com.khaltech.expenseassistant.data.model.Category
@@ -9,6 +10,7 @@ import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.MerchantRule
 import com.khaltech.expenseassistant.data.model.PaymentMode
 import com.khaltech.expenseassistant.data.model.TransactionEntity
+import com.khaltech.expenseassistant.data.model.TransactionType
 import com.khaltech.expenseassistant.data.prefs.CategoryIconStore
 import com.khaltech.expenseassistant.data.prefs.UserPreferences
 import com.khaltech.expenseassistant.data.prefs.UserProfile
@@ -80,6 +82,11 @@ class BackupArchive(
         put("customCategoryName", transaction.customCategoryName)
         put("customCategoryColor", transaction.customCategoryColor)
         put("customCategoryIcon", transaction.customCategoryIcon)
+        put("bankName", transaction.bankName)
+        put("accountType", transaction.accountType?.name)
+        put("accountLast4", transaction.accountLast4)
+        put("transactionType", transaction.transactionType?.name)
+        put("availableBalanceMinor", transaction.availableBalanceMinor)
     }
 
     private fun transactionFromJson(json: JSONObject) = TransactionEntity(
@@ -94,6 +101,11 @@ class BackupArchive(
         paymentMode = enumValueOf(json.getString("paymentMode")), userCorrected = json.getBoolean("userCorrected"),
         dedupeKey = json.getString("dedupeKey"), customCategoryName = json.nullableString("customCategoryName"),
         customCategoryColor = json.nullableString("customCategoryColor"), customCategoryIcon = json.nullableString("customCategoryIcon"),
+        // Backups from before bank parsing leave these keys out, which reads back as null.
+        bankName = json.nullableString("bankName"), accountType = AccountType.fromName(json.nullableString("accountType")),
+        accountLast4 = json.nullableString("accountLast4"),
+        transactionType = TransactionType.fromName(json.nullableString("transactionType")),
+        availableBalanceMinor = if (json.isNull("availableBalanceMinor")) null else json.getLong("availableBalanceMinor"),
     )
 
     private fun ruleToJson(rule: MerchantRule) = JSONObject().apply {

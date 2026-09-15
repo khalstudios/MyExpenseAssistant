@@ -192,7 +192,9 @@ class TransactionRepository(
                 else -> null
             }
         }
-        val merchantName = guess.merchantDisplayName ?: contactName ?: originalMerchant ?: payment.sourceApp
+        // ATM withdrawals, interest and charges name no counterparty; their type is the clearest title.
+        val merchantName = guess.merchantDisplayName ?: contactName ?: originalMerchant
+            ?: payment.transactionType?.displayName ?: payment.sourceApp
         val entity = TransactionEntity(
             amountMinor = payment.amountMinor,
             currency = payment.currency,
@@ -209,8 +211,13 @@ class TransactionRepository(
             occurredAt = payment.occurredAt,
             description = originalMerchant?.takeIf { merchantName != it },
             tags = guess.tags,
-            paymentMode = PaymentModeDetector.detect(payment.rawText, payment.sourcePackage),
+            paymentMode = PaymentModeDetector.detect(payment),
             dedupeKey = dedupeKey,
+            bankName = payment.bankName,
+            accountType = payment.accountType,
+            accountLast4 = payment.accountLast4,
+            transactionType = payment.transactionType,
+            availableBalanceMinor = payment.availableBalanceMinor,
         )
         // The unique index is the last line of defence: two capture paths can race here.
         return transactionDao.insert(entity).takeIf { it > 0 }
