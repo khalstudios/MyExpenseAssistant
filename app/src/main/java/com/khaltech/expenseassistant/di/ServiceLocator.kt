@@ -10,6 +10,7 @@ import com.khaltech.expenseassistant.data.repo.BudgetRepository
 import com.khaltech.expenseassistant.data.repo.ContactResolver
 import com.khaltech.expenseassistant.data.repo.TransactionRepository
 import com.khaltech.expenseassistant.notify.BudgetNotifier
+import com.khaltech.expenseassistant.notify.TransactionNotifier
 
 object ServiceLocator {
 
@@ -32,6 +33,7 @@ object ServiceLocator {
                     db.transactionDao(),
                     db.budgetDao(),
                 ),
+                transactionNotifier = TransactionNotifier(context.applicationContext),
             ).also { repository = it }
         }
     }

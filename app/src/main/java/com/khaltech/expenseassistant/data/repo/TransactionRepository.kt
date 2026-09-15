@@ -11,6 +11,7 @@ import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.PaymentMode
 import com.khaltech.expenseassistant.data.model.TransactionEntity
 import com.khaltech.expenseassistant.notify.BudgetNotifier
+import com.khaltech.expenseassistant.notify.TransactionNotifier
 import com.khaltech.expenseassistant.parser.ParsedPayment
 import com.khaltech.expenseassistant.parser.PaymentModeDetector
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +30,7 @@ class TransactionRepository(
     private val contactNameCacheDao: ContactNameCacheDao? = null,
     private val contactResolver: ContactResolver? = null,
     private val budgetNotifier: BudgetNotifier? = null,
+    private val transactionNotifier: TransactionNotifier? = null,
 ) {
 
     fun observeAll(): Flow<List<TransactionEntity>> = transactionDao.observeAll()
@@ -219,8 +221,13 @@ class TransactionRepository(
             availableBalanceMinor = payment.availableBalanceMinor,
         )
         // The unique index is the last line of defence: two capture paths can race here.
+        // Only captured payments alert: a manual entry is added while the user is already in the app.
         return transactionDao.insert(entity).takeIf { it > 0 }
-            ?.also { id -> budgetNotifier?.onTransactionRecorded(entity.copy(id = id)) }
+            ?.also { id ->
+                val recorded = entity.copy(id = id)
+                transactionNotifier?.onTransactionRecorded(recorded)
+                budgetNotifier?.onTransactionRecorded(recorded)
+            }
     }
 
     fun observeById(id: Long): Flow<TransactionEntity?> = transactionDao.observeById(id)
