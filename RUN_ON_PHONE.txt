@@ -49,12 +49,12 @@ The -r flag updates the installed app while preserving transaction data and sett
 
 4. Relaunch the app
 
-& $adb shell am force-stop com.expenseassistant
-& $adb shell am start -n com.expenseassistant/.ui.MainActivity
+& $adb shell am force-stop com.khaltech.expenseassistant
+& $adb shell am start -n com.khaltech.expenseassistant/.ui.MainActivity
 
 5. Confirm the installed build
 
-& $adb shell dumpsys package com.expenseassistant |
+& $adb shell dumpsys package com.khaltech.expenseassistant |
   Select-String 'lastUpdateTime'
 
 If this build changed the Room schema version, this is the run that proves

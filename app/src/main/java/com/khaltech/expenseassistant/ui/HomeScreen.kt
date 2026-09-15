@@ -1,0 +1,538 @@
+package com.khaltech.expenseassistant.ui
+
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.khaltech.expenseassistant.data.model.Category
+import com.khaltech.expenseassistant.data.model.Direction
+import com.khaltech.expenseassistant.data.model.TransactionEntity
+import com.khaltech.expenseassistant.data.repo.CustomCategoryOption
+import com.khaltech.expenseassistant.ui.budget.BudgetOverviewCard
+import com.khaltech.expenseassistant.ui.category.CategoryBadge
+import com.khaltech.expenseassistant.ui.category.CategoryDot
+import com.khaltech.expenseassistant.ui.category.CategoryPickerSheet
+import com.khaltech.expenseassistant.ui.category.displayCategoryName
+import com.khaltech.expenseassistant.ui.insights.AnalyticsUiState
+import com.khaltech.expenseassistant.ui.insights.CategoryPieChart
+import com.khaltech.expenseassistant.ui.insights.PieSlice
+
+private const val MillisPerDay = 24L * 60 * 60 * 1000
+
+@OptIn(ExperimentalFoundationApi::class)
+
+@Composable
+fun HomeScreen(
+    state: HomeUiState,
+    notificationAccessGranted: Boolean,
+    showBackupNotice: Boolean = false,
+    onEnableBackup: () -> Unit = {},
+    onDismissBackupNotice: () -> Unit = {},
+    onCategoryChange: (Long, Category) -> Unit,
+    onCategoryChangeCustom: (Long, String, String, String) -> Unit = { _, _, _, _ -> },
+    customCategories: List<CustomCategoryOption> = emptyList(),
+    summaryScope: SummaryScope = SummaryScope.MONTH,
+    onSummaryScopeChange: (SummaryScope) -> Unit = {},
+    budgetState: AnalyticsUiState? = null,
+    onOpenCategory: (Category) -> Unit = {},
+    onDelete: (Long) -> Unit,
+    onOpenTransaction: (Long) -> Unit,
+    categoryFilter: Category? = null,
+    tagFilter: String? = null,
+    needsReviewFilter: Boolean = false,
+    onOpenNeedsReview: () -> Unit = {},
+    onOpenAllTransactions: () -> Unit = {},
+    onClearFilter: () -> Unit = {},
+    transactionOverride: List<TransactionEntity>? = null,
+    modifier: Modifier = Modifier,
+) {
+    var editing by remember { mutableStateOf<TransactionEntity?>(null) }
+    val hasFilter = categoryFilter != null || tagFilter != null || needsReviewFilter
+    val filterLabel = categoryFilter?.displayName
+        ?: tagFilter?.let { "#$it" }
+        ?: "Needs a category".takeIf { needsReviewFilter }
+
+    val visible = (transactionOverride ?: state.transactions).filter { tx ->
+        (categoryFilter == null || tx.category == categoryFilter) &&
+            (tagFilter == null || tx.tags.any { it.equals(tagFilter, ignoreCase = true) }) &&
+            (!needsReviewFilter || tx.needsCategoryReview)
+    }
+    val days = visible.groupBy { startOfDay(it.occurredAt) }
+        .toList()
+        .sortedByDescending { it.first }
+
+    // The home feed only shows today plus the two previous days; everything else lives behind "See more".
+    val recentOnly = !hasFilter && transactionOverride == null
+    val recentCutoff = startOfDay(System.currentTimeMillis() - 2 * MillisPerDay)
+    val shownDays = if (recentOnly) days.filter { it.first >= recentCutoff } else days
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        if (!hasFilter && transactionOverride == null) {
+            item {
+                PermissionsCard(notificationAccessGranted)
+            }
+            if (showBackupNotice) {
+                item {
+                    BackupNoticeCard(onEnable = onEnableBackup, onDismiss = onDismissBackupNotice)
+                }
+            }
+            item { SectionHeader("Income & Expenditure", topPadding = 0.dp) }
+            item { SummaryCard(state, summaryScope, onSummaryScopeChange, onOpenNeedsReview) }
+
+            if (state.spendByCategory.isNotEmpty()) {
+                item { SectionHeader("Where it went") }
+                item { CategoryBreakdown(state.spendByCategory, onOpenCategory) }
+            }
+
+            budgetState?.let { monthlyBudget ->
+                item { SectionHeader("Budget overview") }
+                item { BudgetOverviewCard(monthlyBudget.overallBudget, monthlyBudget.categoryBudgets) }
+            }
+        }
+
+        item {
+            SectionHeader(if (filterLabel == null) "Latest activity" else "$filterLabel activity")
+        }
+
+        if (shownDays.isEmpty()) {
+            item {
+                Text(
+                    when {
+                        filterLabel != null -> "No transactions found."
+                        recentOnly -> "No transactions in the last 3 days."
+                        else -> "No transactions this month."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        items(shownDays, key = { it.first }) { (dayStart, dayTransactions) ->
+            DayGroupCard(
+                dayStart = dayStart,
+                transactions = dayTransactions,
+                onOpenTransaction = onOpenTransaction,
+                onEditCategory = { editing = it },
+                onDelete = onDelete,
+            )
+        }
+
+        if (recentOnly) {
+            item {
+                TextButton(onClick = onOpenAllTransactions, modifier = Modifier.fillMaxWidth()) {
+                    Text("See more")
+                }
+            }
+        }
+
+        if (hasFilter) {
+            item {
+                TextButton(onClick = onClearFilter, modifier = Modifier.fillMaxWidth()) {
+                    Text("Show all recent transactions")
+                }
+            }
+        }
+    }
+
+    editing?.let { transaction ->
+        CategoryPickerSheet(
+            merchant = transaction.merchant,
+            selected = transaction.category,
+            selectedCustomName = transaction.customCategoryName,
+            customCategories = customCategories,
+            onSelect = { category ->
+                onCategoryChange(transaction.id, category)
+                editing = null
+            },
+            onSelectCustom = { name, colorHex, iconKey ->
+                onCategoryChangeCustom(transaction.id, name, colorHex, iconKey)
+                editing = null
+            },
+            onDismiss = { editing = null },
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String, topPadding: androidx.compose.ui.unit.Dp = 4.dp) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(top = topPadding),
+    )
+}
+
+/** One card per day, matching how the reference app groups a day's spending together. */
+@Composable
+fun DayGroupCard(
+    dayStart: Long,
+    transactions: List<TransactionEntity>,
+    onOpenTransaction: (Long) -> Unit,
+    onEditCategory: (TransactionEntity) -> Unit,
+    onDelete: (Long) -> Unit,
+) {
+    val netMinor = transactions.sumOf {
+        if (it.direction == Direction.DEBIT) -it.amountMinor else it.amountMinor
+    }
+    val ordered = transactions.sortedByDescending { it.occurredAt }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
+    ) {
+        Column(Modifier.padding(vertical = 8.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    formatDayHeader(dayStart),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                val dayColor = if (netMinor < 0) SpendColor else IncomeColor
+                Text(
+                    (if (netMinor < 0) "-" else "+") + formatMinor(kotlin.math.abs(netMinor)),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = dayColor,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(dayColor.copy(alpha = 0.14f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
+            ordered.forEach { transaction ->
+                TransactionRow(
+                    transaction = transaction,
+                    onClick = { onOpenTransaction(transaction.id) },
+                    onEditCategory = { onEditCategory(transaction) },
+                    onDelete = { onDelete(transaction.id) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryCard(
+    state: HomeUiState,
+    scope: SummaryScope,
+    onScopeChange: (SummaryScope) -> Unit,
+    onOpenNeedsReview: () -> Unit,
+) {
+    val hero = rememberHeroGradient()
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(hero.brush)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Net Position",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = hero.onGradient,
+                )
+                Text(
+                    when (scope) {
+                        SummaryScope.MONTH -> currentMonthYearName()
+                        SummaryScope.YEAR -> yearToDateLabel()
+                        SummaryScope.ALL -> scope.label
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = hero.onGradientMuted,
+                )
+            }
+            ScopeToggle(scope = scope, onScopeChange = onScopeChange, hero = hero)
+            val proportionTotal = (state.spendMinor + state.incomeMinor).coerceAtLeast(1)
+            val spendFraction = (state.spendMinor.toFloat() / proportionTotal).coerceIn(0.04f, 0.96f)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+            ) {
+                Box(Modifier.weight(1f - spendFraction).fillMaxHeight().background(IncomeColor))
+                Box(Modifier.weight(spendFraction).fillMaxHeight().background(SpendColor))
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text(
+                        "INCOME",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = IncomeColor,
+                    )
+                    Text(
+                        formatMinor(state.incomeMinor),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = hero.onGradient,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "EXPENDITURE",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = SpendColor,
+                    )
+                    Text(
+                        formatMinor(state.spendMinor),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = hero.onGradient,
+                    )
+                }
+            }
+            val netMinor = state.incomeMinor - state.spendMinor
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(hero.onGradient.copy(alpha = 0.07f))
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Net Balance",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = hero.onGradientMuted,
+                )
+                Text(
+                    (if (netMinor < 0) "-" else "") + formatMinor(kotlin.math.abs(netMinor)),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (netMinor < 0) SpendColor else IncomeColor,
+                )
+            }
+            if (state.needsReviewCount > 0) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onOpenNeedsReview)
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        "${state.needsReviewCount} need a category check",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = hero.onGradient,
+                    )
+                    Text(
+                        "Review \u203a",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = hero.onGradientMuted,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Segmented pill letting the summary switch between this month, this year and everything. */
+@Composable
+private fun ScopeToggle(
+    scope: SummaryScope,
+    onScopeChange: (SummaryScope) -> Unit,
+    hero: HeroGradient,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(hero.onGradient.copy(alpha = 0.07f))
+            .padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        SummaryScope.entries.forEach { option ->
+            val isSelected = option == scope
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSelected) hero.onGradient.copy(alpha = 0.16f) else Color.Transparent)
+                    .clickable { onScopeChange(option) }
+                    .padding(vertical = 7.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    option.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isSelected) hero.onGradient else hero.onGradientMuted,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryBreakdown(
+    breakdown: List<Pair<Category, Long>>,
+    onOpenCategory: (Category) -> Unit,
+) {
+    val totalMinor = breakdown.sumOf { it.second }
+    val slices = breakdown.map { (category, amountMinor) ->
+        PieSlice(
+            category = category,
+            amountMinor = amountMinor,
+            fraction = amountMinor.toFloat() / totalMinor.coerceAtLeast(1L),
+        )
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
+    ) {
+        Column(
+            Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                CategoryPieChart(
+                    slices = slices,
+                    modifier = Modifier.widthIn(max = 260.dp),
+                )
+            }
+            breakdown.take(6).forEach { (category, amount) ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onOpenCategory(category) }
+                        .padding(vertical = 4.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    CategoryDot(category)
+                    Text(
+                        category.displayName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        formatMinor(amount),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun TransactionRow(
+    transaction: TransactionEntity,
+    onEditCategory: () -> Unit,
+    onDelete: () -> Unit,
+    onClick: () -> Unit,
+) {
+    val isDebit = transaction.direction == Direction.DEBIT
+
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onEditCategory)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        CategoryBadge(transaction, size = 44.dp)
+        Column(Modifier.weight(1f)) {
+            Text(
+                transaction.displayTitle,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                transaction.displayCategoryName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                (if (isDebit) "-" else "+") + formatMinor(transaction.amountMinor),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isDebit) SpendColor else IncomeColor,
+            )
+            Text(
+                formatTimeOnly(transaction.occurredAt),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}

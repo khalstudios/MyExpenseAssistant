@@ -1,1 +1,1 @@
--keep class com.expenseassistant.service.** { *; }
+-keep class com.khaltech.expenseassistant.service.** { *; }

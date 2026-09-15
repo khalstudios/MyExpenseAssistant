@@ -13,12 +13,12 @@ AccessibilityService ────────┘        (regex)         (rules +
 
 | Layer | Location | Responsibility |
 | --- | --- | --- |
-| Capture | [PaymentNotificationListener.kt](app/src/main/java/com/expenseassistant/service/PaymentNotificationListener.kt) | Reads notifications from whitelisted payment packages only |
-| Capture (fallback) | [PaymentScreenAccessibilityService.kt](app/src/main/java/com/expenseassistant/service/PaymentScreenAccessibilityService.kt) | Scrapes "Payment successful" screens when no notification is posted |
-| Parse | [PaymentTextParser.kt](app/src/main/java/com/expenseassistant/parser/PaymentTextParser.kt) | Extracts amount, direction, merchant, UPI reference; rejects failed/pending/collect-request/promo text |
-| Categorise | [Categorizer.kt](app/src/main/java/com/expenseassistant/categorize/Categorizer.kt) | User-taught rules → keyword knowledge base → structural heuristics, each with a confidence score |
-| Store | [TransactionRepository.kt](app/src/main/java/com/expenseassistant/data/repo/TransactionRepository.kt) | Deduplicates (UPI ref, or amount+direction+merchant within 3 min) and persists |
-| UI | [HomeScreen.kt](app/src/main/java/com/expenseassistant/ui/HomeScreen.kt) | Monthly totals, category breakdown, per-transaction category override |
+| Capture | [PaymentNotificationListener.kt](app/src/main/java/com/khaltech/expenseassistant/service/PaymentNotificationListener.kt) | Reads notifications from whitelisted payment packages only |
+| Capture (fallback) | [PaymentScreenAccessibilityService.kt](app/src/main/java/com/khaltech/expenseassistant/service/PaymentScreenAccessibilityService.kt) | Scrapes "Payment successful" screens when no notification is posted |
+| Parse | [PaymentTextParser.kt](app/src/main/java/com/khaltech/expenseassistant/parser/PaymentTextParser.kt) | Extracts amount, direction, merchant, UPI reference; rejects failed/pending/collect-request/promo text |
+| Categorise | [Categorizer.kt](app/src/main/java/com/khaltech/expenseassistant/categorize/Categorizer.kt) | User-taught rules → keyword knowledge base → structural heuristics, each with a confidence score |
+| Store | [TransactionRepository.kt](app/src/main/java/com/khaltech/expenseassistant/data/repo/TransactionRepository.kt) | Deduplicates (UPI ref, or amount+direction+merchant within 3 min) and persists |
+| UI | [HomeScreen.kt](app/src/main/java/com/khaltech/expenseassistant/ui/HomeScreen.kt) | Monthly totals, category breakdown, per-transaction category override |
 
 ### The "intelligence"
 
@@ -66,7 +66,7 @@ You can also enable **Automatic backups** once, choose either every 15 days or m
 ## Privacy
 
 - No internet permission is declared. Data leaves the device only when you explicitly save a backup or CSV through Android's document picker, such as to Google Drive.
-- Only packages listed in [PaymentApps.kt](app/src/main/java/com/expenseassistant/parser/PaymentApps.kt) are read; every other notification is discarded before parsing.
+- Only packages listed in [PaymentApps.kt](app/src/main/java/com/khaltech/expenseassistant/parser/PaymentApps.kt) are read; every other notification is discarded before parsing.
 - The accessibility service is scoped via `android:packageNames` to four UPI apps and only acts on screens containing success wording.
 - Contacts are accessed only after the user enables the optional *Contact names* permission in Account.
 
@@ -78,4 +78,4 @@ Accessibility services and notification listeners are policy-sensitive. If you p
 
 - **More apps**: add the package to `PaymentApps.known`, and to `accessibility_service_config.xml` if screen scanning is needed.
 - **More merchants**: add keywords to `MerchantKeywords.rules`.
-- **New text formats**: add a regex to `PaymentTextParser.MERCHANT_PATTERNS` and a case to [PaymentTextParserTest.kt](app/src/test/java/com/expenseassistant/parser/PaymentTextParserTest.kt).
+- **New text formats**: add a regex to `PaymentTextParser.MERCHANT_PATTERNS` and a case to [PaymentTextParserTest.kt](app/src/test/java/com/khaltech/expenseassistant/parser/PaymentTextParserTest.kt).

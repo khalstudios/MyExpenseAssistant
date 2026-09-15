@@ -3,7 +3,7 @@
 ## Project
 
 - Android expense tracker written in Kotlin with Jetpack Compose and Material 3.
-- Package and namespace: `com.expenseassistant`.
+- Package and namespace: `com.khaltech.expenseassistant`.
 - Minimum SDK 26; compile and target SDK 35; JDK 17.
 - Room schemas are generated to `app/schemas` through KSP.
 

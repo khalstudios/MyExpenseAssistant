@@ -1,0 +1,209 @@
+package com.khaltech.expenseassistant.parser
+
+import com.khaltech.expenseassistant.data.model.Direction
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.util.Calendar
+
+class PaymentTextParserTest {
+
+    private val gpay = "com.google.android.apps.nbu.paisa.user"
+
+    @Test
+    fun `parses gpay paid notification`() {
+        val result = PaymentTextParser.parse("You paid ₹249.50 to Swiggy", gpay)
+        assertNotNull(result)
+        assertEquals(24950L, result!!.amountMinor)
+        assertEquals(Direction.DEBIT, result.direction)
+        assertEquals("Swiggy", result.merchantRaw)
+    }
+
+    @Test
+    fun `parses a four digit amount with no comma without dropping a digit`() {
+        val result = PaymentTextParser.parse("You paid ₹2300 to IOCL PETROL PUMP successfully", gpay)
+        assertNotNull(result)
+        assertEquals(230000L, result!!.amountMinor)
+    }
+
+    @Test
+    fun `parses a five digit amount with no comma without dropping a digit`() {
+        val result = PaymentTextParser.parse("Payment successful. You paid ₹12345 to Big Bazaar", gpay)
+        assertNotNull(result)
+        assertEquals(1234500L, result!!.amountMinor)
+    }
+
+    @Test
+    fun `parses bank debit sms with reference`() {
+        val text = "Rs.1,250.00 debited from A/c XX1234 to UBER INDIA on 12-05-25. UPI Ref No 512345678901"
+        val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
+        assertNotNull(result)
+        assertEquals(125000L, result!!.amountMinor)
+        assertEquals(Direction.DEBIT, result.direction)
+        assertEquals("512345678901", result.referenceId)
+    }
+
+    @Test
+    fun `parses icici debit sms naming the payee as credited`() {
+        val text = "ICICI Bank Acct XX245 debited for Rs 55.00 on 03-Sep-26; BOTTLE LAB TECH credited. " +
+            "UPI:061447710011. Call 18002662 for dispute. SMS BLOCK 245 to 9215676766."
+        val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
+        assertNotNull(result)
+        assertEquals(5500L, result!!.amountMinor)
+        assertEquals(Direction.DEBIT, result.direction)
+        assertEquals("BOTTLE LAB TECH", result.merchantRaw)
+        assertEquals("061447710011", result.referenceId)
+    }
+
+    @Test
+    fun `parses icici card spend sms naming the merchant after the date`() {
+        val text = "INR 1,009.00 spent using ICICI Bank Card XX6010 on 12-Sep-26 on BLINK COMMERCE . " +
+            "Avl Limit: INR 46,441.48. If not you, call 1800 2662/SMS BLOCK 6010 to 9215676766."
+        val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
+        assertNotNull(result)
+        assertEquals(100900L, result!!.amountMinor)
+        assertEquals(Direction.DEBIT, result.direction)
+        assertEquals("BLINK COMMERCE", result.merchantRaw)
+    }
+
+    @Test
+    fun `does not mistake an available limit for the amount spent`() {
+        val text = "INR 250.00 spent using ICICI Bank Card XX6010 on 12-Sep-26 on ZEPTO . Avl Limit: INR 46,441.48."
+        val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
+        assertNotNull(result)
+        assertEquals(25000L, result!!.amountMinor)
+    }
+
+    @Test
+    fun `parses hdfc multiline sent sms`() {
+        val text = "Sent Rs.15.00\nFrom HDFC Bank A/C *7519\nTo TANVI SEVAK\nOn 03/09/26\nRef 198506244129"
+        val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
+        assertNotNull(result)
+        assertEquals(1500L, result!!.amountMinor)
+        assertEquals(Direction.DEBIT, result.direction)
+        assertEquals("TANVI SEVAK", result.merchantRaw)
+    }
+
+    @Test
+    fun `parses axis multiline debit sms naming the payee in the upi path`() {
+        val text = "INR 1355.00 debited\nA/c no. XX8840\n13-09-26, 22:14:23\nUPI/P2M/662291936201/Mahi dhaba\n" +
+            "Not you? SMS BLOCKUPI Cust ID to 919951860002\nAxis Bank"
+        val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
+        assertNotNull(result)
+        assertEquals(135500L, result!!.amountMinor)
+        assertEquals(Direction.DEBIT, result.direction)
+        assertEquals("Mahi dhaba", result.merchantRaw)
+        assertEquals("662291936201", result.referenceId)
+    }
+
+    @Test
+    fun `parses axis upi path when the notification joins the sender title in front`() {
+        val text = "AX-AXISBK-S — INR 1355.00 debited\nA/c no. XX8840\n13-09-26, 22:14:23\nUPI/P2M/662291936201/Mahi dhaba"
+        val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
+        assertNotNull(result)
+        assertEquals("Mahi dhaba", result!!.merchantRaw)
+    }
+
+    @Test
+    fun `parses sbi upi debit sms with no currency before the amount`() {
+        val text = "Dear UPI user A/C X2719 debited by 5000.00 on date 10Sep26 trf to Indian Clearing " +
+            "Refno 625329079506 If not u? call-1800111109 for other services-18001234-SBI"
+        val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
+        assertNotNull(result)
+        assertEquals(500000L, result!!.amountMinor)
+        assertEquals(Direction.DEBIT, result.direction)
+        assertEquals("Indian Clearing", result.merchantRaw)
+        assertEquals("625329079506", result.referenceId)
+    }
+
+    @Test
+    fun `does not read a bare number as an amount without a debit or credit verb before it`() {
+        val text = "Dear UPI user A/C X2719 debited on date 10Sep26 Refno 625329079506"
+        assertNull(PaymentTextParser.parse(text, "com.google.android.apps.messaging"))
+    }
+
+    @Test
+    fun `parses credit`() {
+        val result = PaymentTextParser.parse("₹5,000 credited to your account from ACME PAYROLL", gpay)
+        assertNotNull(result)
+        assertEquals(Direction.CREDIT, result!!.direction)
+        assertEquals(500000L, result.amountMinor)
+    }
+
+    @Test
+    fun `ignores failed and pending payments`() {
+        assertNull(PaymentTextParser.parse("Your payment of ₹500 to Zomato failed", gpay))
+        assertNull(PaymentTextParser.parse("Payment of ₹500 is pending", gpay))
+    }
+
+    @Test
+    fun `ignores collect requests and promotions`() {
+        assertNull(PaymentTextParser.parse("Rahul is requesting ₹300 from you", gpay))
+        assertNull(PaymentTextParser.parse("Get cashback up to ₹100 when you pay with UPI", gpay))
+    }
+
+    @Test
+    fun `ignores text without amount`() {
+        assertNull(PaymentTextParser.parse("Payment successful", gpay))
+    }
+
+    @Test
+    fun `captures a payment without a merchant`() {
+        val result = PaymentTextParser.parse("Payment successful. You paid ₹500", gpay)
+        assertNotNull(result)
+        assertEquals(null, result!!.merchantRaw)
+    }
+
+    @Test
+    fun `screen capture rejects a scrolled history list`() {
+        val history = "Transaction history Paid to Swiggy \u20b9249 Paid to Uber \u20b9180 Paid to Zepto \u20b9640"
+        assertNull(PaymentTextParser.parse(history, gpay, requireStrongSuccess = true))
+    }
+
+    @Test
+    fun `screen capture rejects a single history row without a success banner`() {
+        val row = "Paid to Swiggy \u20b9249 12 Aug 2026"
+        assertNull(PaymentTextParser.parse(row, gpay, requireStrongSuccess = true))
+    }
+
+    @Test
+    fun `screen capture accepts a live confirmation screen`() {
+        val screen = "Payment successful \u20b9249 Paid to Swiggy UPI Ref No 512345678901"
+        val result = PaymentTextParser.parse(screen, gpay, requireStrongSuccess = true)
+        assertNotNull(result)
+        assertEquals(24900L, result!!.amountMinor)
+        assertEquals("Swiggy", result.merchantRaw)
+    }
+
+    @Test
+    fun `uses the date written in the text when it is clearly older`() {
+        val capturedAt = System.currentTimeMillis()
+        val text = "Rs.1,250.00 debited from A/c XX1234 to UBER INDIA on 12-05-2026"
+        val result = PaymentTextParser.parse(text, gpay, occurredAt = capturedAt)
+        assertNotNull(result)
+        assertTrue(result!!.occurredAt < capturedAt)
+    }
+
+    @Test
+    fun `keeps the capture time when the written date is today`() {
+        val now = Calendar.getInstance()
+        val today = "${now.get(Calendar.DAY_OF_MONTH)}-${now.get(Calendar.MONTH) + 1}-${now.get(Calendar.YEAR)}"
+        val capturedAt = now.timeInMillis
+        val result = PaymentTextParser.parse("You paid \u20b9100 to Swiggy on $today", gpay, capturedAt)
+        assertNotNull(result)
+        assertEquals(capturedAt, result!!.occurredAt)
+    }
+
+    @Test
+    fun `flags screens showing many amounts as history`() {
+        assertTrue(
+            PaymentTextParser.looksLikeHistoryScreen("\u20b9100 \u20b9200 \u20b9300 \u20b9400")
+        )
+        assertFalse(
+            PaymentTextParser.looksLikeHistoryScreen("Payment successful \u20b9249 Paid to Swiggy")
+        )
+    }
+}

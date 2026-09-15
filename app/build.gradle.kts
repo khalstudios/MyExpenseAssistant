@@ -16,11 +16,11 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.expenseassistant"
+    namespace = "com.khaltech.expenseassistant"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.expenseassistant"
+        applicationId = "com.khaltech.expenseassistant"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
