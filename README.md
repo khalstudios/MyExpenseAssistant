@@ -73,6 +73,8 @@ You can also enable **Automatic backups** once, choose either every 15 days or m
 
 ## Privacy
 
+The full privacy policy is [docs/privacy-policy/index.md](docs/privacy-policy/index.md), published by GitHub Pages (source: the `docs/` folder) at https://khalstudios.github.io/MyExpenseAssistant/privacy-policy/. That URL is the one to give Play Console, and the in-app Privacy dialog links to it.
+
 - No internet permission is declared. Data leaves the device only when you explicitly save a backup or CSV through Android's document picker, such as to Google Drive.
 - Only packages listed in [PaymentApps.kt](app/src/main/java/com/khaltech/expenseassistant/parser/PaymentApps.kt) are read; every other notification is discarded before parsing.
 - No accessibility service and no SMS permission: bank SMS are read only from the notifications messaging apps post.

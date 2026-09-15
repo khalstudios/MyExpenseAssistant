@@ -1,5 +1,7 @@
 package com.khaltech.expenseassistant.ui.account
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
@@ -10,15 +12,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+/** Published from docs/privacy-policy/ by GitHub Pages; the same URL is given in Play Console. */
+private const val PRIVACY_POLICY_URL = "https://khalstudios.github.io/MyExpenseAssistant/privacy-policy/"
+
 /**
- * The in-app privacy summary. Mirrors PRIVACY_POLICY.md in the repository root, which is the
- * version published for the store listing.
+ * The in-app privacy summary. Mirrors docs/privacy-policy/index.md, the full policy published for
+ * the store listing, and links to it.
  */
 @Composable
 fun PrivacyDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("How your data is handled") },
@@ -56,6 +63,16 @@ fun PrivacyDialog(onDismiss: () -> Unit) {
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        // The app has no internet permission; the browser loads the page.
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    runCatching {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL)))
+                    }
+                },
+            ) { Text("Full privacy policy") }
+        },
     )
 }
 
