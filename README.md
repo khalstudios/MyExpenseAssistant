@@ -41,11 +41,11 @@ Anything under `0.6` confidence is surfaced as "needs a category check" on the h
 
 ## Build
 
-Prerequisites: Android Studio (Ladybug or newer), JDK 17, Android SDK 35.
+Prerequisites: Android Studio (Narwhal or newer), JDK 17, Android SDK 36.
 
 ```powershell
 # Generate the Gradle wrapper once (Android Studio also does this on first open)
-gradle wrapper --gradle-version 8.9
+gradle wrapper --gradle-version 8.13
 
 ./gradlew :app:assembleDebug
 ./gradlew :app:testDebugUnitTest

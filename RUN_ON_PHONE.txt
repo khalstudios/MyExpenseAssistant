@@ -16,7 +16,7 @@ The phone should appear with the status: device
 
 2. Build the app and run unit tests
 
-$gradle = "$env:LOCALAPPDATA\Gradle\gradle-8.9\bin\gradle.bat"
+$gradle = 'D:\My Projects\AI_Assisted\MyExpenseAssistant\gradlew.bat'
 
 & $gradle :app:assembleDebug :app:testDebugUnitTest `
   --no-daemon `
