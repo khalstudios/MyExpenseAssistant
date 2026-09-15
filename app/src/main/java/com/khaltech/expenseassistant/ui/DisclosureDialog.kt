@@ -37,7 +37,14 @@ object Disclosures {
         points = listOf(
             DisclosurePoint(
                 "What it reads",
-                "Notifications posted by payment and banking apps: the amount, the merchant or payee, and the time.",
+                "Notifications from payment apps, banking apps, and messaging apps such as Google Messages, " +
+                    "Samsung Messages and Truecaller, so bank SMS alerts are caught too.",
+            ),
+            DisclosurePoint(
+                "What it keeps",
+                "Only completed payments and bank transactions: the amount, payee, time, and details the alert " +
+                    "states such as the bank and last 4 digits of the account. Personal messages, OTPs and " +
+                    "promotions are checked on this phone and discarded, never stored.",
             ),
             DisclosurePoint(
                 "Why",
@@ -61,15 +68,15 @@ object Disclosures {
         points = listOf(
             DisclosurePoint(
                 "What it reads",
-                "Names and phone numbers from your contact list.",
+                "Contact names only, to find one that closely matches a payee. Phone numbers and other contact details are not read.",
             ),
             DisclosurePoint(
                 "Why",
-                "So a transfer shows a person's name instead of a phone number or UPI ID.",
+                "So a transfer shows a person's name instead of a UPI ID or account name.",
             ),
             DisclosurePoint(
                 "Where it goes",
-                "A matched name is saved on this phone alongside the transaction. Your contacts are never uploaded.",
+                "A matched name is saved on this phone alongside the payee, so the search is not repeated. Your contacts are never uploaded.",
             ),
         ),
         confirmLabel = "Continue",

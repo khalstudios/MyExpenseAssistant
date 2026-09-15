@@ -39,7 +39,7 @@ fun PermissionsCard(
             Text("Finish setup", style = MaterialTheme.typography.titleMedium)
             PermissionRow(
                 title = "Notification access",
-                description = "Required to read payment confirmations from GPay, PhonePe and Paytm.",
+                description = "Required to record payments from GPay, PhonePe, Paytm and your bank's SMS alerts.",
             ) { showDisclosure = true }
         }
     }
