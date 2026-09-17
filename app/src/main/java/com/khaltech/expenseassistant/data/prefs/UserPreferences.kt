@@ -76,6 +76,17 @@ class UserPreferences(context: Context) {
         prefs.edit().putString(KEY_DAILY_PROMPT_DAY, dayKey).apply()
     }
 
+    /** Counts this opening of the app and returns how many openings there have been since the last spending tip. */
+    fun recordOpening(): Int {
+        val openings = prefs.getInt(KEY_OPENINGS_SINCE_TIP, 0) + 1
+        prefs.edit().putInt(KEY_OPENINGS_SINCE_TIP, openings).apply()
+        return openings
+    }
+
+    fun markTipShown() {
+        prefs.edit().putInt(KEY_OPENINGS_SINCE_TIP, 0).apply()
+    }
+
     private companion object {
         const val KEY_NAME = "name"
         const val KEY_EMAIL = "email"
@@ -85,5 +96,6 @@ class UserPreferences(context: Context) {
         const val KEY_BACKUP_NOTICE_DISMISSED = "backup_notice_dismissed"
         const val KEY_TUTORIAL_SEEN = "tutorial_seen"
         const val KEY_DAILY_PROMPT_DAY = "daily_prompt_day"
+        const val KEY_OPENINGS_SINCE_TIP = "openings_since_tip"
     }
 }
