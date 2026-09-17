@@ -77,6 +77,9 @@ private const val MillisPerDay = 24L * 60 * 60 * 1000
 /** Below titleLarge, so a seven-figure income and expenditure still sit side by side. */
 private val SummaryAmountSize = 20.sp
 
+/** Below titleLarge, so a four-figure day of spending is not crowded by the pace line beside it. */
+private val TodayAmountSize = 19.sp
+
 @OptIn(ExperimentalFoundationApi::class)
 
 @Composable
@@ -273,8 +276,12 @@ private fun TodaySpendCard(
     var editingDailyBudget by remember { mutableStateOf(false) }
     val spentSomething = todaySpendMinor > 0
     val overDailyPace = dailyBudgetMinor > 0 && todaySpendMinor > dailyBudgetMinor
+    // Half the day's cap is where the card turns from green to red: a warning that today is
+    // running hot while there is still budget left to protect.
+    val pastHalfDailyBudget = dailyBudgetMinor > 0 && todaySpendMinor * 2 > dailyBudgetMinor
     val accent = when {
-        overDailyPace -> WarningColor
+        // With no cap there is no halfway mark to measure against, so any spending reads as spend.
+        dailyBudgetMinor > 0 -> if (pastHalfDailyBudget) SpendColor else IncomeColor
         spentSomething -> SpendColor
         else -> IncomeColor
     }
@@ -301,7 +308,14 @@ private fun TodaySpendCard(
                         // Nothing to expand into on a day with no spending.
                         if (spentSomething) Modifier.clickable { expanded = !expanded } else Modifier
                     )
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    // The chevron carries its own optical padding inside a 24dp box, so the end
+                    // inset is trimmed when it is there; without it the amount needs the full inset.
+                    .padding(
+                        start = 14.dp,
+                        end = if (spentSomething) 8.dp else 14.dp,
+                        top = 14.dp,
+                        bottom = 14.dp,
+                    ),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -343,10 +357,13 @@ private fun TodaySpendCard(
                         )
                     }
                 }
-                Column(horizontalAlignment = Alignment.End) {
+                // Centred rather than right-aligned: the amount and the budget pill below it are
+                // different widths, and centring keeps the pair reading as one stacked unit.
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         formatMinor(todaySpendMinor),
                         style = MaterialTheme.typography.titleLarge,
+                        fontSize = TodayAmountSize,
                         fontWeight = FontWeight.Bold,
                         color = accent,
                         maxLines = 1,
