@@ -4,6 +4,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,9 +50,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import androidx.compose.ui.unit.sp
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
@@ -337,13 +343,51 @@ private fun TodaySpendCard(
                         )
                     }
                 }
-                Text(
-                    formatMinor(todaySpendMinor),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = accent,
-                    maxLines = 1,
-                )
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        formatMinor(todaySpendMinor),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = accent,
+                        maxLines = 1,
+                    )
+                    // The day's cap sits under the figure it caps, and a tap edits it without
+                    // opening the card — including on a day with nothing spent to expand into.
+                    val budgetPillInteraction = remember { MutableInteractionSource() }
+                    Row(
+                        Modifier
+                            .padding(top = 2.dp)
+                            // The pill is drawn small, but takes taps from around it too; the ripple
+                            // stays on the pill itself.
+                            .expandTouchArea(horizontal = 10.dp, vertical = 12.dp)
+                            .clickable(
+                                interactionSource = budgetPillInteraction,
+                                indication = null,
+                                onClickLabel = "Edit daily budget",
+                            ) { editingDailyBudget = true }
+                            .padding(horizontal = 10.dp, vertical = 12.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(accent.copy(alpha = 0.16f))
+                            .indication(budgetPillInteraction, ripple())
+                            .padding(start = 8.dp, end = 6.dp, top = 2.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            if (dailyBudgetMinor > 0) "of ${formatMinor(dailyBudgetMinor)}" else "Set budget",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                        Icon(
+                            Icons.Filled.Edit,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp),
+                        )
+                    }
+                }
                 if (spentSomething) {
                     Icon(
                         Icons.Filled.ExpandMore,
@@ -404,7 +448,7 @@ private fun TodaySpendCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    // Setting the day's cap lives here rather than on its own screen.
+                    // Also editable from the pill in the header; here it sits with the full figure.
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -467,9 +511,10 @@ private fun TodaySpendCard(
 
     if (editingDailyBudget) {
         BudgetAmountDialog(
-            title = "Budget for a day",
+            title = "Budget for today",
             initialMinor = dailyBudgetMinor,
             fieldLabel = "Daily limit",
+            hint = if (dailyBudgetMinor > 0 && !dailyBudgetIsExplicit) "Worked out from your monthly budget" else null,
             onDismiss = { editingDailyBudget = false },
             onConfirm = {
                 onSetDailyBudget(it)
@@ -481,6 +526,20 @@ private fun TodaySpendCard(
 
 /** Longer days collapse to a count rather than turning the banner into a second feed. */
 private const val TodayRowLimit = 5
+
+/**
+ * Takes up the size of the content after the following padding of [horizontal] and [vertical], so
+ * a click modifier between the two catches taps in the padding while the layout around it sees
+ * only the content. Nothing may clip the spilled area.
+ */
+private fun Modifier.expandTouchArea(horizontal: Dp, vertical: Dp): Modifier = layout { measurable, constraints ->
+    val dx = horizontal.roundToPx()
+    val dy = vertical.roundToPx()
+    val placeable = measurable.measure(constraints.offset(2 * dx, 2 * dy))
+    layout((placeable.width - 2 * dx).coerceAtLeast(0), (placeable.height - 2 * dy).coerceAtLeast(0)) {
+        placeable.place(-dx, -dy)
+    }
+}
 
 @Composable
 private fun SectionHeader(title: String, topPadding: androidx.compose.ui.unit.Dp = 4.dp) {

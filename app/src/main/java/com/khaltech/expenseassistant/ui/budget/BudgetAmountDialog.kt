@@ -24,6 +24,7 @@ fun BudgetAmountDialog(
     onDismiss: () -> Unit,
     onConfirm: (Long) -> Unit,
     fieldLabel: String = "Monthly limit",
+    hint: String? = null,
 ) {
     var text by remember {
         mutableStateOf(if (initialMinor > 0) (initialMinor / 100).toString() else "")
@@ -38,6 +39,7 @@ fun BudgetAmountDialog(
                 onValueChange = { input -> text = input.filter { it.isDigit() || it == '.' } },
                 label = { Text(fieldLabel) },
                 prefix = { Text("₹ ") },
+                supportingText = hint?.let { { Text(it) } },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             )
