@@ -129,7 +129,7 @@ private val BottomBarHeight = 68.dp
 
 /** Long enough to read one line, short enough not to sit over the app. */
 private const val TipVisibleMillis = 10_000L
-private const val TipEveryOpenings = 2
+private const val TipEveryOpenings = 3
 
 /** Clears the centre add button, which overhangs the bottom bar. */
 private val FabClearance = 56.dp
@@ -232,7 +232,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         }
     }
 
-    // A tip every second opening: shown on the first batch of data, then it closes itself. The day's
+    // A tip every third opening: shown on the first batch of data, then it closes itself. The day's
     // first opening already says its piece in the dialog, so the bar waits for the next one. The
     // opening is counted once, not again when the screen is recreated on rotation.
     var tip by remember { mutableStateOf<String?>(null) }
