@@ -87,6 +87,7 @@ fun BudgetBreakdownScreen(
                 categories = state.categoryBudgets,
                 onManage = onManageBudgets,
                 onOpenCategory = onOpenCategory,
+                period = period,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

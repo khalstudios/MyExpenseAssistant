@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.khaltech.expenseassistant.data.model.BudgetPeriod
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.ui.category.CategoryBadge
 import com.khaltech.expenseassistant.ui.CardElevation
@@ -43,6 +44,7 @@ fun BudgetSummaryCard(
     categories: List<BudgetProgress>,
     onManage: () -> Unit,
     onOpenCategory: ((Category) -> Unit)? = null,
+    period: BudgetPeriod = BudgetPeriod.MONTHLY,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -64,7 +66,7 @@ fun BudgetSummaryCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Savings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Text(
-                        "  Budget",
+                        "  ${period.displayName} Budget",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -74,7 +76,7 @@ fun BudgetSummaryCard(
 
             if (overall == null && categories.isEmpty()) {
                 Text(
-                    "No budgets set. Add a monthly limit to track how much is left.",
+                    "No budgets set. Add a ${period.displayName.lowercase()} limit to track how much is left.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
