@@ -9,8 +9,22 @@ data class UserProfile(
 )
 
 enum class BackupInterval(val days: Long, val label: String) {
-    FIFTEEN_DAYS(15, "Every 15 days"),
+    DAILY(1, "Daily"),
+    WEEKLY(7, "Weekly"),
+    BIWEEKLY(14, "Every 2 weeks"),
     MONTHLY(30, "Monthly"),
+    ;
+
+    companion object {
+        /**
+         * Builds before the daily and weekly options stored FIFTEEN_DAYS. Without this the value no
+         * longer parses and automatic backups would quietly switch themselves off on upgrade.
+         */
+        private val LEGACY = mapOf("FIFTEEN_DAYS" to BIWEEKLY)
+
+        fun fromStored(value: String): BackupInterval? =
+            entries.firstOrNull { it.name == value } ?: LEGACY[value]
+    }
 }
 
 data class AutoBackupSettings(
@@ -38,9 +52,9 @@ class UserPreferences(context: Context) {
     }
 
     fun autoBackupSettings(): AutoBackupSettings? {
-        val interval = prefs.getString(KEY_BACKUP_INTERVAL, null)?.let { value ->
-            BackupInterval.entries.firstOrNull { it.name == value }
-        } ?: return null
+        val interval = prefs.getString(KEY_BACKUP_INTERVAL, null)
+            ?.let(BackupInterval::fromStored)
+            ?: return null
         val folderUri = prefs.getString(KEY_BACKUP_FOLDER_URI, null) ?: return null
         return AutoBackupSettings(interval, folderUri)
     }

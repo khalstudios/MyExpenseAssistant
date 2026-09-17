@@ -121,7 +121,7 @@ private val TutorialSteps = listOf(
         title = "Keep your data safe",
         summary = "Because your data lives only on this phone, backups are worth setting up.",
         points = listOf(
-            "Automatic backups write a dated file into a folder you choose, every 15 days or monthly.",
+            "Automatic backups write a dated file into a folder you choose, daily, weekly, every 2 weeks, or monthly.",
             "You can also back up, restore or export to CSV at any time from Profile › Your data.",
         ),
     ),

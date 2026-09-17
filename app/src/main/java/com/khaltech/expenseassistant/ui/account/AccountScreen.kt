@@ -114,7 +114,7 @@ fun AccountScreen(
     var configuringAutoBackup by remember { mutableStateOf(false) }
     var confirmingBackup by remember { mutableStateOf(false) }
     var choosingBackup by remember { mutableStateOf(false) }
-    var selectedBackupInterval by remember { mutableStateOf(BackupInterval.FIFTEEN_DAYS) }
+    var selectedBackupInterval by remember { mutableStateOf(BackupInterval.WEEKLY) }
     var notificationAccess by remember { mutableStateOf(PermissionStatus.isNotificationAccessGranted(context)) }
     var contactsAccess by remember { mutableStateOf(PermissionStatus.isContactsAccessGranted(context)) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -185,7 +185,7 @@ fun AccountScreen(
     // Arriving here from the home screen's backup notice opens the setup dialog straight away.
     LaunchedEffect(openAutoBackupSetup) {
         if (openAutoBackupSetup) {
-            selectedBackupInterval = autoBackupSettings?.interval ?: BackupInterval.FIFTEEN_DAYS
+            selectedBackupInterval = autoBackupSettings?.interval ?: BackupInterval.WEEKLY
             configuringAutoBackup = true
             onAutoBackupSetupHandled()
         }
@@ -254,10 +254,10 @@ fun AccountScreen(
                     icon = Icons.Filled.Backup,
                     title = "Automatic backups",
                     subtitle = autoBackupSettings?.let { "${it.interval.label}; saving to the ${BackupFolder.NAME} folder" }
-                        ?: "Save a backup every 15 days or monthly to a folder you choose",
+                        ?: "Save a backup daily, weekly, every 2 weeks, or monthly",
                     actionLabel = if (autoBackupSettings == null) "Set up" else "Change",
                     onClick = {
-                        selectedBackupInterval = autoBackupSettings?.interval ?: BackupInterval.FIFTEEN_DAYS
+                        selectedBackupInterval = autoBackupSettings?.interval ?: BackupInterval.WEEKLY
                         configuringAutoBackup = true
                     },
                 )
