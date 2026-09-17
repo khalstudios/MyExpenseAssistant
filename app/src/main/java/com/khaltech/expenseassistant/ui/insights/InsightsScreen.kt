@@ -53,7 +53,6 @@ import kotlin.math.abs
 fun InsightsScreen(
     state: AnalyticsUiState,
     recurring: List<RecurringExpense>,
-    tagUsage: List<TagUsage>,
     onRangeChange: (AnalyticsRange) -> Unit,
     onShiftPeriod: (Int) -> Unit,
     onJumpTo: (year: Int, monthIndex: Int) -> Unit,
@@ -84,8 +83,8 @@ fun InsightsScreen(
         if (state.slices.isNotEmpty()) {
             item { CategoryListCard(state, onOpenCategory) }
         }
-        if (tagUsage.isNotEmpty()) {
-            item { TagsCard(tagUsage, onOpenTag) }
+        if (state.tagUsage.isNotEmpty()) {
+            item { TagsCard(state.tagUsage, onOpenTag) }
         }
         item { SpendingTrendsCard(state) }
         item { StatGrid(state) }
@@ -133,7 +132,7 @@ private fun TagsCard(tags: List<TagUsage>, onOpenTag: (String) -> Unit) {
                 )
             }
             Text(
-                "Tap a tag to see everything tagged with it.",
+                "Tap a tag to see everything tagged with it in this period.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

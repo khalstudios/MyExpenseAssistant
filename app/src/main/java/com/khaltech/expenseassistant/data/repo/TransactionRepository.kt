@@ -22,6 +22,42 @@ import java.util.concurrent.TimeUnit
 
 data class TagUsage(val tag: String, val count: Int, val spentMinor: Long = 0L)
 
+/**
+ * Tags used by [transactions], most-used first. Kept free of the DAO so the insights screen can
+ * aggregate the period it is showing rather than the whole history.
+ */
+fun tagUsageOf(transactions: List<TransactionEntity>): List<TagUsage> {
+    val counts = LinkedHashMap<String, Int>()
+    val spend = LinkedHashMap<String, Long>()
+    transactions.forEach { tx ->
+        tx.tags.forEach { tag ->
+            val key = tag.trim()
+            if (key.isNotEmpty()) {
+                counts[key] = (counts[key] ?: 0) + 1
+                if (tx.direction == Direction.DEBIT) {
+                    spend[key] = (spend[key] ?: 0L) + tx.amountMinor
+                }
+            }
+        }
+    }
+    return counts.entries.sortedByDescending { it.value }
+        .map { TagUsage(it.key, it.value, spend[it.key] ?: 0L) }
+}
+
+/**
+ * Transactions carrying [tag] within an optional window; a null bound is unbounded, so the insights
+ * screen can ask for just the period it shows while the detail screen still opens the full history.
+ */
+fun List<TransactionEntity>.taggedWith(
+    tag: String,
+    from: Long? = null,
+    toExclusive: Long? = null,
+): List<TransactionEntity> = filter { tx ->
+    tx.tags.any { it.equals(tag, ignoreCase = true) } &&
+        (from == null || tx.occurredAt >= from) &&
+        (toExclusive == null || tx.occurredAt < toExclusive)
+}
+
 data class CustomCategoryOption(val name: String, val colorHex: String, val iconKey: String? = null)
 
 class TransactionRepository(
@@ -44,27 +80,8 @@ class TransactionRepository(
 
     suspend fun allTransactions(): List<TransactionEntity> = transactionDao.allOnce()
 
-    suspend fun transactionsForTag(tag: String): List<TransactionEntity> =
-        allTransactions().filter { tx -> tx.tags.any { it.equals(tag, ignoreCase = true) } }
-
-    /** Every tag in use, most-used first, for the "browse by tag" widget. */
-    fun observeTagUsage(): Flow<List<TagUsage>> = transactionDao.observeAll().map { transactions ->
-        val counts = LinkedHashMap<String, Int>()
-        val spend = LinkedHashMap<String, Long>()
-        transactions.forEach { tx ->
-            tx.tags.forEach { tag ->
-                val key = tag.trim()
-                if (key.isNotEmpty()) {
-                    counts[key] = (counts[key] ?: 0) + 1
-                    if (tx.direction == Direction.DEBIT) {
-                        spend[key] = (spend[key] ?: 0L) + tx.amountMinor
-                    }
-                }
-            }
-        }
-        counts.entries.sortedByDescending { it.value }
-            .map { TagUsage(it.key, it.value, spend[it.key] ?: 0L) }
-    }
+    /** Every tag in use across all history, most-used first, for tag suggestions. */
+    fun observeTagUsage(): Flow<List<TagUsage>> = transactionDao.observeAll().map { tagUsageOf(it) }
 
     /** Tags ordered by how often they're used, so recent/common ones surface first as suggestions. */
     fun observeTagSuggestions(): Flow<List<String>> = observeTagUsage().map { usages -> usages.map { it.tag } }

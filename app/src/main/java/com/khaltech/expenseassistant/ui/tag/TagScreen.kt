@@ -44,6 +44,8 @@ import com.khaltech.expenseassistant.ui.rememberSoftGradient
 fun TagScreen(
     tag: String,
     transactions: List<TransactionEntity>,
+    /** The insights period these transactions were drawn from; null when showing all history. */
+    periodLabel: String? = null,
     onBack: () -> Unit,
     onOpenTransaction: (Long) -> Unit,
 ) {
@@ -53,7 +55,18 @@ fun TagScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("#$tag") },
+                title = {
+                    Column {
+                        Text("#$tag")
+                        if (periodLabel != null) {
+                            Text(
+                                periodLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -80,7 +93,8 @@ fun TagScreen(
             if (transactions.isEmpty()) {
                 item {
                     Text(
-                        "No transactions are tagged #$tag yet.",
+                        if (periodLabel != null) "Nothing tagged #$tag in $periodLabel."
+                        else "No transactions are tagged #$tag yet.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }

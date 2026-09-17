@@ -2,6 +2,7 @@ package com.khaltech.expenseassistant.ui.insights
 
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.TransactionEntity
+import com.khaltech.expenseassistant.data.repo.TagUsage
 
 data class BudgetProgress(
     val category: Category?,
@@ -35,6 +36,8 @@ data class AnalyticsUiState(
     val needsReviewCount: Int = 0,
     val overallBudget: BudgetProgress? = null,
     val categoryBudgets: List<BudgetProgress> = emptyList(),
+    /** Tags used inside this period only, so the card tracks the selected week/month/year. */
+    val tagUsage: List<TagUsage> = emptyList(),
 ) {
     val range: AnalyticsRange get() = selection.range
 

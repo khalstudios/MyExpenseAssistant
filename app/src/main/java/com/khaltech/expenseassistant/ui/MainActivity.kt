@@ -80,6 +80,9 @@ import com.khaltech.expenseassistant.ui.budget.BudgetScreen
 import com.khaltech.expenseassistant.ui.detail.TransactionDetailScreen
 import com.khaltech.expenseassistant.ui.history.AllTransactionsScreen
 import com.khaltech.expenseassistant.ui.insights.InsightsScreen
+import com.khaltech.expenseassistant.data.repo.taggedWith
+import com.khaltech.expenseassistant.ui.insights.PeriodSelection
+import com.khaltech.expenseassistant.ui.insights.Periods
 import com.khaltech.expenseassistant.ui.tag.TagScreen
 import com.khaltech.expenseassistant.ui.category.CategoryScreen
 import com.khaltech.expenseassistant.ui.category.LocalCategoryIconOverrides
@@ -114,7 +117,8 @@ private sealed interface Route {
     data object Budgets : Route
     data class Detail(val id: Long) : Route
     data class CategoryTransactions(val category: Category) : Route
-    data class TagTransactions(val tag: String) : Route
+    /** A null [period] means the whole history, which is what the transaction detail screen wants. */
+    data class TagTransactions(val tag: String, val period: PeriodSelection? = null) : Route
     data object NeedsReview : Route
     data object AllTransactions : Route
 }
@@ -151,7 +155,6 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     val yearlyBudgetAnalytics by viewModel.yearlyBudgetAnalytics.collectAsStateWithLifecycle()
     val recurring by viewModel.recurring.collectAsStateWithLifecycle()
     val tagSuggestions by viewModel.tagSuggestions.collectAsStateWithLifecycle()
-    val tagUsage by viewModel.tagUsage.collectAsStateWithLifecycle()
     val customCategories by viewModel.customCategories.collectAsStateWithLifecycle()
     val summaryScope by viewModel.summaryScope.collectAsStateWithLifecycle()
     val dailyBudget by viewModel.dailyBudgetMinor.collectAsStateWithLifecycle()
@@ -349,17 +352,23 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 }
 
                 is Route.TagTransactions -> {
-                    var tagTransactions by remember(current.tag) { mutableStateOf<List<TransactionEntity>?>(null) }
-                    LaunchedEffect(current.tag) { tagTransactions = viewModel.transactionsForTag(current.tag) }
-                    val list = tagTransactions
-                    if (list != null) {
-                        TagScreen(
-                            tag = current.tag,
-                            transactions = list,
-                            onBack = { goBack() },
-                            onOpenTransaction = { id -> navigate(Route.Detail(id)) },
+                    val period = current.period
+                    // Filtered from the list already in memory rather than re-queried: an async
+                    // load left the screen blank for a frame, which flashed the window background.
+                    val list = remember(current, allTransactions) {
+                        allTransactions.taggedWith(
+                            current.tag,
+                            period?.let { Periods.start(it) },
+                            period?.let { Periods.endExclusive(it) },
                         )
                     }
+                    TagScreen(
+                        tag = current.tag,
+                        transactions = list,
+                        periodLabel = period?.let { Periods.label(it) },
+                        onBack = { goBack() },
+                        onOpenTransaction = { id -> navigate(Route.Detail(id)) },
+                    )
                 }
 
                 Route.AllTransactions -> {
@@ -500,13 +509,12 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 Tab.INSIGHTS -> InsightsScreen(
                     state = analytics,
                     recurring = recurring,
-                    tagUsage = tagUsage,
                     onRangeChange = viewModel::setRange,
                     onShiftPeriod = viewModel::shiftPeriod,
                     onJumpTo = viewModel::jumpTo,
                     onResetToCurrent = viewModel::resetToCurrent,
                     onOpenCategory = { navigate(Route.CategoryTransactions(it)) },
-                    onOpenTag = { tag -> navigate(Route.TagTransactions(tag)) },
+                    onOpenTag = { tag -> navigate(Route.TagTransactions(tag, analytics.selection)) },
                     onOpenNeedsReview = { navigate(Route.NeedsReview) },
                     modifier = Modifier.padding(padding),
                 )

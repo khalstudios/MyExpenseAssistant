@@ -12,7 +12,7 @@ import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.PaymentMode
 import com.khaltech.expenseassistant.data.model.TransactionEntity
-import com.khaltech.expenseassistant.data.repo.TagUsage
+import com.khaltech.expenseassistant.data.repo.tagUsageOf
 import com.khaltech.expenseassistant.di.ServiceLocator
 import com.khaltech.expenseassistant.recurring.RecurringDetector
 import com.khaltech.expenseassistant.recurring.RecurringExpense
@@ -227,14 +227,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val tagSuggestions: StateFlow<List<String>> = repository.observeTagSuggestions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val tagUsage: StateFlow<List<TagUsage>> = repository.observeTagUsage()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
     val customCategories: StateFlow<List<com.khaltech.expenseassistant.data.repo.CustomCategoryOption>> =
         repository.observeCustomCategorySuggestions()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    suspend fun transactionsForTag(tag: String): List<TransactionEntity> = repository.transactionsForTag(tag)
 
     fun setRange(range: AnalyticsRange) {
         _period.value = Periods.withRange(_period.value, range)
@@ -342,6 +337,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 .map { (merchant, items) -> merchant to items.sumOf { it.amountMinor } }
                 .maxByOrNull { it.second },
             needsReviewCount = current.count { it.needsCategoryReview },
+            tagUsage = tagUsageOf(current),
             overallBudget = budgets[BudgetEntity.OVERALL]?.let { limit ->
                 BudgetProgress(null, limit, totalSpend, paceFraction)
             },
