@@ -5,7 +5,7 @@ Kahan Gaya Paisa ("where did the money go?") is an Android app that auto-records
 ## How it works
 
 ```
-NotificationListenerService ─> PaymentTextParser ─> Categorizer ─> TransactionRepository ─> Room ─> Compose UI
+NotificationListenerService â> PaymentTextParser â> Categorizer â> TransactionRepository â> Room â> Compose UI
                                (BankSmsParser for     (rules +          (dedupe)
                                 SMS and bank apps)  learned rules)
 ```
@@ -15,7 +15,7 @@ NotificationListenerService ─> PaymentTextParser ─> Categorizer ─> Transac
 | Capture | [PaymentNotificationListener.kt](app/src/main/java/com/khaltech/expenseassistant/service/PaymentNotificationListener.kt) | Reads notifications from whitelisted payment packages only |
 | Parse | [PaymentTextParser.kt](app/src/main/java/com/khaltech/expenseassistant/parser/PaymentTextParser.kt) | Extracts amount, direction, merchant, UPI reference; rejects failed/pending/collect-request/promo text |
 | Parse (bank alerts) | [BankSmsParser.kt](app/src/main/java/com/khaltech/expenseassistant/parser/bank/BankSmsParser.kt), [Banks.kt](app/src/main/java/com/khaltech/expenseassistant/parser/bank/Banks.kt) | SMS and bank-app notifications: identifies the bank from the sender header or its name, classifies the type, extracts account/card last 4 digits, counterparty, reference and balance |
-| Categorise | [Categorizer.kt](app/src/main/java/com/khaltech/expenseassistant/categorize/Categorizer.kt) | User-taught rules → keyword knowledge base → structural heuristics, each with a confidence score |
+| Categorise | [Categorizer.kt](app/src/main/java/com/khaltech/expenseassistant/categorize/Categorizer.kt) | User-taught rules â keyword knowledge base â structural heuristics, each with a confidence score |
 | Store | [TransactionRepository.kt](app/src/main/java/com/khaltech/expenseassistant/data/repo/TransactionRepository.kt) | Deduplicates (UPI ref, or amount+direction+merchant within 3 min) and persists |
 | UI | [HomeScreen.kt](app/src/main/java/com/khaltech/expenseassistant/ui/HomeScreen.kt) | Today's spend banner, monthly totals, category breakdown, per-transaction category override |
 
@@ -33,9 +33,9 @@ A message with no bank, account or UPI detail falls back to the general parser, 
 
 Categorisation is a layered classifier rather than a single lookup:
 
-1. **Learned rules** — every time you correct a category or rename a captured merchant, the normalised merchant key (`Swiggy Private Limited` → `swiggy`) is stored in `merchant_rules` and wins next time. A saved rename becomes the display name for future matching payments, and the tags you save are carried forward too; category rules have confidence `0.99`. Notes are never copied to later payments, and income transactions neither create nor use learned rules.
-2. **Knowledge base** — ~250 merchant/keyword patterns across 15 categories, longest match first, checked against the merchant field before the raw text. Confidence `0.6–0.95`.
-3. **Heuristics** — credits default to income; payments to a personal VPA or a 1–3 word personal name become `Transfer to People`. Confidence `0.55–0.6`.
+1. **Learned rules** â every time you correct a category or rename a captured merchant, the normalised merchant key (`Swiggy Private Limited` â `swiggy`) is stored in `merchant_rules` and wins next time. A saved rename becomes the display name for future matching payments, and the tags you save are carried forward too; category rules have confidence `0.99`. Notes are never copied to later payments, and income transactions neither create nor use learned rules.
+2. **Knowledge base** â ~250 merchant/keyword patterns across 15 categories, longest match first, checked against the merchant field before the raw text. Confidence `0.6â0.95`.
+3. **Heuristics** â credits default to income; payments to a personal VPA or a 1â3 word personal name become `Transfer to People`. Confidence `0.55â0.6`.
 
 Anything under `0.6` confidence is surfaced as "needs a category check" on the home screen, so corrections feed straight back into layer 1.
 
@@ -54,7 +54,7 @@ gradle wrapper --gradle-version 8.13
 ## Enabling capture on device
 
 1. Install and open the app.
-2. Tap **Enable** next to *Notification access* → toggle "Kahan Gaya Paisa" in the system list.
+2. Tap **Enable** next to *Notification access* â toggle "Kahan Gaya Paisa" in the system list.
 3. Make a UPI payment. It appears within a second or two.
 
 Notification access covers GPay, PhonePe, Paytm and bank SMS. There is no screen reading or accessibility service; a payment that posts neither an app notification nor a bank SMS can be added with **+**.
@@ -67,9 +67,11 @@ In **Account** under **Capture**, enable *Contact names* to let the app match th
 
 ### Backups
 
-In **Account** under **Your data**, select **Back up your data** and choose Google Drive (or another storage provider) in Android's file picker. The backup contains your transactions, budgets, learned merchant categories, profile, and category icon choices. **Restore from backup** replaces those items currently stored on the device, so make a current backup first when needed.
+In **Account** under **Your data**, select **Back up your data**. A dialog explains what happens next, then Android's picker asks only for a location — Google Drive, this device, or any other storage provider. The app creates a folder named `Kahan Gaya Paisa` there and saves the dated backup file inside it. That location is remembered, so later backups go straight into the same folder without opening the picker again; **Change location** in the dialog picks a different one. The backup contains your transactions, budgets, learned merchant categories, profile, and category icon choices. Files are named `18-09-2026-kahan-gaya-paisa-backup-1430.json`: date, app name, then the time, so two backups on the same day do not collide.
 
-You can also enable **Automatic backups** once, choose either every 15 days or monthly, then select a Google Drive folder. The app retains access only to that selected folder and creates future dated backup files there without asking again. Android may delay scheduled work for battery, storage, or connectivity reasons, so backups run approximately at the selected interval. Turn off automatic backups at any time from Account. The app does not store Google account credentials.
+**Restore from backup** lists the backups already in that folder, newest first, so restoring is a tap; **Pick a file instead** falls back to Android's file picker for a backup kept somewhere else. Restoring replaces those items currently stored on the device, so make a current backup first when needed.
+
+You can also enable **Automatic backups** once, choose either every 15 days or monthly, then pick a location the same way. The app retains access only to the location you selected, and writes future dated backups into its own `Kahan Gaya Paisa` folder there without asking again. Android may delay scheduled work for battery, storage, or connectivity reasons, so backups run approximately at the selected interval. Turn off automatic backups at any time from Account. The app does not store Google account credentials.
 
 ## Privacy
 

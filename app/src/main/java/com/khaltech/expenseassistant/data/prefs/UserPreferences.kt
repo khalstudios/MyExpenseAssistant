@@ -56,6 +56,16 @@ class UserPreferences(context: Context) {
         prefs.edit().remove(KEY_BACKUP_INTERVAL).remove(KEY_BACKUP_FOLDER_URI).apply()
     }
 
+    /**
+     * The location the user last backed up to, kept separately from the automatic-backup folder so
+     * turning automatic backups off does not lose the list of existing backups.
+     */
+    fun backupLocationUri(): String? = prefs.getString(KEY_BACKUP_LOCATION_URI, null)
+
+    fun saveBackupLocationUri(uri: String) {
+        prefs.edit().putString(KEY_BACKUP_LOCATION_URI, uri).apply()
+    }
+
     fun isBackupNoticeDismissed(): Boolean = prefs.getBoolean(KEY_BACKUP_NOTICE_DISMISSED, false)
 
     fun dismissBackupNotice() {
@@ -93,6 +103,7 @@ class UserPreferences(context: Context) {
         const val KEY_INCOME = "monthly_income_minor"
         const val KEY_BACKUP_INTERVAL = "backup_interval"
         const val KEY_BACKUP_FOLDER_URI = "backup_folder_uri"
+        const val KEY_BACKUP_LOCATION_URI = "backup_location_uri"
         const val KEY_BACKUP_NOTICE_DISMISSED = "backup_notice_dismissed"
         const val KEY_TUTORIAL_SEEN = "tutorial_seen"
         const val KEY_DAILY_PROMPT_DAY = "daily_prompt_day"

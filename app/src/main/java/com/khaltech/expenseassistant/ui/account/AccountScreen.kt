@@ -3,6 +3,13 @@ package com.khaltech.expenseassistant.ui.account
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +26,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Contacts
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
@@ -62,6 +71,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.khaltech.expenseassistant.BuildConfig
 import com.khaltech.expenseassistant.data.prefs.UserProfile
+import com.khaltech.expenseassistant.data.backup.BackupFolder
 import com.khaltech.expenseassistant.data.prefs.BackupInterval
 import com.khaltech.expenseassistant.service.PermissionStatus
 import com.khaltech.expenseassistant.ui.CardElevation
@@ -69,6 +79,7 @@ import com.khaltech.expenseassistant.ui.DisclosureDialog
 import com.khaltech.expenseassistant.ui.Disclosures
 import com.khaltech.expenseassistant.ui.formatMinor
 import com.khaltech.expenseassistant.ui.formatTimestamp
+import java.util.Locale
 import com.khaltech.expenseassistant.ui.rememberHeroGradient
 import com.khaltech.expenseassistant.ui.rememberSoftGradient
 import com.khaltech.expenseassistant.ui.toMinorUnits
@@ -101,6 +112,8 @@ fun AccountScreen(
     var confirmingClear by remember { mutableStateOf(false) }
     var restoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var configuringAutoBackup by remember { mutableStateOf(false) }
+    var confirmingBackup by remember { mutableStateOf(false) }
+    var choosingBackup by remember { mutableStateOf(false) }
     var selectedBackupInterval by remember { mutableStateOf(BackupInterval.FIFTEEN_DAYS) }
     var notificationAccess by remember { mutableStateOf(PermissionStatus.isNotificationAccessGranted(context)) }
     var contactsAccess by remember { mutableStateOf(PermissionStatus.isContactsAccessGranted(context)) }
@@ -124,13 +137,22 @@ fun AccountScreen(
         }
     }
 
-    val backupLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
+    val backups by viewModel.backups.collectAsStateWithLifecycle()
+    val backupLocation by viewModel.backupLocation.collectAsStateWithLifecycle()
+
+    fun announceBackup(succeeded: Boolean) {
+        scope.launch {
+            snackbarHostState.showMessage(
+                if (succeeded) "Backup saved to the ${BackupFolder.NAME} folder" else "Backup failed"
+            )
+        }
+    }
+
+    val backupLocationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        viewModel.backup(uri) { succeeded ->
-            scope.launch { snackbarHostState.showMessage(if (succeeded) "Backup saved" else "Backup failed") }
-        }
+        viewModel.backupToFolder(uri, ::announceBackup)
     }
 
     val automaticBackupFolderLauncher = rememberLauncherForActivityResult(
@@ -156,6 +178,7 @@ fun AccountScreen(
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             notificationAccess = PermissionStatus.isNotificationAccessGranted(context)
             contactsAccess = PermissionStatus.isContactsAccessGranted(context)
+            viewModel.refreshBackups()
         }
     }
 
@@ -223,15 +246,15 @@ fun AccountScreen(
                 SettingRow(
                     icon = Icons.Filled.Backup,
                     title = "Back up your data",
-                    subtitle = "Save transactions, budgets, and settings; choose Google Drive in the picker",
+                    subtitle = "Save transactions, budgets, and settings to a folder you choose",
                     actionLabel = "Back up",
-                    onClick = { backupLauncher.launch(viewModel.suggestedBackupFileName()) },
+                    onClick = { confirmingBackup = true },
                 )
                 SettingRow(
                     icon = Icons.Filled.Backup,
                     title = "Automatic backups",
-                    subtitle = autoBackupSettings?.let { "${it.interval.label}; backup folder selected" }
-                        ?: "Save a backup every 15 days or monthly",
+                    subtitle = autoBackupSettings?.let { "${it.interval.label}; saving to the ${BackupFolder.NAME} folder" }
+                        ?: "Save a backup every 15 days or monthly to a folder you choose",
                     actionLabel = if (autoBackupSettings == null) "Set up" else "Change",
                     onClick = {
                         selectedBackupInterval = autoBackupSettings?.interval ?: BackupInterval.FIFTEEN_DAYS
@@ -246,9 +269,13 @@ fun AccountScreen(
                 SettingRow(
                     icon = Icons.Filled.Restore,
                     title = "Restore from backup",
-                    subtitle = "Replace the data currently on this device",
+                    subtitle = if (backups.isEmpty()) "Replace the data currently on this device"
+                    else "${backups.size} backup${if (backups.size == 1) "" else "s"} saved in the ${BackupFolder.NAME} folder",
                     actionLabel = "Restore",
-                    onClick = { restoreLauncher.launch(arrayOf("application/json", "text/json")) },
+                    onClick = {
+                        if (backups.isEmpty()) restoreLauncher.launch(arrayOf("application/json", "text/json"))
+                        else choosingBackup = true
+                    },
                 )
                 SettingRow(
                     icon = Icons.Filled.DeleteForever,
@@ -342,6 +369,76 @@ fun AccountScreen(
             },
         )
     }
+
+    if (choosingBackup) {
+        ChooseBackupDialog(
+            backups = backups,
+            onDismiss = { choosingBackup = false },
+            onSelect = { entry ->
+                choosingBackup = false
+                restoreUri = entry.uri
+            },
+            onPickFile = {
+                choosingBackup = false
+                restoreLauncher.launch(arrayOf("application/json", "text/json"))
+            },
+        )
+    }
+
+    if (confirmingBackup) {
+        BackupLocationDialog(
+            hasLocation = backupLocation != null,
+            onDismiss = { confirmingBackup = false },
+            onConfirm = {
+                confirmingBackup = false
+                // Only the first backup needs the picker; after that the folder is already known.
+                if (backupLocation == null) backupLocationLauncher.launch(null)
+                else viewModel.backupToSavedLocation(::announceBackup)
+            },
+            onChangeLocation = {
+                confirmingBackup = false
+                backupLocationLauncher.launch(null)
+            },
+        )
+    }
+}
+
+/**
+ * Before the first backup this explains the picker; afterwards it confirms the folder already in
+ * use, so a routine backup neither reopens the picker nor nests a second folder.
+ */
+@Composable
+private fun BackupLocationDialog(
+    hasLocation: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    onChangeLocation: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Back up your data") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (hasLocation) {
+                    Text("Your backup is added to the \"${BackupFolder.NAME}\" folder you chose earlier.")
+                    TextButton(onClick = onChangeLocation, contentPadding = PaddingValues(0.dp)) {
+                        Text("Change location")
+                    }
+                } else {
+                    Text("Choose where to keep your backups \u2014 Google Drive, this device, or any other storage in the picker.")
+                    Text(
+                        "A folder named \"${BackupFolder.NAME}\" is created there, and every backup is saved inside it.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text(if (hasLocation) "Back up" else "Choose location") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable
@@ -356,7 +453,12 @@ private fun AutoBackupDialog(
         title = { Text("Set up automatic backups") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Choose how often to create a backup. You will select its folder next.")
+                Text("Choose how often to create a backup, then pick where to keep it \u2014 Google Drive, this device, or any other storage.")
+                Text(
+                    "A folder named \"${BackupFolder.NAME}\" is created there, and every backup is saved inside it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 BackupInterval.entries.forEach { interval ->
                     Row(
                         Modifier.fillMaxWidth(),
@@ -371,7 +473,7 @@ private fun AutoBackupDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Choose folder") } },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Choose location") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
@@ -585,4 +687,100 @@ private fun InfoRow(label: String, value: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+/**
+ * The backups already sitting in the app's folder, newest first. Each one is drawn as a card with a
+ * file icon and a trailing chevron, because a plain list of names did not read as tappable.
+ */
+@Composable
+private fun ChooseBackupDialog(
+    backups: List<BackupFolder.Entry>,
+    onDismiss: () -> Unit,
+    onSelect: (BackupFolder.Entry) -> Unit,
+    onPickFile: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Restore from backup") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Tap a backup to restore it. Newest first; this replaces the data on this device.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                // Capped so a long history cannot push the dialog's buttons off screen.
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 300.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(backups, key = { it.uri.toString() }) { entry ->
+                        BackupRow(entry = entry, onClick = { onSelect(entry) })
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onPickFile) { Text("Pick a file\u2026") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun BackupRow(entry: BackupFolder.Entry, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.Description,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Column(Modifier.weight(1f)) {
+                // The date leads: it is what someone picking a backup is actually choosing between.
+                Text(
+                    formatTimestamp(entry.savedAt),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+                Text(
+                    "${entry.name} \u00b7 ${formatBackupSize(entry.sizeBytes)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun formatBackupSize(bytes: Long): String = when {
+    bytes >= 1024 * 1024 -> String.format(Locale.getDefault(), "%.1f MB", bytes / (1024f * 1024f))
+    bytes >= 1024 -> "${bytes / 1024} KB"
+    else -> "$bytes B"
 }

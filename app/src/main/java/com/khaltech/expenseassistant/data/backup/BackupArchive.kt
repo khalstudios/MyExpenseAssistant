@@ -169,9 +169,17 @@ class BackupArchive(
 
     companion object {
         private const val FORMAT_VERSION = 1
-        private val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd-HHmm", Locale.US)
+        /** Locale.US so the file name is the same shape on every device, whatever the locale. */
+        private val DATE_FORMAT = SimpleDateFormat("dd-MM-yyyy", Locale.US)
+        private val TIME_FORMAT = SimpleDateFormat("HHmm", Locale.US)
 
-        fun fileName(prefix: String = "kahan-gaya-paisa-backup"): String =
-            "$prefix-${DATE_FORMAT.format(Date())}.json"
+        /**
+         * Date first, then the app name, then the time: `18-09-2026-kahan-gaya-paisa-backup-1430.json`.
+         * The time keeps a second backup on the same day from colliding with the first.
+         */
+        fun fileName(suffix: String = "kahan-gaya-paisa-backup"): String {
+            val now = Date()
+            return "${DATE_FORMAT.format(now)}-$suffix-${TIME_FORMAT.format(now)}.json"
+        }
     }
 }

@@ -2,7 +2,6 @@ package com.khaltech.expenseassistant.data.backup
 
 import android.content.Context
 import android.net.Uri
-import androidx.documentfile.provider.DocumentFile
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.khaltech.expenseassistant.data.prefs.UserPreferences
@@ -16,14 +15,12 @@ class AutoBackupWorker(appContext: Context, parameters: WorkerParameters) : Coro
         val settings = UserPreferences(applicationContext).autoBackupSettings() ?: return Result.success()
         return try {
             withContext(Dispatchers.IO) {
-                val directory = DocumentFile.fromTreeUri(applicationContext, Uri.parse(settings.folderUri))
-                    ?: throw IOException("Backup folder is unavailable")
-                val fileName = BackupArchive.fileName("kahan-gaya-paisa-auto")
-                val destination = directory.createFile("application/json", fileName)
-                    ?: throw IOException("Could not create backup file")
-                applicationContext.contentResolver.openOutputStream(destination.uri)?.bufferedWriter()?.use { writer ->
-                    writer.write(ServiceLocator.backupArchive(applicationContext).export())
-                } ?: throw IOException("Could not write backup file")
+                BackupFolder.write(
+                    applicationContext,
+                    Uri.parse(settings.folderUri),
+                    BackupArchive.fileName("kahan-gaya-paisa-auto"),
+                    ServiceLocator.backupArchive(applicationContext).export(),
+                )
             }
             Result.success()
         } catch (_: SecurityException) {
