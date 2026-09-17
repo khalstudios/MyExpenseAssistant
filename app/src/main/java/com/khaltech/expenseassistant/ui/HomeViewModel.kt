@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.khaltech.expenseassistant.data.model.BudgetEntity
+import com.khaltech.expenseassistant.data.model.BudgetPeriod
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.PaymentMode
@@ -39,6 +40,8 @@ data class HomeUiState(
     val incomeMinor: Long = 0,
     val spendByCategory: List<Pair<Category, Long>> = emptyList(),
     val needsReviewCount: Int = 0,
+    val todaySpendMinor: Long = 0,
+    val todaySpendCount: Int = 0,
 )
 
 /** Auto-categorised with low confidence and never confirmed by the user. */
@@ -51,8 +54,15 @@ private data class PeriodSnapshot(
     val budgets: Map<String, Long>,
 )
 
-/** Scope of the home summary card, independent of the Insights period navigation. */
-enum class SummaryScope(val label: String) { MONTH("Month"), YEAR("Year"), ALL("All time") }
+/**
+ * Scope of the home summary card, independent of the Insights period navigation. [label] names the
+ * toggle segment, [headline] titles the card for the scope in view.
+ */
+enum class SummaryScope(val label: String, val headline: String) {
+    MONTH("Month", "Current Month"),
+    YEAR("Year", "Current Year"),
+    ALL("All time", "Overall"),
+}
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -132,6 +142,83 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     ) { transactions, budgets -> PeriodSnapshot(monthlyBudgetSelection, transactions, budgets).toAnalytics() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AnalyticsUiState(selection = monthlyBudgetSelection))
 
+    private val yearlyBudgetSelection = PeriodSelection.now(AnalyticsRange.YEAR)
+
+    /** The same progress view as the monthly budgets, measured against the yearly limits. */
+    val yearlyBudgetAnalytics: StateFlow<AnalyticsUiState> = combine(
+        repository.observeBetween(
+            Periods.previousStart(yearlyBudgetSelection),
+            Periods.endExclusive(yearlyBudgetSelection),
+        ),
+        budgetRepository.observeBudgets(BudgetPeriod.YEARLY),
+    ) { transactions, budgets -> PeriodSnapshot(yearlyBudgetSelection, transactions, budgets).toAnalytics() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AnalyticsUiState(selection = yearlyBudgetSelection))
+
+    /** A daily cap the user set by hand, or zero when they have not set one. */
+    val explicitDailyBudgetMinor: StateFlow<Long> = budgetRepository.observeBudgets(BudgetPeriod.DAILY)
+        .map { budgets -> budgets[BudgetEntity.OVERALL] ?: 0L }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
+
+    /**
+     * What today is measured against: the user's own daily budget when set, otherwise the overall
+     * monthly budget spread evenly over the month. Zero when neither exists.
+     */
+    val dailyBudgetMinor: StateFlow<Long> = combine(
+        explicitDailyBudgetMinor,
+        monthlyBudgetAnalytics,
+    ) { explicit, analytics ->
+        if (explicit > 0) explicit
+        else analytics.overallBudget?.limitMinor?.div(Periods.totalDays(monthlyBudgetSelection)) ?: 0L
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
+
+    fun setDailyBudget(limitMinor: Long) = viewModelScope.launch {
+        budgetRepository.setDailyBudget(limitMinor)
+    }
+
+    /** Days remaining after today, for the status banner's "N days to go". */
+    private fun daysLeftThisMonth(): Int =
+        Periods.totalDays(monthlyBudgetSelection) - Periods.elapsedDays(monthlyBudgetSelection)
+
+    /** One plain-language read on today and the month; null until an overall budget exists. */
+    val spendingStatus: StateFlow<SpendingStatus?> = combine(
+        recentState,
+        monthlyBudgetAnalytics,
+        dailyBudgetMinor,
+    ) { recent, analytics, dailyShare ->
+        spendingStatus(
+            todaySpendMinor = recent.todaySpendMinor,
+            dailyShareMinor = dailyShare,
+            budget = analytics.overallBudget,
+            daysLeft = daysLeftThisMonth(),
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Candidate one-liners for the tip bar; the screen picks one per opening. Built straight from
+     * the stored flows rather than the seeded UI state: the bar takes a single snapshot, so it must
+     * not fire on the empty value that precedes the first database emission.
+     */
+    val spendingTips: StateFlow<List<String>> = combine(
+        repository.observeSince(startOfDay(System.currentTimeMillis())),
+        budgetRepository.observeAll(),
+    ) { todayTransactions, budgets ->
+        val debits = todayTransactions.filter { it.direction == Direction.DEBIT }
+        fun limitOf(period: BudgetPeriod) = budgets
+            .firstOrNull { it.categoryKey == BudgetEntity.OVERALL && it.period == period }
+            ?.limitMinor
+        val dailyShare = limitOf(BudgetPeriod.DAILY)
+            ?: limitOf(BudgetPeriod.MONTHLY)?.div(Periods.totalDays(monthlyBudgetSelection))
+            ?: 0L
+        spendingTips(
+            todaySpendMinor = debits.sumOf { it.amountMinor },
+            dailyBudgetMinor = dailyShare,
+            todayByCategory = debits.groupBy { it.category }
+                .map { (category, items) -> category to items.sumOf { it.amountMinor } }
+                .sortedByDescending { it.second },
+            todayCount = debits.size,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val recurring: StateFlow<List<RecurringExpense>> =
         repository.observeSince(sixMonthsAgo())
             .map { RecurringDetector.detect(it) }
@@ -175,6 +262,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private fun PeriodSnapshot.toHomeState(): HomeUiState {
         val current = currentTransactions()
         val debits = current.filter { it.direction == Direction.DEBIT }
+        val today = debits.spentToday()
         return HomeUiState(
             transactions = current,
             spendMinor = debits.sumOf { it.amountMinor },
@@ -183,11 +271,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 .map { (category, items) -> category to items.sumOf { it.amountMinor } }
                 .sortedByDescending { it.second },
             needsReviewCount = current.count { it.needsCategoryReview },
+            todaySpendMinor = today.sumOf { it.amountMinor },
+            todaySpendCount = today.size,
         )
     }
 
     private fun List<TransactionEntity>.toRecentHomeState(): HomeUiState {
         val debits = filter { it.direction == Direction.DEBIT }
+        val today = debits.spentToday()
         return HomeUiState(
             transactions = this,
             spendMinor = debits.sumOf { it.amountMinor },
@@ -196,7 +287,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 .map { (category, items) -> category to items.sumOf { it.amountMinor } }
                 .sortedByDescending { it.second },
             needsReviewCount = count { it.needsCategoryReview },
+            todaySpendMinor = today.sumOf { it.amountMinor },
+            todaySpendCount = today.size,
         )
+    }
+
+    /** Debits dated today; the home banner reports the day's running total. */
+    private fun List<TransactionEntity>.spentToday(): List<TransactionEntity> {
+        val dayStart = startOfDay(System.currentTimeMillis())
+        return filter { it.occurredAt >= dayStart }
     }
 
     private fun PeriodSnapshot.toAnalytics(): AnalyticsUiState {

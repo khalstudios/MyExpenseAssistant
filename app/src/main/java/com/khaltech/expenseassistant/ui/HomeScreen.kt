@@ -15,12 +15,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Today
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,18 +38,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.TransactionEntity
 import com.khaltech.expenseassistant.data.repo.CustomCategoryOption
+import com.khaltech.expenseassistant.ui.budget.BudgetAmountDialog
 import com.khaltech.expenseassistant.ui.budget.BudgetOverviewCard
 import com.khaltech.expenseassistant.ui.category.CategoryBadge
 import com.khaltech.expenseassistant.ui.category.CategoryDot
@@ -48,8 +64,12 @@ import com.khaltech.expenseassistant.ui.category.displayCategoryName
 import com.khaltech.expenseassistant.ui.insights.AnalyticsUiState
 import com.khaltech.expenseassistant.ui.insights.CategoryPieChart
 import com.khaltech.expenseassistant.ui.insights.PieSlice
+import kotlinx.coroutines.launch
 
 private const val MillisPerDay = 24L * 60 * 60 * 1000
+
+/** Below titleLarge, so a seven-figure income and expenditure still sit side by side. */
+private val SummaryAmountSize = 20.sp
 
 @OptIn(ExperimentalFoundationApi::class)
 
@@ -69,6 +89,10 @@ fun HomeScreen(
     onOpenCategory: (Category) -> Unit = {},
     onDelete: (Long) -> Unit,
     onOpenTransaction: (Long) -> Unit,
+    dailyBudgetMinor: Long = 0,
+    dailyBudgetIsExplicit: Boolean = false,
+    onSetDailyBudget: (Long) -> Unit = {},
+    spendingStatus: SpendingStatus? = null,
     categoryFilter: Category? = null,
     tagFilter: String? = null,
     needsReviewFilter: Boolean = false,
@@ -98,8 +122,26 @@ fun HomeScreen(
     val recentCutoff = startOfDay(System.currentTimeMillis() - 2 * MillisPerDay)
     val shownDays = if (recentOnly) days.filter { it.first >= recentCutoff } else days
 
+    val todayStart = startOfDay(System.currentTimeMillis())
+    val todaySpending = state.transactions
+        .filter { it.occurredAt >= todayStart && it.direction == Direction.DEBIT }
+        .sortedByDescending { it.occurredAt }
+
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    // Items emitted ahead of the "Latest activity" header, so the today card can scroll straight to
+    // it. Kept in step with the item order below.
+    val latestActivityIndex = 1 + // permissions card, emitted even when it draws nothing
+        (if (showBackupNotice) 1 else 0) +
+        1 + // today card
+        (if (spendingStatus != null) 1 else 0) +
+        2 + // "Income & Expenditure" header and summary card
+        (if (state.spendByCategory.isNotEmpty()) 2 else 0) +
+        (if (budgetState != null) 2 else 0)
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
+        state = listState,
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -111,6 +153,22 @@ fun HomeScreen(
                 item {
                     BackupNoticeCard(onEnable = onEnableBackup, onDismiss = onDismissBackupNotice)
                 }
+            }
+            item {
+                TodaySpendCard(
+                    todaySpendMinor = state.todaySpendMinor,
+                    todaySpendCount = state.todaySpendCount,
+                    dailyBudgetMinor = dailyBudgetMinor,
+                    dailyBudgetIsExplicit = dailyBudgetIsExplicit,
+                    onSetDailyBudget = onSetDailyBudget,
+                    todaySpending = todaySpending,
+                    onJumpToLatest = {
+                        scope.launch { listState.animateScrollToItem(latestActivityIndex) }
+                    },
+                )
+            }
+            spendingStatus?.let { status ->
+                item { SpendingStatusCard(status) }
             }
             item { SectionHeader("Income & Expenditure", topPadding = 0.dp) }
             item { SummaryCard(state, summaryScope, onSummaryScopeChange, onOpenNeedsReview) }
@@ -189,6 +247,240 @@ fun HomeScreen(
         )
     }
 }
+
+/**
+ * At-a-glance banner for the money spent since midnight, above the period summary. It turns amber
+ * once the day has outspent its even share of the overall monthly budget, and expands in place to
+ * list the day's spending.
+ */
+@Composable
+private fun TodaySpendCard(
+    todaySpendMinor: Long,
+    todaySpendCount: Int,
+    dailyBudgetMinor: Long,
+    dailyBudgetIsExplicit: Boolean,
+    onSetDailyBudget: (Long) -> Unit,
+    todaySpending: List<TransactionEntity>,
+    onJumpToLatest: () -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    var editingDailyBudget by remember { mutableStateOf(false) }
+    val spentSomething = todaySpendMinor > 0
+    val overDailyPace = dailyBudgetMinor > 0 && todaySpendMinor > dailyBudgetMinor
+    val accent = when {
+        overDailyPace -> WarningColor
+        spentSomething -> SpendColor
+        else -> IncomeColor
+    }
+    val countText = "$todaySpendCount ${if (todaySpendCount == 1) "transaction" else "transactions"}"
+    val paceText = when {
+        overDailyPace -> "${formatMinor(todaySpendMinor - dailyBudgetMinor)} over today's pace"
+        else -> "${formatMinor(dailyBudgetMinor - todaySpendMinor)} left of today's pace"
+    }
+    // Blended to an opaque fill: a translucent container lets the card's own shadow through, which
+    // reads as a muddy frame in light mode.
+    val container = accent.copy(alpha = 0.12f).compositeOver(MaterialTheme.colorScheme.surface)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = container),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .then(
+                        // Nothing to expand into on a day with no spending.
+                        if (spentSomething) Modifier.clickable { expanded = !expanded } else Modifier
+                    )
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Box(
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(accent.copy(alpha = 0.22f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        if (overDailyPace) Icons.Filled.WarningAmber else Icons.Filled.Today,
+                        contentDescription = null,
+                        tint = accent,
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "SPENT TODAY →",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        if (spentSomething) countText else "Nothing spent yet today",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    // Deliberately allowed to truncate: the expanded card carries the full figure.
+                    if (spentSomething && dailyBudgetMinor > 0) {
+                        Text(
+                            paceText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                Text(
+                    formatMinor(todaySpendMinor),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = accent,
+                    maxLines = 1,
+                )
+                if (spentSomething) {
+                    Icon(
+                        Icons.Filled.ExpandMore,
+                        contentDescription = if (expanded) "Hide today's spending" else "Show today's spending",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.rotate(if (expanded) 180f else 0f),
+                    )
+                }
+            }
+
+            if (expanded && spentSomething) {
+                HorizontalDivider(color = accent.copy(alpha = 0.22f))
+                Column(
+                    Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    // The pace line lives here rather than in the header, which keeps the collapsed
+                    // card one row tall no matter how long the figure runs.
+                    if (dailyBudgetMinor > 0) {
+                        Text(
+                            paceText,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = accent,
+                        )
+                    }
+                    todaySpending.take(TodayRowLimit).forEach { transaction ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            CategoryDot(transaction.category)
+                            Text(
+                                transaction.displayTitle,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                formatTimeOnly(transaction.occurredAt),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                formatMinor(transaction.amountMinor),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = accent,
+                            )
+                        }
+                    }
+                    if (todaySpending.size > TodayRowLimit) {
+                        Text(
+                            "+${todaySpending.size - TodayRowLimit} more today",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    // Setting the day's cap lives here rather than on its own screen.
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { editingDailyBudget = true }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            "Daily budget",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            when {
+                                dailyBudgetMinor <= 0 -> "Set"
+                                dailyBudgetIsExplicit -> formatMinor(dailyBudgetMinor)
+                                else -> "${formatMinor(dailyBudgetMinor)} (from monthly)"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Icon(
+                            Icons.Filled.Edit,
+                            contentDescription = "Edit daily budget",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable(onClick = onJumpToLatest)
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            "Go to Latest activity",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = accent,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Icon(
+                            Icons.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = accent,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (editingDailyBudget) {
+        BudgetAmountDialog(
+            title = "Budget for a day",
+            initialMinor = dailyBudgetMinor,
+            fieldLabel = "Daily limit",
+            onDismiss = { editingDailyBudget = false },
+            onConfirm = {
+                onSetDailyBudget(it)
+                editingDailyBudget = false
+            },
+        )
+    }
+}
+
+/** Longer days collapse to a count rather than turning the banner into a second feed. */
+private const val TodayRowLimit = 5
 
 @Composable
 private fun SectionHeader(title: String, topPadding: androidx.compose.ui.unit.Dp = 4.dp) {
@@ -282,7 +574,7 @@ private fun SummaryCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "Net Position",
+                    scope.headline,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = hero.onGradient,
@@ -310,8 +602,10 @@ private fun SummaryCard(
                 Box(Modifier.weight(1f - spendFraction).fillMaxHeight().background(IncomeColor))
                 Box(Modifier.weight(spendFraction).fillMaxHeight().background(SpendColor))
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
+            // Each side takes half the row, so a seven-figure amount ellipsizes instead of running
+            // into the other column.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f)) {
                     Text(
                         "INCOME",
                         style = MaterialTheme.typography.labelMedium,
@@ -319,13 +613,15 @@ private fun SummaryCard(
                         color = IncomeColor,
                     )
                     Text(
-                        formatMinor(state.incomeMinor),
-                        style = MaterialTheme.typography.headlineSmall,
+                        formatMinorWhole(state.incomeMinor),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontSize = SummaryAmountSize,
                         fontWeight = FontWeight.Bold,
                         color = hero.onGradient,
+                        maxLines = 1,
                     )
                 }
-                Column(horizontalAlignment = Alignment.End) {
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
                     Text(
                         "EXPENDITURE",
                         style = MaterialTheme.typography.labelMedium,
@@ -333,10 +629,12 @@ private fun SummaryCard(
                         color = SpendColor,
                     )
                     Text(
-                        formatMinor(state.spendMinor),
-                        style = MaterialTheme.typography.headlineSmall,
+                        formatMinorWhole(state.spendMinor),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontSize = SummaryAmountSize,
                         fontWeight = FontWeight.Bold,
                         color = hero.onGradient,
+                        maxLines = 1,
                     )
                 }
             }

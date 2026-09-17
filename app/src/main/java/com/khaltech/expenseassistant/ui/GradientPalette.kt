@@ -13,6 +13,9 @@ val CardElevation = 2.dp
 val SpendColor = Color(0xFFEF6C6C)
 val IncomeColor = Color(0xFF4DD0A7)
 
+/** Spending that is running hot but not yet over a limit, matching the budget screens' amber. */
+val WarningColor = Color(0xFFEF6C00)
+
 /** Soft illuminated gradient + matching text colours for hero cards. */
 data class HeroGradient(val brush: Brush, val onGradient: Color, val onGradientMuted: Color)
 

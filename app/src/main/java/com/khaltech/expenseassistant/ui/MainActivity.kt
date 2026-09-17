@@ -14,6 +14,8 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.draw.clip
@@ -46,6 +48,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -54,6 +58,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -79,6 +84,7 @@ import com.khaltech.expenseassistant.ui.tag.TagScreen
 import com.khaltech.expenseassistant.ui.category.CategoryScreen
 import com.khaltech.expenseassistant.ui.category.LocalCategoryIconOverrides
 import com.khaltech.expenseassistant.di.ServiceLocator
+import kotlinx.coroutines.delay
 import java.util.UUID
 
 class MainActivity : ComponentActivity() {
@@ -121,6 +127,19 @@ private const val MAIN_STATE_KEY = "main"
 /** A little shorter than Material's 80dp navigation bar. */
 private val BottomBarHeight = 68.dp
 
+/** Long enough to read one line, short enough not to sit over the app. */
+private const val TipVisibleMillis = 10_000L
+
+/** Clears the centre add button, which overhangs the bottom bar. */
+private val FabClearance = 56.dp
+
+/** Dims the app behind the tip so only the message reads. */
+private val ScrimColor = Color(0x99000000)
+
+/** Calendar day the start-of-day prompt is keyed on, in the phone's own timezone. */
+private fun dayKey(): String =
+    java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)) {
@@ -128,11 +147,16 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     val recentState by viewModel.recentState.collectAsStateWithLifecycle()
     val analytics by viewModel.analytics.collectAsStateWithLifecycle()
     val monthlyBudgetAnalytics by viewModel.monthlyBudgetAnalytics.collectAsStateWithLifecycle()
+    val yearlyBudgetAnalytics by viewModel.yearlyBudgetAnalytics.collectAsStateWithLifecycle()
     val recurring by viewModel.recurring.collectAsStateWithLifecycle()
     val tagSuggestions by viewModel.tagSuggestions.collectAsStateWithLifecycle()
     val tagUsage by viewModel.tagUsage.collectAsStateWithLifecycle()
     val customCategories by viewModel.customCategories.collectAsStateWithLifecycle()
     val summaryScope by viewModel.summaryScope.collectAsStateWithLifecycle()
+    val dailyBudget by viewModel.dailyBudgetMinor.collectAsStateWithLifecycle()
+    val spendingStatus by viewModel.spendingStatus.collectAsStateWithLifecycle()
+    val explicitDailyBudget by viewModel.explicitDailyBudgetMinor.collectAsStateWithLifecycle()
+    val spendingTips by viewModel.spendingTips.collectAsStateWithLifecycle()
     val needsReview by viewModel.needsReviewTransactions.collectAsStateWithLifecycle()
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -193,6 +217,34 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     LaunchedEffect(permissionPromptSettled) {
         if (permissionPromptSettled && !userPreferences.isTutorialSeen()) {
             showTutorial = true
+        }
+    }
+
+    // First opening of the day: set today's budget, with the month's trend for context. Waits for
+    // the walkthrough so a new user never meets two dialogs at once.
+    var showDailyPrompt by remember { mutableStateOf(false) }
+    LaunchedEffect(permissionPromptSettled, showTutorial) {
+        val today = dayKey()
+        if (permissionPromptSettled && !showTutorial && !userPreferences.isDailyPromptSeen(today)) {
+            showDailyPrompt = true
+            userPreferences.markDailyPromptSeen(today)
+        }
+    }
+
+    // One tip per opening: shown on the first batch of data, then it closes itself. The day's first
+    // opening already says its piece in the dialog, so the bar stays out of the way.
+    var tip by remember { mutableStateOf<String?>(null) }
+    var tipShown by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(spendingTips, showDailyPrompt) {
+        if (!tipShown && !showDailyPrompt && spendingTips.isNotEmpty()) {
+            tip = spendingTips.random()
+            tipShown = true
+        }
+    }
+    LaunchedEffect(tip) {
+        if (tip != null) {
+            delay(TipVisibleMillis)
+            tip = null
         }
     }
 
@@ -329,6 +381,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         Tab.PROFILE -> "Profile"
     }
 
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -429,6 +482,10 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     summaryScope = summaryScope,
                     onSummaryScopeChange = viewModel::setSummaryScope,
                     budgetState = monthlyBudgetAnalytics,
+                    dailyBudgetMinor = dailyBudget,
+                    dailyBudgetIsExplicit = explicitDailyBudget > 0,
+                    onSetDailyBudget = viewModel::setDailyBudget,
+                    spendingStatus = spendingStatus,
                     onOpenNeedsReview = { navigate(Route.NeedsReview) },
                     onOpenAllTransactions = { navigate(Route.AllTransactions) },
                     onDelete = { id -> viewModel.delete(id) },
@@ -451,7 +508,8 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 )
 
                 Tab.BUDGET -> BudgetBreakdownScreen(
-                    state = monthlyBudgetAnalytics,
+                    monthly = monthlyBudgetAnalytics,
+                    yearly = yearlyBudgetAnalytics,
                     onManageBudgets = { navigate(Route.Budgets) },
                     onOpenCategory = { navigate(Route.CategoryTransactions(it)) },
                     modifier = Modifier.padding(padding),
@@ -466,6 +524,45 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 )
             }
         }
+    }
+
+        // Lifted clear of the bottom bar and its centre button, over a scrim that dims everything
+        // else. A tap anywhere outside closes it.
+        tip?.let { message ->
+            val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(ScrimColor)
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
+                    ) { tip = null },
+            )
+            SpendingTipBar(
+                text = message,
+                onClose = { tip = null },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(
+                        start = 20.dp,
+                        end = 20.dp,
+                        bottom = navInset + BottomBarHeight + FabClearance,
+                    ),
+            )
+        }
+    }
+
+    if (showDailyPrompt) {
+        DailyBudgetPromptDialog(
+            suggestedMinor = dailyBudget,
+            status = spendingStatus,
+            onSave = { limitMinor ->
+                viewModel.setDailyBudget(limitMinor)
+                showDailyPrompt = false
+            },
+            onDismiss = { showDailyPrompt = false },
+        )
     }
 
     if (showTutorial) {

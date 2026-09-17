@@ -14,7 +14,7 @@ import com.khaltech.expenseassistant.data.model.TransactionEntity
 
 @Database(
     entities = [TransactionEntity::class, MerchantRule::class, BudgetEntity::class, ContactNameCache::class],
-    version = 13,
+    version = 14,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -147,6 +147,39 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Budgets gain a period, so a limit can be daily, monthly or yearly. Existing rows were all
+         * monthly, except the reserved daily key, which becomes the overall daily limit.
+         */
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE budgets_new (
+                        categoryKey TEXT NOT NULL,
+                        period TEXT NOT NULL,
+                        limitMinor INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        PRIMARY KEY(categoryKey, period)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT OR REPLACE INTO budgets_new (categoryKey, period, limitMinor, updatedAt)
+                    SELECT
+                        CASE WHEN categoryKey = '__DAILY__' THEN '__OVERALL__' ELSE categoryKey END,
+                        CASE WHEN categoryKey = '__DAILY__' THEN 'DAILY' ELSE 'MONTHLY' END,
+                        limitMinor,
+                        updatedAt
+                    FROM budgets
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE budgets")
+                db.execSQL("ALTER TABLE budgets_new RENAME TO budgets")
+            }
+        }
+
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -165,6 +198,7 @@ abstract class AppDatabase : RoomDatabase() {
                 MIGRATION_10_11,
                 MIGRATION_11_12,
                 MIGRATION_12_13,
+                MIGRATION_13_14,
             )
                 .build().also { instance = it }
         }

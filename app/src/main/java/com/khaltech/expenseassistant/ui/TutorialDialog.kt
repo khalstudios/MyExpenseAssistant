@@ -73,7 +73,7 @@ private val TutorialSteps = listOf(
         title = "The Home tab",
         summary = "Your day-to-day view of what came in and what went out.",
         points = listOf(
-            "Net Position compares income against expenditure; switch between this month, this year and all time.",
+            "Income & Expenditure compares what came in against what went out; switch between this month, this year and all time.",
             "Where it went breaks the period down by category. Tap any category to see just those transactions.",
             "Latest activity groups the last three days by day. See more opens your full history.",
         ),

@@ -68,6 +68,14 @@ class UserPreferences(context: Context) {
         prefs.edit().putBoolean(KEY_TUTORIAL_SEEN, true).apply()
     }
 
+    /** True once the start-of-day budget prompt has been shown for [dayKey]. */
+    fun isDailyPromptSeen(dayKey: String): Boolean =
+        prefs.getString(KEY_DAILY_PROMPT_DAY, null) == dayKey
+
+    fun markDailyPromptSeen(dayKey: String) {
+        prefs.edit().putString(KEY_DAILY_PROMPT_DAY, dayKey).apply()
+    }
+
     private companion object {
         const val KEY_NAME = "name"
         const val KEY_EMAIL = "email"
@@ -76,5 +84,6 @@ class UserPreferences(context: Context) {
         const val KEY_BACKUP_FOLDER_URI = "backup_folder_uri"
         const val KEY_BACKUP_NOTICE_DISMISSED = "backup_notice_dismissed"
         const val KEY_TUTORIAL_SEEN = "tutorial_seen"
+        const val KEY_DAILY_PROMPT_DAY = "daily_prompt_day"
     }
 }

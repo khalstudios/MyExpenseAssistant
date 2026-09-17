@@ -60,15 +60,17 @@ fun BudgetScreen(
     viewModel: BudgetViewModel = viewModel(factory = BudgetViewModel.Factory),
 ) {
     val budgets by viewModel.budgets.collectAsStateWithLifecycle()
+    val period by viewModel.period.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<Category?>(null) }
     var editingOverall by remember { mutableStateOf(false) }
+    val periodWord = period.displayName.lowercase()
 
     val categories = remember { Category.entries.filter { it != Category.INCOME } }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Monthly budgets") },
+                title = { Text("Budgets") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -83,8 +85,11 @@ fun BudgetScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
+                BudgetPeriodToggle(selected = period, onSelect = viewModel::setPeriod)
+            }
+            item {
                 Text(
-                    "Set monthly budget limits. Tap a category name to view its transactions, or tap the limit chip to edit.",
+                    "Set $periodWord budget limits. Tap a category name to view its transactions, or tap the limit chip to edit.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -116,7 +121,7 @@ fun BudgetScreen(
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                "Overall monthly cap",
+                                "Overall $periodWord cap",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -218,7 +223,8 @@ fun BudgetScreen(
 
     if (editingOverall) {
         BudgetAmountDialog(
-            title = "Budget for all spending",
+            title = "${period.displayName} budget for all spending",
+            fieldLabel = "${period.displayName} limit",
             initialMinor = budgets[BudgetEntity.OVERALL] ?: 0L,
             onDismiss = { editingOverall = false },
             onConfirm = {
@@ -230,7 +236,8 @@ fun BudgetScreen(
 
     editing?.let { category ->
         BudgetAmountDialog(
-            title = "Budget for ${category.displayName}",
+            title = "${period.displayName} budget for ${category.displayName}",
+            fieldLabel = "${period.displayName} limit",
             initialMinor = budgets[category.name] ?: 0L,
             onDismiss = { editing = null },
             onConfirm = {
@@ -239,35 +246,4 @@ fun BudgetScreen(
             },
         )
     }
-}
-
-@Composable
-private fun BudgetAmountDialog(
-    title: String,
-    initialMinor: Long,
-    onDismiss: () -> Unit,
-    onConfirm: (Long) -> Unit,
-) {
-    var text by remember {
-        mutableStateOf(if (initialMinor > 0) (initialMinor / 100).toString() else "")
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { input -> text = input.filter { it.isDigit() || it == '.' } },
-                label = { Text("Monthly limit") },
-                prefix = { Text("\u20b9 ") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(text.toMinorUnits()) }) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
 }

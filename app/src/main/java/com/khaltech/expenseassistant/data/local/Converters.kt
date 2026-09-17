@@ -2,6 +2,7 @@ package com.khaltech.expenseassistant.data.local
 
 import androidx.room.TypeConverter
 import com.khaltech.expenseassistant.data.model.AccountType
+import com.khaltech.expenseassistant.data.model.BudgetPeriod
 import com.khaltech.expenseassistant.data.model.CaptureSource
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
@@ -11,6 +12,9 @@ import com.khaltech.expenseassistant.data.model.TransactionType
 class Converters {
     @TypeConverter fun categoryToString(value: Category): String = value.name
     @TypeConverter fun stringToCategory(value: String): Category = Category.fromName(value)
+
+    @TypeConverter fun budgetPeriodToString(value: BudgetPeriod): String = value.name
+    @TypeConverter fun stringToBudgetPeriod(value: String): BudgetPeriod = BudgetPeriod.fromName(value)
 
     @TypeConverter fun directionToString(value: Direction): String = value.name
     @TypeConverter fun stringToDirection(value: String): Direction = Direction.valueOf(value)

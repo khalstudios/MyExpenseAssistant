@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.khaltech.expenseassistant.data.local.AppDatabase
 import com.khaltech.expenseassistant.data.model.AccountType
 import com.khaltech.expenseassistant.data.model.BudgetEntity
+import com.khaltech.expenseassistant.data.model.BudgetPeriod
 import com.khaltech.expenseassistant.data.model.CaptureSource
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
@@ -40,8 +41,10 @@ class BackupArchive(
 
         val transactions = archive.requiredArray("transactions").map(::transactionFromJson)
         val rules = archive.requiredArray("merchantRules").map(::ruleFromJson)
-        // Two retired categories can collapse onto one key, which is the budgets' primary key.
-        val budgets = archive.requiredArray("budgets").map(::budgetFromJson).distinctBy { it.categoryKey }
+        // Two retired categories can collapse onto one key, and the key plus its period is the
+        // budgets' primary key.
+        val budgets = archive.requiredArray("budgets").map(::budgetFromJson)
+            .distinctBy { it.categoryKey to it.period }
         val profile = profileFromJson(archive.getJSONObject("profile"))
         val icons = archive.getJSONObject("categoryIcons").keys().asSequence()
             .associateWith { key -> archive.getJSONObject("categoryIcons").getString(key) }
@@ -121,12 +124,28 @@ class BackupArchive(
     )
 
     private fun budgetToJson(budget: BudgetEntity) = JSONObject().apply {
-        put("categoryKey", budget.categoryKey); put("limitMinor", budget.limitMinor); put("updatedAt", budget.updatedAt)
+        put("categoryKey", budget.categoryKey); put("period", budget.period.name)
+        put("limitMinor", budget.limitMinor); put("updatedAt", budget.updatedAt)
     }
 
-    private fun budgetFromJson(json: JSONObject) = BudgetEntity(
-        categoryKey = Category.currentKey(json.getString("categoryKey")), limitMinor = json.getLong("limitMinor"), updatedAt = json.getLong("updatedAt"),
-    )
+    /**
+     * Archives written before budgets had periods carry no "period" field and hold the day's cap
+     * under a reserved key; both are folded in the same way the database migration does, so an old
+     * backup restores with its limits intact.
+     */
+    private fun budgetFromJson(json: JSONObject): BudgetEntity {
+        val storedKey = json.getString("categoryKey")
+        val legacyDaily = storedKey == BudgetEntity.LEGACY_DAILY
+        return BudgetEntity(
+            categoryKey = if (legacyDaily) BudgetEntity.OVERALL else Category.currentKey(storedKey),
+            period = when {
+                legacyDaily -> BudgetPeriod.DAILY
+                else -> BudgetPeriod.fromName(json.nullableString("period"))
+            },
+            limitMinor = json.getLong("limitMinor"),
+            updatedAt = json.getLong("updatedAt"),
+        )
+    }
 
     private fun profileToJson(profile: UserProfile) = JSONObject().apply {
         put("name", profile.name); put("email", profile.email); put("monthlyIncomeMinor", profile.monthlyIncomeMinor)

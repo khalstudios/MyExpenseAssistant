@@ -10,6 +10,8 @@ import java.util.Locale
 private val currencyFormat: NumberFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN")).apply {
     currency = Currency.getInstance("INR")
     maximumFractionDigits = 2
+    // Whole rupees read cleaner without a trailing ".00"; real paise still show in full.
+    minimumFractionDigits = 0
 }
 
 private val dateFormat = SimpleDateFormat("d MMM, h:mm a", Locale.getDefault())
@@ -22,7 +24,15 @@ private val monthYearNameFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefaul
 private val shortMonthFormat = SimpleDateFormat("MMM", Locale.getDefault())
 private val yearNameFormat = SimpleDateFormat("yyyy", Locale.getDefault())
 
+private val wholeCurrencyFormat: NumberFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN")).apply {
+    currency = Currency.getInstance("INR")
+    maximumFractionDigits = 0
+}
+
 fun formatMinor(amountMinor: Long): String = currencyFormat.format(amountMinor / 100.0)
+
+/** Rounded to whole rupees, for headline totals where paise only cost width. */
+fun formatMinorWhole(amountMinor: Long): String = wholeCurrencyFormat.format(amountMinor / 100.0)
 
 fun formatTimestamp(epochMillis: Long): String = dateFormat.format(Date(epochMillis))
 
