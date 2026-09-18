@@ -293,7 +293,10 @@ internal fun RowDivider() {
     )
 }
 
-/** Tags on this transaction sit on top; underneath, only the few worth offering right now. */
+/**
+ * One chip section above the field holds both: the tags on this transaction, ticked and highlighted,
+ * followed by the few others worth offering. Typing narrows the offered ones without hiding the chosen.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun TagsCard(
@@ -328,13 +331,7 @@ internal fun TagsCard(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Tags", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            if (tags.isEmpty()) {
-                Text(
-                    "None on this transaction yet",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
+            if (tags.isNotEmpty() || offered.isNotEmpty()) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -368,9 +365,31 @@ internal fun TagsCard(
                             },
                         )
                     }
+                    offered.forEach { suggestion ->
+                        AssistChip(
+                            onClick = {
+                                onTagsChange(tags + suggestion)
+                                newTag = ""
+                            },
+                            label = { Text("#$suggestion") },
+                        )
+                    }
                 }
             }
-            // The field takes four fifths of the row; the button that commits the tag takes the rest.
+            if (typed.isNotEmpty() && offered.isEmpty()) {
+                Text(
+                    "No tag matches “$typed” — add it as a new one.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (tags.isEmpty() && offered.isEmpty()) {
+                Text(
+                    "None on this transaction yet",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // The field takes the row; the square button beside it commits what was typed.
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -395,33 +414,6 @@ internal fun TagsCard(
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = "Add tag")
                 }
-            }
-            if (offered.isNotEmpty()) {
-                Text(
-                    if (typed.isEmpty()) "Suggested tags" else "Matching tags",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    offered.forEach { suggestion ->
-                        AssistChip(
-                            onClick = {
-                                onTagsChange(tags + suggestion)
-                                newTag = ""
-                            },
-                            label = { Text("#$suggestion") },
-                        )
-                    }
-                }
-            } else if (typed.isNotEmpty()) {
-                Text(
-                    "No tag matches “$typed” — add it as a new one.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }

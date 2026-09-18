@@ -1,5 +1,6 @@
 package com.khaltech.expenseassistant.ui.add
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -82,15 +83,27 @@ fun AddTransactionScreen(
     var customCategoryColor by remember { mutableStateOf<String?>(null) }
     var customCategoryIcon by remember { mutableStateOf<String?>(null) }
     var paymentMode by remember { mutableStateOf(PaymentMode.CASH) }
-    var occurredAt by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val openedAt = remember { System.currentTimeMillis() }
+    var occurredAt by remember { mutableLongStateOf(openedAt) }
     var description by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf(emptyList<String>()) }
 
     var pickingCategory by remember { mutableStateOf(false) }
     var pickingDate by remember { mutableStateOf(false) }
     var pickingTime by remember { mutableStateOf(false) }
+    var pendingExit by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val canSave = amount.toMinorUnits() > 0 && merchant.isNotBlank()
+    // Anything touched since the screen opened is worth a warning before it is thrown away.
+    val isDirty = amount.isNotBlank() || merchant.isNotBlank() || description.isNotBlank() ||
+        tags.isNotEmpty() || customCategoryName != null || category != Category.OTHER ||
+        paymentMode != PaymentMode.CASH || direction != Direction.DEBIT || occurredAt != openedAt
+
+    fun leave(action: () -> Unit) {
+        if (isDirty) pendingExit = action else action()
+    }
+
+    BackHandler(enabled = isDirty) { pendingExit = onBack }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -98,7 +111,7 @@ fun AddTransactionScreen(
             TopAppBar(
                 title = { Text("Add transaction") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = { leave(onBack) }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -243,6 +256,21 @@ fun AddTransactionScreen(
             },
             dismissButton = { TextButton(onClick = { pickingTime = false }) { Text("Cancel") } },
             text = { TimePicker(state = timeState) },
+        )
+    }
+
+    pendingExit?.let { exit ->
+        AlertDialog(
+            onDismissRequest = { pendingExit = null },
+            title = { Text("Discard changes?") },
+            text = { Text("This transaction hasn't been saved yet.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingExit = null
+                    exit()
+                }) { Text("Discard") }
+            },
+            dismissButton = { TextButton(onClick = { pendingExit = null }) { Text("Keep editing") } },
         )
     }
 }
