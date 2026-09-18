@@ -1,35 +1,29 @@
 package com.khaltech.expenseassistant.ui.add
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -44,16 +38,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.AlertDialog
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.PaymentMode
 import com.khaltech.expenseassistant.data.repo.CustomCategoryOption
 import com.khaltech.expenseassistant.ui.category.CategoryBadge
+import com.khaltech.expenseassistant.ui.category.CategoryIconCatalog
 import com.khaltech.expenseassistant.ui.category.CategoryPickerSheet
-import com.khaltech.expenseassistant.ui.formatTimestamp
+import com.khaltech.expenseassistant.ui.form.TagsCard
+import com.khaltech.expenseassistant.ui.form.TransactionFieldsCard
 import com.khaltech.expenseassistant.ui.toMinorUnits
 import java.util.Calendar
 
@@ -71,12 +66,13 @@ data class ManualTransactionInput(
     val tags: List<String>,
 )
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
     onBack: () -> Unit,
     onSave: (ManualTransactionInput) -> Unit,
     customCategories: List<CustomCategoryOption> = emptyList(),
+    tagSuggestions: List<String> = emptyList(),
 ) {
     var amount by remember { mutableStateOf("") }
     var direction by remember { mutableStateOf(Direction.DEBIT) }
@@ -88,7 +84,7 @@ fun AddTransactionScreen(
     var paymentMode by remember { mutableStateOf(PaymentMode.CASH) }
     var occurredAt by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var description by remember { mutableStateOf("") }
-    var tagText by remember { mutableStateOf("") }
+    var tags by remember { mutableStateOf(emptyList<String>()) }
 
     var pickingCategory by remember { mutableStateOf(false) }
     var pickingDate by remember { mutableStateOf(false) }
@@ -97,6 +93,7 @@ fun AddTransactionScreen(
     val canSave = amount.toMinorUnits() > 0 && merchant.isNotBlank()
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Add transaction") },
@@ -107,128 +104,79 @@ fun AddTransactionScreen(
                 },
             )
         },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    if (canSave) {
+                        onSave(
+                            ManualTransactionInput(
+                                amountMinor = amount.toMinorUnits(),
+                                direction = direction,
+                                merchant = merchant.trim(),
+                                category = category,
+                                customCategoryName = customCategoryName,
+                                customCategoryColor = customCategoryColor,
+                                customCategoryIcon = customCategoryIcon,
+                                paymentMode = paymentMode,
+                                occurredAt = occurredAt,
+                                description = description,
+                                tags = tags,
+                            )
+                        )
+                    }
+                },
+                containerColor = if (canSave) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+                contentColor = if (canSave) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            ) {
+                Icon(Icons.Filled.Save, contentDescription = "Save transaction")
+            }
+        },
     ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                listOf(Direction.DEBIT, Direction.CREDIT).forEachIndexed { index, entry ->
-                    SegmentedButton(
-                        selected = entry == direction,
-                        onClick = { direction = entry },
-                        shape = SegmentedButtonDefaults.itemShape(index, 2),
-                        label = { Text(if (entry == Direction.DEBIT) "Spend" else "Income") },
-                    )
-                }
-            }
-
-            OutlinedTextField(
-                value = amount,
-                onValueChange = { input -> amount = input.filter { it.isDigit() || it == '.' } },
-                label = { Text("Amount") },
-                prefix = { Text("\u20b9 ") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            OutlinedTextField(
-                value = merchant,
-                onValueChange = { merchant = it },
-                label = { Text(if (direction == Direction.DEBIT) "Paid to" else "Received from") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            OutlinedButton(onClick = { pickingCategory = true }, modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    if (customCategoryName != null) {
-                        val customColor = runCatching {
-                            androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(customCategoryColor))
-                        }.getOrDefault(MaterialTheme.colorScheme.primary)
-                        Icon(
-                            com.khaltech.expenseassistant.ui.category.CategoryIconCatalog.iconFor(customCategoryIcon),
-                            contentDescription = null,
-                            tint = customColor,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    } else {
-                        CategoryBadge(category, size = 32.dp)
-                    }
-                    Text(customCategoryName ?: category.displayName)
-                }
-            }
-
-            Text("Payment mode", style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PaymentMode.entries.filter { it != PaymentMode.UNKNOWN }.forEach { mode ->
-                    FilterChip(
-                        selected = mode == paymentMode,
-                        onClick = { paymentMode = mode },
-                        label = { Text(mode.displayName) },
-                    )
-                }
-            }
-
-            Text("When", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { pickingDate = true }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Filled.CalendarMonth, contentDescription = null)
-                    Text("  ${formatTimestamp(occurredAt)}")
-                }
-                OutlinedButton(onClick = { pickingTime = true }) {
-                    Icon(Icons.Filled.Schedule, contentDescription = "Pick time")
-                }
-            }
-
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Description (optional)") },
-                minLines = 2,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            OutlinedTextField(
-                value = tagText,
-                onValueChange = { tagText = it },
-                label = { Text("Tags (comma separated)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Button(
-                onClick = {
-                    onSave(
-                        ManualTransactionInput(
-                            amountMinor = amount.toMinorUnits(),
-                            direction = direction,
-                            merchant = merchant.trim(),
-                            category = category,
-                            customCategoryName = customCategoryName,
-                            customCategoryColor = customCategoryColor,
-                            customCategoryIcon = customCategoryIcon,
-                            paymentMode = paymentMode,
-                            occurredAt = occurredAt,
-                            description = description,
-                            tags = tagText.split(',').map { it.trim() }.filter { it.isNotEmpty() },
-                        )
-                    )
+            TransactionFieldsCard(
+                amount = amount,
+                onAmountChange = { input -> amount = input.filter { it.isDigit() || it == '.' } },
+                direction = direction,
+                onDirectionChange = { direction = it },
+                merchant = merchant,
+                onMerchantChange = { merchant = it },
+                categoryName = customCategoryName ?: category.displayName,
+                categoryBadge = {
+                    ChosenCategoryBadge(category, customCategoryName, customCategoryColor, customCategoryIcon)
                 },
-                enabled = canSave,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Save transaction")
-            }
+                onEditCategory = { pickingCategory = true },
+                occurredAt = occurredAt,
+                onPickDate = { pickingDate = true },
+                onPickTime = { pickingTime = true },
+                paymentMode = paymentMode,
+                onPaymentModeChange = { paymentMode = it },
+                description = description,
+                onDescriptionChange = { description = it },
+                // Nothing was captured, so there is no unknown mode to fall back to.
+                paymentModes = PaymentMode.entries.filter { it != PaymentMode.UNKNOWN },
+            )
+            TagsCard(
+                tags = tags,
+                suggestions = tagSuggestions,
+                onTagsChange = { tags = it },
+            )
+            // Keeps the last card clear of the floating save button.
+            Spacer(Modifier.height(72.dp))
         }
     }
 
@@ -295,6 +243,35 @@ fun AddTransactionScreen(
             },
             dismissButton = { TextButton(onClick = { pickingTime = false }) { Text("Cancel") } },
             text = { TimePicker(state = timeState) },
+        )
+    }
+}
+
+/** A custom category has no entity to read its look from, so its colour and icon are drawn here. */
+@Composable
+private fun ChosenCategoryBadge(
+    category: Category,
+    customName: String?,
+    customColor: String?,
+    customIcon: String?,
+) {
+    if (customName == null) {
+        CategoryBadge(category, size = 32.dp)
+        return
+    }
+    val tint = runCatching { Color(android.graphics.Color.parseColor(customColor)) }
+        .getOrDefault(MaterialTheme.colorScheme.primary)
+    Box(
+        Modifier
+            .size(32.dp)
+            .background(tint.copy(alpha = 0.22f), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            CategoryIconCatalog.iconFor(customIcon),
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(18.dp),
         )
     }
 }

@@ -2,11 +2,9 @@ package com.khaltech.expenseassistant.ui.detail
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,38 +13,23 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -59,29 +42,21 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.khaltech.expenseassistant.data.model.AccountType
 import com.khaltech.expenseassistant.data.model.Category
-import com.khaltech.expenseassistant.data.model.Direction
-import com.khaltech.expenseassistant.data.model.PaymentMode
 import com.khaltech.expenseassistant.data.model.TransactionEntity
 import com.khaltech.expenseassistant.data.repo.CustomCategoryOption
 import com.khaltech.expenseassistant.ui.CardElevation
-import com.khaltech.expenseassistant.ui.IncomeColor
-import com.khaltech.expenseassistant.ui.SpendColor
 import com.khaltech.expenseassistant.ui.category.CategoryBadge
 import com.khaltech.expenseassistant.ui.category.CategoryPickerSheet
 import com.khaltech.expenseassistant.ui.category.displayCategoryName
+import com.khaltech.expenseassistant.ui.form.TagsCard
+import com.khaltech.expenseassistant.ui.form.TransactionFieldsCard
 import com.khaltech.expenseassistant.ui.formatMinor
-import com.khaltech.expenseassistant.ui.formatShortDate
-import com.khaltech.expenseassistant.ui.formatTimeOnly
 import com.khaltech.expenseassistant.ui.formatTimestamp
-import com.khaltech.expenseassistant.ui.rememberHeroGradient
 import com.khaltech.expenseassistant.ui.toMinorUnits
 import java.util.Calendar
 
@@ -190,28 +165,28 @@ fun TransactionDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            AmountCard(
+            TransactionFieldsCard(
                 amount = amount,
                 onAmountChange = { input -> amount = input.filter { it.isDigit() || it == '.' } },
                 direction = direction,
                 onDirectionChange = { direction = it },
                 merchant = merchant,
                 onMerchantChange = { merchant = it },
-                preview = preview,
+                categoryName = preview.displayCategoryName,
+                categoryBadge = { CategoryBadge(preview, size = 32.dp) },
                 onEditCategory = { pickingCategory = true },
-            )
-            DateTimeCard(
                 occurredAt = occurredAt,
                 onPickDate = { pickingDate = true },
                 onPickTime = { pickingTime = true },
-            )
-            NotesCard(description) { description = it }
-            PaymentModeAndTagsCard(
                 paymentMode = paymentMode,
                 onPaymentModeChange = { paymentMode = it },
+                description = description,
+                onDescriptionChange = { description = it },
+            )
+            TagsCard(
                 tags = tags,
                 suggestions = tagSuggestions,
                 onTagsChange = { tags = it },
@@ -328,205 +303,6 @@ fun TransactionDetailScreen(
     }
 }
 
-/** Amount, direction, merchant and category edited on one card since they define the transaction. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AmountCard(
-    amount: String,
-    onAmountChange: (String) -> Unit,
-    direction: Direction,
-    onDirectionChange: (Direction) -> Unit,
-    merchant: String,
-    onMerchantChange: (String) -> Unit,
-    preview: TransactionEntity,
-    onEditCategory: () -> Unit,
-) {
-    val isDebit = direction == Direction.DEBIT
-    val accent = if (isDebit) SpendColor else IncomeColor
-    val hero = rememberHeroGradient()
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        elevation = CardDefaults.cardElevation(defaultElevation = CardElevation),
-    ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .background(hero.brush)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                listOf(Direction.DEBIT, Direction.CREDIT).forEachIndexed { index, entry ->
-                    SegmentedButton(
-                        selected = entry == direction,
-                        onClick = { onDirectionChange(entry) },
-                        shape = SegmentedButtonDefaults.itemShape(index, 2),
-                        label = { Text(if (entry == Direction.DEBIT) "Spend" else "Income") },
-                    )
-                }
-            }
-            OutlinedTextField(
-                value = amount,
-                onValueChange = onAmountChange,
-                label = { Text("Amount") },
-                prefix = { Text(if (isDebit) "\u2212 \u20b9" else "+ \u20b9") },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = accent,
-                    unfocusedTextColor = accent,
-                    focusedBorderColor = accent,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = merchant,
-                onValueChange = onMerchantChange,
-                label = { Text(if (isDebit) "Paid to" else "Received from") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            HorizontalDivider()
-            Text("Category", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onEditCategory),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                CategoryBadge(preview, size = 36.dp)
-                Text(
-                    preview.displayCategoryName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    Icons.Filled.ChevronRight,
-                    contentDescription = "Change category",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DateTimeCard(
-    occurredAt: Long,
-    onPickDate: () -> Unit,
-    onPickTime: () -> Unit,
-) {
-    SectionCard("Date & time") {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onPickDate, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Filled.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.size(6.dp))
-                Text(formatShortDate(occurredAt), maxLines = 1)
-            }
-            OutlinedButton(onClick = onPickTime, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.size(6.dp))
-                Text(formatTimeOnly(occurredAt), maxLines = 1)
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
-@Composable
-private fun PaymentModeAndTagsCard(
-    paymentMode: PaymentMode,
-    onPaymentModeChange: (PaymentMode) -> Unit,
-    tags: List<String>,
-    suggestions: List<String>,
-    onTagsChange: (List<String>) -> Unit,
-    onOpenTag: (String) -> Unit,
-) {
-    var newTag by remember { mutableStateOf("") }
-    val unusedSuggestions = suggestions.filter { s -> tags.none { it.equals(s, ignoreCase = true) } }
-
-    SectionCard("Payment mode") {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PaymentMode.entries.forEach { mode ->
-                FilterChip(
-                    selected = mode == paymentMode,
-                    onClick = { onPaymentModeChange(mode) },
-                    label = { Text(mode.displayName) },
-                )
-            }
-        }
-        HorizontalDivider(Modifier.padding(vertical = 4.dp))
-        Text("Tags", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-        if (tags.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                tags.forEach { tag ->
-                    InputChip(
-                        selected = false,
-                        onClick = { onOpenTag(tag) },
-                        label = { Text("#$tag") },
-                        trailingIcon = {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = "Remove $tag",
-                                modifier = Modifier.size(16.dp).clickable { onTagsChange(tags - tag) },
-                            )
-                        },
-                    )
-                }
-            }
-        }
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedTextField(
-                value = newTag,
-                onValueChange = { newTag = it },
-                placeholder = { Text("Add a tag") },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-            )
-            OutlinedButton(
-                onClick = {
-                    if (newTag.isNotBlank()) {
-                        onTagsChange(tags + newTag.trim().removePrefix("#"))
-                        newTag = ""
-                    }
-                },
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add tag")
-            }
-        }
-        if (unusedSuggestions.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                unusedSuggestions.take(8).forEach { suggestion ->
-                    AssistChip(
-                        onClick = { onTagsChange(tags + suggestion) },
-                        label = { Text("#$suggestion") },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun NotesCard(description: String, onChange: (String) -> Unit) {
-    SectionCard("Notes") {
-        OutlinedTextField(
-            value = description,
-            onValueChange = onChange,
-            placeholder = { Text("What was this for?") },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 2,
-        )
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable

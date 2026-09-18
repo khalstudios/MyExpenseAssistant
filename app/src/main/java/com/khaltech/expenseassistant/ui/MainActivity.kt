@@ -281,6 +281,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                             goBack()
                         },
                         customCategories = customCategories,
+                        tagSuggestions = tagSuggestions,
                     )
                 }
 
