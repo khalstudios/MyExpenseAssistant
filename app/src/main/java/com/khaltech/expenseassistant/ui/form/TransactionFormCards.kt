@@ -47,6 +47,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -119,7 +120,16 @@ internal fun TransactionFieldsCard(
                 value = amount,
                 onValueChange = onAmountChange,
                 label = { Text("Amount") },
-                prefix = { Text(if (isDebit) "− ₹" else "+ ₹") },
+                // A leading slot rather than a prefix: the prefix only shows once the label floats,
+                // so an untouched field would hide which way the money is going.
+                leadingIcon = {
+                    Text(
+                        if (isDebit) "− ₹" else "+ ₹",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = accent,
+                    )
+                },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                 keyboardOptions = KeyboardOptions(
@@ -336,43 +346,49 @@ internal fun TagsCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
+                    // Keyed so a chip keeps its own identity as the row reorders; without this the
+                    // press ripple stays with the slot and lights up whichever chip moved into it.
                     tags.forEach { tag ->
-                        InputChip(
-                            selected = true,
-                            onClick = { onOpenTag?.invoke(tag) },
-                            label = { Text("#$tag", fontWeight = FontWeight.SemiBold) },
-                            colors = InputChipDefaults.inputChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            ),
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Filled.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                            },
-                            trailingIcon = {
-                                Icon(
-                                    Icons.Filled.Close,
-                                    contentDescription = "Remove $tag",
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable { onTagsChange(tags - tag) },
-                                )
-                            },
-                        )
+                        key("tag-$tag") {
+                            InputChip(
+                                selected = true,
+                                onClick = { onOpenTag?.invoke(tag) },
+                                label = { Text("#$tag", fontWeight = FontWeight.SemiBold) },
+                                colors = InputChipDefaults.inputChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                ),
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Filled.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                },
+                                trailingIcon = {
+                                    Icon(
+                                        Icons.Filled.Close,
+                                        contentDescription = "Remove $tag",
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clickable { onTagsChange(tags - tag) },
+                                    )
+                                },
+                            )
+                        }
                     }
                     offered.forEach { suggestion ->
-                        AssistChip(
-                            onClick = {
-                                onTagsChange(tags + suggestion)
-                                newTag = ""
-                            },
-                            label = { Text("#$suggestion") },
-                        )
+                        key("suggestion-$suggestion") {
+                            AssistChip(
+                                onClick = {
+                                    onTagsChange(tags + suggestion)
+                                    newTag = ""
+                                },
+                                label = { Text("#$suggestion") },
+                            )
+                        }
                     }
                 }
             }
