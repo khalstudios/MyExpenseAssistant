@@ -20,6 +20,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.khaltech.expenseassistant.billing.PurchaseEvent
+import com.khaltech.expenseassistant.data.backup.AutoBackupScheduler
 import com.khaltech.expenseassistant.di.ServiceLocator
 
 /**
@@ -51,6 +52,13 @@ fun ProHost(content: @Composable () -> Unit) {
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Stop automatic backups as soon as Play says Pro has lapsed, rather than leaving a schedule
+    // enqueued until its next run notices. The worker checks again before it writes anything, so
+    // this is the prompt path, not the only one.
+    LaunchedEffect(isPro) {
+        if (!isPro) AutoBackupScheduler.enforceEntitlement(context)
     }
 
     LaunchedEffect(billing) {

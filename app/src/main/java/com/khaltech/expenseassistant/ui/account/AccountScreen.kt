@@ -294,7 +294,9 @@ fun AccountScreen(
                         }
                     },
                 )
-                if (autoBackupSettings != null) {
+                // Only offered to someone who could turn them back on. Without Pro the schedule
+                // has already been stopped, so this would be a switch for something not running.
+                if (pro.isPro && autoBackupSettings != null) {
                     TextButton(onClick = viewModel::disableAutoBackup) {
                         Text("Turn off automatic backups")
                     }

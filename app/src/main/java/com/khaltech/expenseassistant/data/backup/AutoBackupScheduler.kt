@@ -5,6 +5,8 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.khaltech.expenseassistant.data.prefs.AutoBackupSettings
+import com.khaltech.expenseassistant.data.prefs.UserPreferences
+import com.khaltech.expenseassistant.di.ServiceLocator
 import java.util.concurrent.TimeUnit
 
 object AutoBackupScheduler {
@@ -18,5 +20,24 @@ object AutoBackupScheduler {
 
     fun cancel(context: Context) {
         WorkManager.getInstance(context.applicationContext).cancelUniqueWork(WORK_NAME)
+    }
+
+    /**
+     * Stops automatic backups if this install is no longer entitled to them, and reports whether
+     * they may run. Pro can lapse after it was set up - a refund, or a yearly plan not renewed -
+     * and a schedule enqueued while it was valid would otherwise keep firing forever.
+     *
+     * The stored settings are cleared along with the schedule so the Profile screen stops
+     * advertising a cadence that is no longer running. The backup *location* is remembered
+     * separately, so the list of existing backups and manual backups both survive this.
+     *
+     * Safe to call from anywhere, and cheap: the entitlement is read from local storage, never
+     * from Play, so this works with no network and cannot revoke anything on its own.
+     */
+    fun enforceEntitlement(context: Context): Boolean {
+        if (ServiceLocator.entitlementStore(context).isPro()) return true
+        cancel(context)
+        UserPreferences(context).clearAutoBackup()
+        return false
     }
 }

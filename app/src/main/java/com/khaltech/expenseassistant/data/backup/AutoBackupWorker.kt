@@ -12,6 +12,10 @@ import java.io.IOException
 
 class AutoBackupWorker(appContext: Context, parameters: WorkerParameters) : CoroutineWorker(appContext, parameters) {
     override suspend fun doWork(): Result {
+        // Checked on every run, not only when backups are switched on: the entitlement can lapse
+        // long after the schedule was enqueued, and this is the last point before data is written.
+        if (!AutoBackupScheduler.enforceEntitlement(applicationContext)) return Result.success()
+
         val settings = UserPreferences(applicationContext).autoBackupSettings() ?: return Result.success()
         return try {
             withContext(Dispatchers.IO) {
