@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -73,6 +74,7 @@ import com.khaltech.expenseassistant.BuildConfig
 import com.khaltech.expenseassistant.data.prefs.UserProfile
 import com.khaltech.expenseassistant.data.backup.BackupFolder
 import com.khaltech.expenseassistant.data.prefs.BackupInterval
+import com.khaltech.expenseassistant.ui.pro.LocalPro
 import com.khaltech.expenseassistant.service.PermissionStatus
 import com.khaltech.expenseassistant.ui.CardElevation
 import com.khaltech.expenseassistant.ui.DisclosureDialog
@@ -102,6 +104,7 @@ fun AccountScreen(
     val count by viewModel.transactionCount.collectAsStateWithLifecycle()
     val earliest by viewModel.earliest.collectAsStateWithLifecycle()
     val autoBackupSettings by viewModel.autoBackupSettings.collectAsStateWithLifecycle()
+    val pro = LocalPro.current
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scrollState = rememberScrollState()
@@ -201,6 +204,22 @@ fun AccountScreen(
         ) {
             ProfileHeader(profile) { editingProfile = true }
 
+            // Without this the paywall is only reachable by walking into a locked feature, which
+            // leaves someone who already decided to buy with nowhere to do it.
+            SectionCard("Pro") {
+                SettingRow(
+                    icon = Icons.Filled.WorkspacePremium,
+                    title = if (pro.isPro) "Pro is active" else "Get Pro",
+                    subtitle = if (pro.isPro) {
+                        "Thank you. Every Pro feature is unlocked on this phone."
+                    } else {
+                        "Category drill-downs, tag analytics, recurring payments, automatic backups"
+                    },
+                    actionLabel = if (pro.isPro) null else "See what's in it",
+                    onClick = { if (!pro.isPro) pro.onUpgrade() },
+                )
+            }
+
             SectionCard("Planning") {
                 SettingRow(
                     icon = Icons.Filled.Savings,
@@ -250,15 +269,29 @@ fun AccountScreen(
                     actionLabel = "Back up",
                     onClick = { confirmingBackup = true },
                 )
+                // Backing up and restoring by hand stay free: this is the user's own data and
+                // losing it must never be the price of not paying. Pro buys not having to remember.
                 SettingRow(
                     icon = Icons.Filled.Backup,
                     title = "Automatic backups",
-                    subtitle = autoBackupSettings?.let { "${it.interval.label}; saving to the ${BackupFolder.NAME} folder" }
-                        ?: "Save a backup daily, weekly, every 2 weeks, or monthly",
-                    actionLabel = if (autoBackupSettings == null) "Set up" else "Change",
+                    subtitle = when {
+                        !pro.isPro -> "Pro · Back up on a schedule, without remembering to"
+                        autoBackupSettings != null ->
+                            "${autoBackupSettings!!.interval.label}; saving to the ${BackupFolder.NAME} folder"
+                        else -> "Save a backup daily, weekly, every 2 weeks, or monthly"
+                    },
+                    actionLabel = when {
+                        !pro.isPro -> "Unlock"
+                        autoBackupSettings == null -> "Set up"
+                        else -> "Change"
+                    },
                     onClick = {
-                        selectedBackupInterval = autoBackupSettings?.interval ?: BackupInterval.WEEKLY
-                        configuringAutoBackup = true
+                        if (!pro.isPro) {
+                            pro.onUpgrade()
+                        } else {
+                            selectedBackupInterval = autoBackupSettings?.interval ?: BackupInterval.WEEKLY
+                            configuringAutoBackup = true
+                        }
                     },
                 )
                 if (autoBackupSettings != null) {
@@ -651,7 +684,8 @@ private fun SettingRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    actionLabel: String = "Open",
+    /** Null for a row that only reports something and has nothing to tap. */
+    actionLabel: String? = "Open",
     onClick: () -> Unit,
 ) {
     Row(
@@ -668,7 +702,9 @@ private fun SettingRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        TextButton(onClick = onClick) { Text(actionLabel) }
+        actionLabel?.let { label ->
+            TextButton(onClick = onClick) { Text(label) }
+        }
     }
 }
 

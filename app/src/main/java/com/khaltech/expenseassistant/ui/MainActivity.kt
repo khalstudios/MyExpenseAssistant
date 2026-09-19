@@ -83,6 +83,7 @@ import com.khaltech.expenseassistant.ui.insights.InsightsScreen
 import com.khaltech.expenseassistant.data.repo.taggedWith
 import com.khaltech.expenseassistant.ui.insights.PeriodSelection
 import com.khaltech.expenseassistant.ui.insights.Periods
+import com.khaltech.expenseassistant.ui.pro.ProHost
 import com.khaltech.expenseassistant.ui.tag.TagScreen
 import com.khaltech.expenseassistant.ui.category.CategoryScreen
 import com.khaltech.expenseassistant.ui.category.LocalCategoryIconOverrides
@@ -102,7 +103,9 @@ class MainActivity : ComponentActivity() {
                     val iconStore = remember { ServiceLocator.categoryIconStore(context) }
                     val iconOverrides by iconStore.overrides.collectAsStateWithLifecycle()
                     CompositionLocalProvider(LocalCategoryIconOverrides provides iconOverrides) {
-                        AppShell()
+                        ProHost {
+                            AppShell()
+                        }
                     }
                 }
             }

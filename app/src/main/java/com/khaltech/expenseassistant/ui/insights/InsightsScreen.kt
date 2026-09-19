@@ -46,6 +46,7 @@ import com.khaltech.expenseassistant.ui.formatMinor
 import com.khaltech.expenseassistant.ui.rememberSoftGradient
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.repo.TagUsage
+import com.khaltech.expenseassistant.ui.pro.ProLocked
 import com.khaltech.expenseassistant.recurring.RecurringExpense
 import kotlin.math.abs
 
@@ -84,7 +85,14 @@ fun InsightsScreen(
             item { CategoryListCard(state, onOpenCategory) }
         }
         if (state.tagUsage.isNotEmpty()) {
-            item { TagsCard(state.tagUsage, onOpenTag) }
+            item {
+                ProLocked(
+                    title = "Tag analytics",
+                    subtitle = "See what each of your tags actually costs, over any period.",
+                ) {
+                    TagsCard(state.tagUsage, onOpenTag)
+                }
+            }
         }
         item { SpendingTrendsCard(state) }
         item { StatGrid(state) }

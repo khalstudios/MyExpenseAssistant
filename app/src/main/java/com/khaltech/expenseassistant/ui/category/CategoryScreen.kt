@@ -2,6 +2,7 @@ package com.khaltech.expenseassistant.ui.category
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +44,7 @@ import com.khaltech.expenseassistant.ui.DayGroupCard
 import com.khaltech.expenseassistant.ui.IncomeColor
 import com.khaltech.expenseassistant.ui.SpendColor
 import com.khaltech.expenseassistant.ui.formatMinor
+import com.khaltech.expenseassistant.ui.pro.LocalPro
 import com.khaltech.expenseassistant.ui.rememberHeroGradient
 import com.khaltech.expenseassistant.ui.startOfDay
 
@@ -63,7 +67,13 @@ fun CategoryScreen(
     val spentMinor = debits.sumOf { it.amountMinor }
     val incomeMinor = credits.sumOf { it.amountMinor }
 
-    val days = transactions.groupBy { startOfDay(it.occurredAt) }
+    // The totals above are always the real ones for the whole category. Without Pro it is the
+    // itemised list that is cut short, so the number on screen is never a number we invented.
+    val pro = LocalPro.current
+    val visible = if (pro.isPro) transactions else transactions.take(FREE_PREVIEW_COUNT)
+    val hidden = transactions.size - visible.size
+
+    val days = visible.groupBy { startOfDay(it.occurredAt) }
         .toList()
         .sortedByDescending { it.first }
 
@@ -129,6 +139,16 @@ fun CategoryScreen(
                     onDelete = onDelete,
                 )
             }
+
+            if (hidden > 0) {
+                item {
+                    SeeAllProCard(
+                        total = transactions.size,
+                        hidden = hidden,
+                        onUpgrade = pro.onUpgrade,
+                    )
+                }
+            }
         }
     }
 
@@ -148,6 +168,51 @@ fun CategoryScreen(
             },
             onDismiss = { editing = null },
         )
+    }
+}
+
+/**
+ * How much of a category's list a free user sees. Enough to recognise their own spending and judge
+ * whether the full list is worth paying for; not enough to be the feature.
+ */
+private const val FREE_PREVIEW_COUNT = 3
+
+/**
+ * The button counts the whole category, not the part being withheld: "See all 23 transactions" is
+ * what the user is being offered, where "See all 20" would be counting from a number they never saw.
+ *
+ * The card only appears once something is actually hidden, which needs more than [FREE_PREVIEW_COUNT]
+ * transactions, so [total] is always plural here.
+ */
+@Composable
+private fun SeeAllProCard(total: Int, hidden: Int, onUpgrade: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onUpgrade)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    "  $hidden more in this category",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Text(
+                "Pro shows every transaction behind a category, not just the latest few.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(onClick = onUpgrade) { Text("See all $total transactions · Pro") }
+        }
     }
 }
 

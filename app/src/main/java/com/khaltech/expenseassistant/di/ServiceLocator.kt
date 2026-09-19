@@ -1,6 +1,8 @@
 package com.khaltech.expenseassistant.di
 
 import android.content.Context
+import com.khaltech.expenseassistant.billing.BillingManager
+import com.khaltech.expenseassistant.billing.EntitlementStore
 import com.khaltech.expenseassistant.categorize.Categorizer
 import com.khaltech.expenseassistant.data.backup.BackupArchive
 import com.khaltech.expenseassistant.data.local.AppDatabase
@@ -19,6 +21,8 @@ object ServiceLocator {
     @Volatile private var preferences: UserPreferences? = null
     @Volatile private var categoryIcons: CategoryIconStore? = null
     @Volatile private var backupArchive: BackupArchive? = null
+    @Volatile private var entitlements: EntitlementStore? = null
+    @Volatile private var billing: BillingManager? = null
 
     fun repository(context: Context): TransactionRepository = repository ?: synchronized(this) {
         repository ?: run {
@@ -56,5 +60,13 @@ object ServiceLocator {
             preferences = userPreferences(context),
             categoryIcons = categoryIconStore(context),
         ).also { backupArchive = it }
+    }
+
+    fun entitlementStore(context: Context): EntitlementStore = entitlements ?: synchronized(this) {
+        entitlements ?: EntitlementStore(context).also { entitlements = it }
+    }
+
+    fun billing(context: Context): BillingManager = billing ?: synchronized(this) {
+        billing ?: BillingManager(context, entitlementStore(context)).also { billing = it }
     }
 }
