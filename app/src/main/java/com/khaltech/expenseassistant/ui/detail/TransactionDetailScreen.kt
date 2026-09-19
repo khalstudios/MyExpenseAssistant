@@ -191,6 +191,7 @@ fun TransactionDetailScreen(
                 suggestions = tagSuggestions,
                 onTagsChange = { tags = it },
                 onOpenTag = { tag -> leave { onOpenTag(tag) } },
+                showEmptyHint = true,
             )
             MetadataCard(transaction)
             // Keeps the last card clear of the floating save button.

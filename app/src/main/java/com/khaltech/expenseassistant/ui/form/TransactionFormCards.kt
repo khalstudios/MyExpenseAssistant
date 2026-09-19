@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -306,6 +307,9 @@ internal fun RowDivider() {
 /**
  * One chip section above the field holds both: the tags on this transaction, ticked and highlighted,
  * followed by the few others worth offering. Typing narrows the offered ones without hiding the chosen.
+ *
+ * [showEmptyHint] adds a short note on what tags are for while the transaction has none, for the screens
+ * where someone lands on an untagged transaction rather than one they are already filling in themselves.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -314,6 +318,7 @@ internal fun TagsCard(
     suggestions: List<String>,
     onTagsChange: (List<String>) -> Unit,
     onOpenTag: ((String) -> Unit)? = null,
+    showEmptyHint: Boolean = false,
 ) {
     var newTag by remember { mutableStateOf("") }
     val typed = newTag.trim().removePrefix("#")
@@ -341,6 +346,9 @@ internal fun TagsCard(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Tags", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            if (showEmptyHint && tags.isEmpty()) {
+                TagHint()
+            }
             if (tags.isNotEmpty() || offered.isNotEmpty()) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -398,7 +406,7 @@ internal fun TagsCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            } else if (tags.isEmpty() && offered.isEmpty()) {
+            } else if (tags.isEmpty() && offered.isEmpty() && !showEmptyHint) {
                 Text(
                     "None on this transaction yet",
                     style = MaterialTheme.typography.bodyMedium,
@@ -431,6 +439,42 @@ internal fun TagsCard(
                     Icon(Icons.Filled.Add, contentDescription = "Add tag")
                 }
             }
+        }
+    }
+}
+
+/**
+ * Why tagging is worth the tap, with a few examples to copy. Tinted rather than carded: it sits inside
+ * the tags card and should read as part of it, not as a second thing stacked on top.
+ */
+@Composable
+private fun TagHint() {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            Icons.Filled.Sell,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+            modifier = Modifier.size(18.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                "Add a tag to find this later",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            Text(
+                "Tags cut across categories — try #groceries, #rent, #travel, #medical or #gift. " +
+                    "Tapping a tag later shows everything you spent under it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
         }
     }
 }
