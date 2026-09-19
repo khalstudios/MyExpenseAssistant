@@ -4,17 +4,22 @@ title: Privacy Policy — Kahan Gaya Paisa
 
 # Privacy Policy — Kahan Gaya Paisa
 
-**Effective date:** 15 September 2026
+**Effective date:** 19 September 2026
 
 Kahan Gaya Paisa is an Android app developed by **KHAL Tech**. It records your spending on your own
 phone. This policy explains what the app reads, what it stores, and what leaves your device.
 
 ## The short version
 
-**No data is collected, transmitted, sold or shared.** The app does not request the Android
-`INTERNET` permission, so it is technically incapable of sending your information anywhere. There
-are no ads, no analytics, no crash reporting and no third-party tracking SDKs. The developer never
+**Your spending data is never collected, transmitted, sold or shared.** Everything the app records
+stays in its private storage on your phone. There is no account to sign in to and no server for the
+app to send anything to. There are no ads, no analytics and no crash reporting. The developer never
 receives any of your data and has no way to see it.
+
+The app does request the Android `INTERNET` permission. It does so for one reason: Google's Play
+Billing library, which the app uses to sell its optional Pro upgrade, brings that permission with
+it. Nothing the app records about your money travels over it. This is explained in full under
+[Paying for Pro](#paying-for-pro).
 
 Because nothing reaches the developer, KHAL Tech holds no personal data about you to access, correct
 or delete; everything the app stores stays on your phone and under your control, as described below.
@@ -91,11 +96,32 @@ copy of your data is then handled by that service under its own terms and privac
 itself never uploads anything. For automatic backups, the app keeps access only to the one folder
 you picked, and you can turn automatic backups off at any time.
 
+## Paying for Pro
+
+Some of the app's features are part of an optional paid upgrade. Buying it is handled entirely by
+Google Play. The app never sees or stores your card, UPI details or any other payment information,
+and there is no checkout screen inside it. Google processes the payment and records the purchase
+against your Google account, under [Google's own privacy policy](https://policies.google.com/privacy).
+
+All the app keeps is a single yes-or-no answer, stored on your phone: whether this install has the
+upgrade. To get that answer it asks the Google Play Store app already on your device. Nothing about
+you, your transactions or your spending is sent in return, or at any other point.
+
+The `INTERNET` permission arrives with Google's Play Billing library, which the app uses for the
+above. That library includes a Google component that reports diagnostics about how the library
+itself is performing. It is part of what Google ships, not something this app adds to it, and it
+has no access to your transactions, your notifications or your contacts. The app's own code opens
+no network connections at all.
+
+The library is part of the app whether or not you ever buy the upgrade, and everything described
+here applies either way.
+
 ## Other permissions
 
 The app's background-work library, used to run automatic backups on schedule, declares permissions
 to keep the device awake briefly, restart scheduled work after a reboot, and check network state.
-None of them allows the app to send data anywhere.
+The `INTERNET` permission is covered under [Paying for Pro](#paying-for-pro) above. The app's own
+code uses none of these to send your data anywhere.
 
 ## Children
 

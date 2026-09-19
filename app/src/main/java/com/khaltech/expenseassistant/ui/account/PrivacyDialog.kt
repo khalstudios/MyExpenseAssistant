@@ -35,10 +35,16 @@ fun PrivacyDialog(onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Section(
-                    "Nothing leaves this phone",
-                    "Kahan Gaya Paisa has no internet permission, so it cannot upload your " +
-                        "transactions, contacts or notifications. There are no ads, no analytics " +
-                        "and no third-party tracking.",
+                    "Your money stays on this phone",
+                    "Kahan Gaya Paisa has no account and no server to send anything to, so your " +
+                        "transactions, contacts and notifications never leave this device. There " +
+                        "are no ads, no analytics and no third-party tracking.",
+                )
+                Section(
+                    "Why it asks for internet",
+                    "Only so Google Play can sell and restore the optional Pro upgrade. Google " +
+                        "handles the payment; the app keeps nothing but whether this phone has " +
+                        "Pro, and sends nothing about you either way.",
                 )
                 Section(
                     "What it reads",
@@ -63,7 +69,8 @@ fun PrivacyDialog(onDismiss: () -> Unit) {
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        // The app has no internet permission; the browser loads the page.
+        // The policy is opened in the browser rather than fetched and shown here, so the app
+        // itself still makes no network request of its own.
         dismissButton = {
             TextButton(
                 onClick = {

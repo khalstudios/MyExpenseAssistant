@@ -52,7 +52,7 @@ object Disclosures {
             ),
             DisclosurePoint(
                 "Where it goes",
-                "Onto this phone only. The app has no internet permission, so nothing can be uploaded or shared with anyone.",
+                "Onto this phone only. There is no account and no server behind the app, so none of this is uploaded or shared with anyone.",
             ),
             DisclosurePoint(
                 "Your control",
