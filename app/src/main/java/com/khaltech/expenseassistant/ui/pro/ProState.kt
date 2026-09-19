@@ -24,7 +24,7 @@ val LocalPro = staticCompositionLocalOf { ProStatus(isPro = false, onUpgrade = {
 
 /** The pitch, kept in one place so the paywall and the store listing cannot drift apart. */
 val ProFeatures: List<String> = listOf(
-    "See every transaction behind a category",
+    "See every transaction behind a category or tag",
     "Spending analytics for your tags",
     "Spot recurring payments and forgotten subscriptions",
     "Trends and comparisons across any period",
