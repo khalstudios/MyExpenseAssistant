@@ -36,12 +36,15 @@ import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -72,6 +75,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.khaltech.expenseassistant.BuildConfig
+import com.khaltech.expenseassistant.di.ServiceLocator
 import com.khaltech.expenseassistant.data.prefs.UserProfile
 import com.khaltech.expenseassistant.data.backup.BackupFolder
 import com.khaltech.expenseassistant.data.prefs.BackupInterval
@@ -97,6 +101,8 @@ fun AccountScreen(
     modifier: Modifier = Modifier,
     onOpenBudgets: () -> Unit = {},
     onOpenNeedsReview: () -> Unit = {},
+    onOpenCategories: () -> Unit = {},
+    onOpenTags: () -> Unit = {},
     openAutoBackupSetup: Boolean = false,
     onAutoBackupSetupHandled: () -> Unit = {},
     viewModel: AccountViewModel = viewModel(factory = AccountViewModel.Factory),
@@ -186,11 +192,16 @@ fun AccountScreen(
         }
     }
 
-    // Arriving here from the home screen's backup notice opens the setup dialog straight away.
+    // Arriving here from the home screen's backup notice opens the setup dialog straight away —
+    // or the paywall, the same as the Automatic backups row, if this install is not Pro.
     LaunchedEffect(openAutoBackupSetup) {
         if (openAutoBackupSetup) {
-            selectedBackupInterval = autoBackupSettings?.interval ?: BackupInterval.WEEKLY
-            configuringAutoBackup = true
+            if (pro.isPro) {
+                selectedBackupInterval = autoBackupSettings?.interval ?: BackupInterval.WEEKLY
+                configuringAutoBackup = true
+            } else {
+                pro.onUpgrade()
+            }
             onAutoBackupSetupHandled()
         }
     }
@@ -266,6 +277,21 @@ fun AccountScreen(
                 )
             }
 
+            SectionCard("Organise") {
+                SettingRow(
+                    icon = Icons.Filled.Category,
+                    title = "Categories",
+                    subtitle = "Change colours and icons, rename or delete your own",
+                    onClick = onOpenCategories,
+                )
+                SettingRow(
+                    icon = Icons.Filled.Tag,
+                    title = "Tags",
+                    subtitle = "Every tag you use, and the transactions behind it",
+                    onClick = onOpenTags,
+                )
+            }
+
             SectionCard("Planning") {
                 SettingRow(
                     icon = Icons.Filled.Savings,
@@ -322,6 +348,8 @@ fun AccountScreen(
                     onClick = { showPrivacy = true },
                 )
             }
+
+            if (BuildConfig.DEBUG) DebugProCard()
         }
 
         SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
@@ -773,6 +801,38 @@ private fun SettingRow(
 private suspend fun SnackbarHostState.showMessage(message: String) {
     currentSnackbarData?.dismiss()
     showSnackbar(message)
+}
+
+/**
+ * Debug builds only: switches this device between the free and Pro tiers without buying anything
+ * or reinstalling. Leaving it on "Actual" gives the real answer: grandfathered, bought, or free.
+ */
+@Composable
+private fun DebugProCard() {
+    val context = LocalContext.current
+    val billing = remember { ServiceLocator.billing(context) }
+    val entitlements = remember { ServiceLocator.entitlementStore(context) }
+    var forcePro by remember { mutableStateOf(entitlements.debugOverride()) }
+
+    SectionCard("Debug") {
+        Text(
+            "Pro tier on this device. Debug builds only.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf<Pair<String, Boolean?>>("Actual" to null, "Free" to false, "Pro" to true).forEach { (label, value) ->
+                FilterChip(
+                    selected = forcePro == value,
+                    onClick = {
+                        forcePro = value
+                        billing.setDebugOverride(value)
+                    },
+                    label = { Text(label) },
+                )
+            }
+        }
+    }
 }
 
 @Composable

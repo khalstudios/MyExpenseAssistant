@@ -1,6 +1,7 @@
 package com.khaltech.expenseassistant.billing
 
 import android.content.Context
+import com.khaltech.expenseassistant.BuildConfig
 
 /**
  * Remembers whether this install has Pro.
@@ -19,7 +20,22 @@ class EntitlementStore(context: Context) {
         context.packageManager.getPackageInfo(context.packageName, 0).firstInstallTime
     }.getOrDefault(Long.MAX_VALUE)
 
-    fun isPro(): Boolean = isGrandfathered() || prefs.getBoolean(KEY_PURCHASED, false)
+    fun isPro(): Boolean = debugOverride() ?: (isGrandfathered() || prefs.getBoolean(KEY_PURCHASED, false))
+
+    /**
+     * Debug builds only: Pro forced on or off for testing either tier on a real device, or null to
+     * follow what was actually earned or bought. Always null in a release build, whatever is stored.
+     */
+    fun debugOverride(): Boolean? =
+        if (BuildConfig.DEBUG && prefs.contains(KEY_DEBUG_OVERRIDE)) prefs.getBoolean(KEY_DEBUG_OVERRIDE, false)
+        else null
+
+    fun setDebugOverride(forcePro: Boolean?) {
+        if (!BuildConfig.DEBUG) return
+        prefs.edit().apply {
+            if (forcePro == null) remove(KEY_DEBUG_OVERRIDE) else putBoolean(KEY_DEBUG_OVERRIDE, forcePro)
+        }.apply()
+    }
 
     /**
      * True for anyone who installed the app before Pro existed. They already had these features for
@@ -51,6 +67,7 @@ class EntitlementStore(context: Context) {
         const val KEY_PURCHASED = "purchased"
         const val KEY_GRANDFATHERED = "grandfathered"
         const val KEY_GRANDFATHER_NOTICE = "grandfather_notice_seen"
+        const val KEY_DEBUG_OVERRIDE = "debug_override"
 
         /**
          * 2026-10-01T00:00:00Z. Set this to the moment the first build containing the paywall

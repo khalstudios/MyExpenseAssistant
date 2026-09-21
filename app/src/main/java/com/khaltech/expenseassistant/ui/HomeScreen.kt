@@ -87,6 +87,8 @@ fun HomeScreen(
     state: HomeUiState,
     notificationAccessGranted: Boolean,
     showBackupNotice: Boolean = false,
+    /** True when automatic backups are locked behind Pro, which turns the notice into an upgrade offer. */
+    backupNeedsPro: Boolean = false,
     onEnableBackup: () -> Unit = {},
     onDismissBackupNotice: () -> Unit = {},
     onCategoryChange: (Long, Category) -> Unit,
@@ -162,7 +164,11 @@ fun HomeScreen(
             }
             if (showBackupNotice) {
                 item {
-                    BackupNoticeCard(onEnable = onEnableBackup, onDismiss = onDismissBackupNotice)
+                    BackupNoticeCard(
+                        needsPro = backupNeedsPro,
+                        onEnable = onEnableBackup,
+                        onDismiss = onDismissBackupNotice,
+                    )
                 }
             }
             item {

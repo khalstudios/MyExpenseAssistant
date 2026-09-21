@@ -257,6 +257,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val tagSuggestions: StateFlow<List<String>> = repository.observeTagSuggestions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Every tag across all history with how often it is used, for the Tags screen under Profile. */
+    val tagUsage: StateFlow<List<com.khaltech.expenseassistant.data.repo.TagUsage>> = repository.observeTagUsage()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     /**
      * Extended categories this user's data already mentions, whether on a transaction or on a
      * budget they set. Whatever they are already filing money under stays theirs to pick.
@@ -273,6 +277,17 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         (fromTransactions + fromBudgets).filterTo(mutableSetOf()) { it.isExtended }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
+    /**
+     * Transactions per category, for ordering the picker. A transaction filed under a category of
+     * the user's own is left out: it carries Unknown underneath, and counting it would push Unknown
+     * up the picker for people who have simply organised things their own way.
+     */
+    val categoryUsage: StateFlow<Map<Category, Int>> = repository.observeAll()
+        .map { transactions ->
+            transactions.filter { it.customCategoryName == null }.groupingBy { it.category }.eachCount()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     val customCategories: StateFlow<List<com.khaltech.expenseassistant.data.repo.CustomCategoryOption>> =
         repository.observeCustomCategorySuggestions()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -280,6 +295,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     /** How many transactions a custom category holds, for the confirmation that precedes deleting it. */
     suspend fun transactionsUnderCustomCategory(name: String): Int =
         repository.countWithCustomCategory(name)
+
+    fun updateCustomCategory(name: String, newName: String, colorHex: String, iconKey: String) = viewModelScope.launch {
+        repository.updateCustomCategory(name, newName, colorHex, iconKey)
+    }
 
     /** Drops a custom category and re-files its transactions as Unknown. */
     fun deleteCustomCategory(name: String) = viewModelScope.launch {
@@ -367,6 +386,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         return AnalyticsUiState(
             selection = selection,
             transactions = current,
+            previousTransactions = transactions.filter { it.occurredAt < start },
             periodLabel = Periods.label(selection),
             canGoForward = Periods.canGoForward(selection),
             isCurrentPeriod = Periods.isCurrent(selection),

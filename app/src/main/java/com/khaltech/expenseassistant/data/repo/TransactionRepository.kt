@@ -58,7 +58,13 @@ fun List<TransactionEntity>.taggedWith(
         (toExclusive == null || tx.occurredAt < toExclusive)
 }
 
-data class CustomCategoryOption(val name: String, val colorHex: String, val iconKey: String? = null)
+data class CustomCategoryOption(
+    val name: String,
+    val colorHex: String,
+    val iconKey: String? = null,
+    /** Transactions filed under it, so the picker can rank it alongside the built-in categories. */
+    val useCount: Int = 0,
+)
 
 class TransactionRepository(
     private val transactionDao: TransactionDao,
@@ -89,14 +95,18 @@ class TransactionRepository(
     /** Custom categories the user has created before, most recently used first, for reuse in the picker. */
     fun observeCustomCategorySuggestions(): Flow<List<CustomCategoryOption>> = transactionDao.observeAll().map { transactions ->
         val seen = LinkedHashMap<String, CustomCategoryOption>()
+        val counts = HashMap<String, Int>()
         transactions.sortedByDescending { it.occurredAt }.forEach { tx ->
             val name = tx.customCategoryName?.trim()
             val colorHex = tx.customCategoryColor
-            if (!name.isNullOrEmpty() && colorHex != null && !seen.containsKey(name.lowercase())) {
-                seen[name.lowercase()] = CustomCategoryOption(name, colorHex, tx.customCategoryIcon)
+            if (!name.isNullOrEmpty() && colorHex != null) {
+                val key = name.lowercase()
+                counts[key] = (counts[key] ?: 0) + 1
+                // The most recent transaction decides its look, as it always has.
+                if (!seen.containsKey(key)) seen[key] = CustomCategoryOption(name, colorHex, tx.customCategoryIcon)
             }
         }
-        seen.values.toList()
+        seen.map { (key, option) -> option.copy(useCount = counts[key] ?: 0) }
     }
 
     /** How many transactions currently wear a custom category, so the user can be told before it goes. */
@@ -113,6 +123,11 @@ class TransactionRepository(
      */
     suspend fun deleteCustomCategory(name: String, fallback: Category = Category.OTHER) {
         transactionDao.clearCustomCategory(name, fallback)
+    }
+
+    /** Renames and restyles a custom category on every transaction that carries it. */
+    suspend fun updateCustomCategory(name: String, newName: String, colorHex: String, iconKey: String) {
+        transactionDao.updateCustomCategory(name, newName.trim(), colorHex, iconKey)
     }
 
     suspend fun earliestTimestamp(): Long? = transactionDao.earliestTimestamp()

@@ -33,20 +33,28 @@ class MerchantKeywordsTest {
     }
 
     /**
-     * A category behind Pro that the categoriser can reach anyway is not behind Pro: it lands on a
-     * free user's transactions by itself, which unlocks it for them and makes the paywall wrong.
-     * This is why Travel, House Expense and Vehicle Expense sit in the default set.
+     * A category behind Pro that the categoriser can reach for a free user is not behind Pro: it
+     * lands on their transactions by itself, which unlocks it for them and makes the paywall wrong.
+     * So every Pro category a keyword names needs a free stand-in to file under instead.
      */
     @Test
-    fun `no extended category can be reached by a keyword rule`() {
-        val reachable = MerchantKeywords.rules.keys.filter { it.isExtended }
+    fun `every extended category a keyword reaches has a free fallback`() {
+        val uncovered = MerchantKeywords.rules.keys.filter { it.isExtended && it !in MerchantKeywords.freeFallback }
 
         assertEquals(
-            "These are sold as Pro but the categoriser assigns them on its own. Either drop the " +
-                "keyword rules or move them into Category.Default.",
+            "These are sold as Pro but the categoriser would assign them to free users. Add them " +
+                "to MerchantKeywords.freeFallback, drop the keyword rules, or move them into " +
+                "Category.Default.",
             emptyList<Category>(),
-            reachable,
+            uncovered,
         )
+    }
+
+    @Test
+    fun `every free fallback is itself free`() {
+        val lockedFallbacks = MerchantKeywords.freeFallback.filterValues { it.isExtended }
+
+        assertEquals(emptyMap<Category, Category>(), lockedFallbacks)
     }
 
     @Test

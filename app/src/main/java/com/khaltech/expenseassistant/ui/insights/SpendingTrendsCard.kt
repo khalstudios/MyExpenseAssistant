@@ -3,57 +3,94 @@ package com.khaltech.expenseassistant.ui.insights
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
+import com.khaltech.expenseassistant.data.model.TransactionEntity
 import com.khaltech.expenseassistant.ui.CardElevation
-import com.khaltech.expenseassistant.ui.category.color
-import com.khaltech.expenseassistant.ui.formatMinor
+import com.khaltech.expenseassistant.ui.formatMinorWhole
 import com.khaltech.expenseassistant.ui.rememberSoftGradient
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.max
+import kotlin.math.min
 
-private data class TrendBucket(val label: String, val spendMinor: Long, val categorySpendMinor: Map<Category, Long>)
+/** The period on screen, last period when comparing, and where this period is heading. */
+private val CurrentColor = Color(0xFFE05555)
+private val PreviousColor = Color(0xFF64B5F6)
+private val ProjectionColor = Color(0xFFF4B400)
 
-private data class TrendSeries(
-    val color: Color,
-    val valuesMinor: List<Long>,
-    val finalLabel: String,
+private enum class MoneyFlow(val label: String, val direction: Direction) {
+    SPENDING("Spending", Direction.DEBIT),
+    INCOME("Income", Direction.CREDIT),
+}
+
+/**
+ * One period split into buckets — days for a week or month, months for a year — with the period
+ * before it split the same way. [elapsed] is how many buckets have happened: all of them for a past
+ * period, up to today for the current one.
+ */
+private class MomentumSeries(
+    val current: List<Long>,
+    val elapsed: Int,
+    val previous: List<Long>,
+    /** Axis labels, keyed by bucket number counted from 1. */
+    val labels: List<Pair<Int, String>>,
 )
 
 @Composable
 fun SpendingTrendsCard(state: AnalyticsUiState, modifier: Modifier = Modifier) {
-    val buckets = state.spendingTrendBuckets()
-    val totalSpend = buckets.sumOf { it.spendMinor }
+    var flow by rememberSaveable { mutableStateOf(MoneyFlow.SPENDING) }
+    var compare by rememberSaveable { mutableStateOf(false) }
+    val series = state.momentumSeries(flow.direction)
+    val previousLabel = Periods.label(Periods.shift(state.selection, -1))
+    val hasData = series.current.sum() > 0 || (compare && series.previous.sum() > 0)
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -73,296 +110,387 @@ fun SpendingTrendsCard(state: AnalyticsUiState, modifier: Modifier = Modifier) {
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "  Spending momentum",
+                    text = "  Momentum",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
             }
 
-            if (totalSpend == 0L) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                FlowToggle(selected = flow, onSelect = { flow = it })
+            }
+
+            if (!hasData) {
                 Text(
-                    text = "Your spending trend will appear here once transactions are recorded.",
+                    text = if (flow == MoneyFlow.SPENDING) {
+                        "Your spending trend will appear here once transactions are recorded."
+                    } else {
+                        "Money coming in will be charted here once some is recorded."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                TrendSectionHeader("Cumulative spend", formatMinor(totalSpend))
-                CumulativeSpendChart(buckets)
-                TrendAxisLabels(buckets)
-                val categorySeries = buckets.categoryTrendSeries()
-                if (categorySeries.size > 1) {
-                    TrendSectionHeader("Category momentum", "Top categories")
-                    CategoryMomentumChart(categorySeries)
-                    TrendAxisLabels(buckets)
-                }
-                TrendSectionHeader("${state.range.label}-wise spending", "Avg. ${formatMinor(totalSpend / buckets.size)}")
-                PeriodSpendBars(buckets)
-                TrendAxisLabels(buckets)
+                ChartTitle("Total")
+                // Income arrives in lumps — a salary, a refund — so extending its pace to the end
+                // of the period would predict nonsense. Only spending is projected.
+                CumulativeChart(
+                    series = series,
+                    compare = compare,
+                    project = flow == MoneyFlow.SPENDING && state.isCurrentPeriod,
+                )
+                ChartTitle(if (state.range == AnalyticsRange.YEAR) "Month-wise" else "Day-wise")
+                BucketBars(series = series, compare = compare)
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+            CompareRow(previousLabel = previousLabel, checked = compare, onCheckedChange = { compare = it })
+        }
+    }
+}
+
+@Composable
+private fun ChartTitle(text: String) {
+    Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+}
+
+@Composable
+private fun FlowToggle(selected: MoneyFlow, onSelect: (MoneyFlow) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    // A tint of the text colour rather than a surface colour, so the track shows on the card's soft
+    // gradient in both light and dark themes, with the chosen option raised out of it.
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(50))
+            .background(colors.onSurface.copy(alpha = 0.07f))
+            .padding(4.dp),
+    ) {
+        MoneyFlow.entries.forEach { option ->
+            val isSelected = option == selected
+            Box(
+                Modifier
+                    .then(if (isSelected) Modifier.shadow(3.dp, RoundedCornerShape(50)) else Modifier)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (isSelected) colors.surface else Color.Transparent)
+                    .clickable { onSelect(option) }
+                    .padding(horizontal = 24.dp, vertical = 10.dp),
+            ) {
+                Text(
+                    option.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (isSelected) colors.onSurface else colors.onSurfaceVariant.copy(alpha = 0.7f),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun TrendSectionHeader(label: String, value: String) {
+private fun CompareRow(previousLabel: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val colors = MaterialTheme.colorScheme
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+        Icon(Icons.AutoMirrored.Filled.CompareArrows, contentDescription = null, tint = colors.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
         Text(
-            value,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            buildAnnotatedString {
+                append("Compare with ")
+                withStyle(SpanStyle(textDecoration = TextDecoration.Underline, color = colors.onSurface)) {
+                    append(previousLabel)
+                }
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            color = colors.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
         )
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
+/** Colours the canvases need, read in composition because a canvas cannot read the theme. */
+private class ChartPalette(
+    val grid: Color,
+    val axis: Color,
+    val label: Color,
+    val markerFill: Color,
+    val average: Color,
+)
+
 @Composable
-private fun CategoryMomentumChart(series: List<TrendSeries>) {
-    val grid = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
-    val axis = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
-    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val maximum = max(series.maxOfOrNull { it.valuesMinor.maxOrNull() ?: 0L } ?: 0L, 1L).toFloat()
+private fun rememberChartPalette(): ChartPalette {
+    val colors = MaterialTheme.colorScheme
+    return ChartPalette(
+        grid = colors.outlineVariant.copy(alpha = 0.7f),
+        axis = colors.onSurfaceVariant.copy(alpha = 0.45f),
+        label = colors.onSurfaceVariant,
+        markerFill = colors.surface,
+        average = colors.onSurface.copy(alpha = 0.75f),
+    )
+}
 
-    Canvas(Modifier.fillMaxWidth().height(190.dp)) {
-        val leftPadding = 42.dp.toPx()
-        val rightPadding = 88.dp.toPx()
-        val topPadding = 12.dp.toPx()
-        val bottomPadding = 26.dp.toPx()
-        val chartWidth = size.width - leftPadding - rightPadding
-        val chartHeight = size.height - topPadding - bottomPadding
-        val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = 11.sp.toPx()
-            color = labelColor.toArgb()
-        }
+/**
+ * Running totals: the line starts at nothing on the axis and each point is the total at the end of
+ * that bucket. Last period, when compared, runs the whole way in blue; this one runs to today, and
+ * for spending a dashed line carries today's pace on to the end of the period.
+ */
+@Composable
+private fun CumulativeChart(series: MomentumSeries, compare: Boolean, project: Boolean) {
+    val palette = rememberChartPalette()
+    val slots = series.current.size
+    val currentTotals = series.current.take(series.elapsed).runningFold(0L) { total, amount -> total + amount }
+    val previousTotals = series.previous.runningFold(0L) { total, amount -> total + amount }
+    val reached = currentTotals.last()
+    val projected = if (project && series.elapsed < slots && reached > 0) reached * slots / series.elapsed else null
+    val xSlots = if (compare) max(slots, series.previous.size) else slots
+    val top = headroom(
+        maxOf(reached, projected ?: 0L, if (compare) previousTotals.last() else 0L),
+    )
 
-        repeat(4) { index ->
-            val y = topPadding + chartHeight * index / 3f
+    Canvas(Modifier.fillMaxWidth().height(220.dp)) {
+        val frame = drawFrame(top, xSlots, series.labels, labelOffset = 0f, palette = palette)
+        if (compare) drawTotalsLine(frame, previousTotals, PreviousColor, palette.markerFill)
+        projected?.let { end ->
+            val from = Offset(frame.x(series.elapsed.toFloat()), frame.y(reached))
+            val to = Offset(frame.x(slots.toFloat()), frame.y(end))
             drawLine(
-                color = grid,
-                start = Offset(leftPadding, y),
-                end = Offset(leftPadding + chartWidth, y),
-                strokeWidth = 1.dp.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 6.dp.toPx())),
+                color = ProjectionColor,
+                start = from,
+                end = to,
+                strokeWidth = 2.5.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(7.dp.toPx(), 6.dp.toPx())),
             )
-            val value = maximum * (1f - index / 3f)
-            drawContext.canvas.nativeCanvas.drawText(
-                formatMinor(value.toLong()),
-                0f,
-                y + 4.dp.toPx(),
-                labelPaint,
-            )
+            drawMarker(to, ProjectionColor, palette.markerFill)
         }
-
-        drawLine(axis, Offset(leftPadding, topPadding), Offset(leftPadding, topPadding + chartHeight), strokeWidth = 1.5.dp.toPx())
-        drawLine(axis, Offset(leftPadding, topPadding + chartHeight), Offset(leftPadding + chartWidth, topPadding + chartHeight), strokeWidth = 1.5.dp.toPx())
-
-        series.forEach { trend ->
-            val path = Path()
-            trend.valuesMinor.forEachIndexed { index, amount ->
-                val x = leftPadding + chartWidth * index / (trend.valuesMinor.size - 1).coerceAtLeast(1)
-                val y = topPadding + chartHeight * (1f - amount / maximum)
-                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
-            }
-            drawPath(path = path, color = trend.color.copy(alpha = 0.28f), style = Stroke(width = 7.dp.toPx()))
-            drawPath(path = path, color = trend.color, style = Stroke(width = 3.dp.toPx()))
-            trend.valuesMinor.forEachIndexed { index, amount ->
-                val x = leftPadding + chartWidth * index / (trend.valuesMinor.size - 1).coerceAtLeast(1)
-                val y = topPadding + chartHeight * (1f - amount / maximum)
-                drawCircle(trend.color, radius = 3.2.dp.toPx(), center = Offset(x, y))
-            }
-
-            val lastValue = trend.valuesMinor.lastOrNull() ?: 0L
-            val labelY = topPadding + chartHeight * (1f - lastValue / maximum)
-            labelPaint.color = trend.color.toArgb()
-            drawContext.canvas.nativeCanvas.drawText(
-                trend.finalLabel,
-                leftPadding + chartWidth + 10.dp.toPx(),
-                labelY + 4.dp.toPx(),
-                labelPaint,
-            )
-        }
+        drawTotalsLine(frame, currentTotals, CurrentColor, palette.markerFill)
+        // Where the line hands over to the projection, the point takes the projection's colour.
+        if (projected != null) drawMarker(Offset(frame.x(series.elapsed.toFloat()), frame.y(reached)), ProjectionColor, palette.markerFill)
     }
 }
 
+/**
+ * One bar per bucket. When comparing, last period's bar stands just right of this period's, and
+ * each period gets its own dashed average: this one's labelled on the right, last one's on the left
+ * in blue, so the two labels never sit on top of each other.
+ */
 @Composable
-private fun CumulativeSpendChart(buckets: List<TrendBucket>) {
-    val primary = MaterialTheme.colorScheme.primary
-    val grid = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
-    val fill = primary.copy(alpha = 0.12f)
-    val cumulative = buckets.runningFold(0L) { total, bucket -> total + bucket.spendMinor }.drop(1)
-    val maximum = max(cumulative.maxOrNull() ?: 0L, 1L).toFloat()
+private fun BucketBars(series: MomentumSeries, compare: Boolean) {
+    val palette = rememberChartPalette()
+    val slots = if (compare) max(series.current.size, series.previous.size) else series.current.size
+    val counted = series.current.take(series.elapsed)
+    val currentAverage = counted.sum() / series.elapsed
+    val previousAverage = if (series.previous.isEmpty()) 0L else series.previous.sum() / series.previous.size
+    val top = headroom(
+        maxOf(counted.maxOrNull() ?: 0L, if (compare) series.previous.maxOrNull() ?: 0L else 0L),
+    )
 
-    Canvas(Modifier.fillMaxWidth().height(150.dp)) {
-        val horizontalPadding = 6.dp.toPx()
-        val verticalPadding = 10.dp.toPx()
-        val chartWidth = size.width - horizontalPadding * 2
-        val chartHeight = size.height - verticalPadding * 2
-        repeat(4) { index ->
-            val y = verticalPadding + chartHeight * index / 3f
-            drawLine(
-                color = grid,
-                start = Offset(horizontalPadding, y),
-                end = Offset(size.width - horizontalPadding, y),
-                strokeWidth = 1.dp.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 6.dp.toPx())),
-            )
-        }
+    Canvas(Modifier.fillMaxWidth().height(220.dp)) {
+        // Bars sit in the middle of their slot, so the labels shift half a slot to sit under them.
+        val frame = drawFrame(top, slots, series.labels, labelOffset = -0.5f, palette = palette)
+        val slotWidth = (frame.right - frame.left) / slots
+        val barWidth = min(slotWidth * (if (compare) 0.3f else 0.45f), if (compare) 4.dp.toPx() else 6.dp.toPx())
+        val gap = 1.dp.toPx()
 
-        val linePath = Path()
-        cumulative.forEachIndexed { index, amount ->
-            val x = horizontalPadding + chartWidth * index / (cumulative.size - 1).coerceAtLeast(1)
-            val y = verticalPadding + chartHeight * (1f - amount / maximum)
-            if (index == 0) linePath.moveTo(x, y) else linePath.lineTo(x, y)
-        }
-        val fillPath = Path().apply {
-            addPath(linePath)
-            lineTo(size.width - horizontalPadding, size.height - verticalPadding)
-            lineTo(horizontalPadding, size.height - verticalPadding)
-            close()
-        }
-        drawPath(fillPath, fill)
-        drawPath(linePath, primary, style = Stroke(width = 3.dp.toPx()))
-        cumulative.forEachIndexed { index, amount ->
-            val x = horizontalPadding + chartWidth * index / (cumulative.size - 1).coerceAtLeast(1)
-            val y = verticalPadding + chartHeight * (1f - amount / maximum)
-            drawCircle(primary, radius = 3.dp.toPx(), center = Offset(x, y))
-        }
-    }
-}
-
-@Composable
-private fun PeriodSpendBars(buckets: List<TrendBucket>) {
-    val primary = MaterialTheme.colorScheme.primary
-    val averageColor = MaterialTheme.colorScheme.secondary
-    val grid = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
-    val maximum = max(buckets.maxOfOrNull { it.spendMinor } ?: 0L, 1L).toFloat()
-    val average = buckets.map { it.spendMinor }.average().toFloat()
-
-    Canvas(Modifier.fillMaxWidth().height(126.dp)) {
-        val horizontalPadding = 6.dp.toPx()
-        val verticalPadding = 10.dp.toPx()
-        val chartWidth = size.width - horizontalPadding * 2
-        val chartHeight = size.height - verticalPadding * 2
-        repeat(3) { index ->
-            val y = verticalPadding + chartHeight * index / 2f
-            drawLine(
-                color = grid,
-                start = Offset(horizontalPadding, y),
-                end = Offset(size.width - horizontalPadding, y),
-                strokeWidth = 1.dp.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 6.dp.toPx())),
-            )
-        }
-        val averageY = verticalPadding + chartHeight * (1f - average / maximum)
-        drawLine(
-            color = averageColor,
-            start = Offset(horizontalPadding, averageY),
-            end = Offset(size.width - horizontalPadding, averageY),
-            strokeWidth = 1.5.dp.toPx(),
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx())),
-        )
-
-        val slotWidth = chartWidth / buckets.size
-        val barWidth = (slotWidth * 0.58f).coerceAtMost(18.dp.toPx())
-        buckets.forEachIndexed { index, bucket ->
-            val barHeight = chartHeight * bucket.spendMinor / maximum
+        fun bar(index: Int, amount: Long, color: Color, shift: Float) {
+            if (amount <= 0L) return
+            val centre = frame.x(index + 0.5f) + shift
+            val barTop = frame.y(amount)
             drawRoundRect(
-                color = primary.copy(alpha = if (bucket.spendMinor == 0L) 0.18f else 0.82f),
-                topLeft = Offset(horizontalPadding + slotWidth * index + (slotWidth - barWidth) / 2f, verticalPadding + chartHeight - barHeight),
-                size = Size(barWidth, barHeight.coerceAtLeast(if (bucket.spendMinor == 0L) 2.dp.toPx() else 0f)),
-                cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx()),
+                color = color,
+                topLeft = Offset(centre - barWidth / 2f, barTop),
+                size = Size(barWidth, frame.bottom - barTop),
+                cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
             )
         }
+
+        counted.forEachIndexed { index, amount ->
+            bar(index, amount, CurrentColor, if (compare) -(barWidth / 2f + gap) else 0f)
+        }
+        if (compare) {
+            series.previous.forEachIndexed { index, amount -> bar(index, amount, PreviousColor, barWidth / 2f + gap) }
+        }
+
+        val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13.sp.toPx() }
+        if (compare && previousAverage > 0) {
+            drawAverage(frame, previousAverage, PreviousColor, labelPaint, alignRight = false)
+        }
+        if (currentAverage > 0) {
+            drawAverage(frame, currentAverage, palette.average, labelPaint, alignRight = true)
+        }
     }
 }
 
-@Composable
-private fun TrendAxisLabels(buckets: List<TrendBucket>) {
-    val middle = buckets[buckets.lastIndex / 2].label
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(buckets.first().label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(middle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(buckets.last().label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+/** Where the plotting area sits inside the canvas, and how to map values onto it. */
+private class Frame(
+    val left: Float,
+    val right: Float,
+    val top: Float,
+    val bottom: Float,
+    private val maxValue: Float,
+    private val slots: Int,
+) {
+    fun x(position: Float): Float = left + (right - left) * position / slots
+    fun y(value: Long): Float = bottom - (bottom - top) * (value / maxValue)
 }
 
-private fun AnalyticsUiState.spendingTrendBuckets(): List<TrendBucket> {
-    val start = Calendar.getInstance().apply { timeInMillis = Periods.start(selection) }
-    val bucketCount = when (range) {
-        AnalyticsRange.WEEK -> 7
-        AnalyticsRange.MONTH -> Periods.totalDays(selection)
-        AnalyticsRange.YEAR -> 12
+private const val GridLines = 5
+
+/** Grid, axes and labels, drawn the same way under both charts. */
+private fun DrawScope.drawFrame(
+    maxValue: Float,
+    slots: Int,
+    labels: List<Pair<Int, String>>,
+    labelOffset: Float,
+    palette: ChartPalette,
+): Frame {
+    val yPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = 12.sp.toPx()
+        color = palette.label.toArgb()
+        textAlign = Paint.Align.RIGHT
     }
-    val labelFormat = SimpleDateFormat(
-        when (range) {
-            AnalyticsRange.WEEK -> "EEE"
-            AnalyticsRange.MONTH -> "d"
-            AnalyticsRange.YEAR -> "MMM"
-        },
-        Locale.getDefault(),
-    )
-    return List(bucketCount) { index ->
-        val bucketStart = (start.clone() as Calendar).apply {
-            when (range) {
-                AnalyticsRange.WEEK, AnalyticsRange.MONTH -> add(Calendar.DAY_OF_MONTH, index)
-                AnalyticsRange.YEAR -> add(Calendar.MONTH, index)
-            }
-        }
-        val bucketEnd = (bucketStart.clone() as Calendar).apply {
-            when (range) {
-                AnalyticsRange.WEEK, AnalyticsRange.MONTH -> add(Calendar.DAY_OF_MONTH, 1)
-                AnalyticsRange.YEAR -> add(Calendar.MONTH, 1)
-            }
-        }
-        val periodTransactions = transactions
-            .asSequence()
-            .filter { it.direction == Direction.DEBIT }
-            .filter { it.occurredAt >= bucketStart.timeInMillis && it.occurredAt < bucketEnd.timeInMillis }
-            .toList()
-        TrendBucket(
-            label = labelFormat.format(bucketStart.time),
-            spendMinor = periodTransactions.sumOf { it.amountMinor },
-            categorySpendMinor = periodTransactions
-                .groupBy { it.category }
-                .mapValues { (_, transactions) -> transactions.sumOf { it.amountMinor } },
+    val xPaint = Paint(yPaint).apply { textAlign = Paint.Align.CENTER }
+    val yLabels = (1..GridLines).map { compactAmount((maxValue * it / GridLines).toLong()) }
+    val left = (yLabels.maxOfOrNull { yPaint.measureText(it) } ?: 0f) + 12.dp.toPx()
+    // Room on the right for half of the last date label, which is centred on the axis's end.
+    val right = size.width - (labels.lastOrNull()?.let { xPaint.measureText(it.second) / 2f } ?: 0f) - 2.dp.toPx()
+    val top = 8.dp.toPx()
+    val bottom = size.height - 26.dp.toPx()
+    val frame = Frame(left, right, top, bottom, maxValue, slots)
+
+    (1..GridLines).forEach { index ->
+        val y = bottom - (bottom - top) * index / GridLines
+        drawLine(
+            color = palette.grid,
+            start = Offset(left, y),
+            end = Offset(right, y),
+            strokeWidth = 1.dp.toPx(),
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx())),
+        )
+        drawContext.canvas.nativeCanvas.drawText(yLabels[index - 1], left - 8.dp.toPx(), y + 4.dp.toPx(), yPaint)
+    }
+    drawLine(palette.axis, Offset(left, top), Offset(left, bottom), strokeWidth = 1.2.dp.toPx())
+    drawLine(palette.axis, Offset(left, bottom), Offset(right, bottom), strokeWidth = 1.2.dp.toPx())
+    labels.forEach { (position, text) ->
+        drawContext.canvas.nativeCanvas.drawText(
+            text,
+            frame.x(position + labelOffset),
+            bottom + 20.dp.toPx(),
+            xPaint,
         )
     }
+    return frame
 }
 
-private fun List<TrendBucket>.categoryTrendSeries(): List<TrendSeries> {
-    val topCategories = flatMap { bucket -> bucket.categorySpendMinor.entries }
-        .groupBy({ it.key }, { it.value })
-        .mapValues { (_, amounts) -> amounts.sum() }
-        .toList()
-        .sortedByDescending { it.second }
-        .take(4)
-        .map { it.first }
-
-    if (topCategories.isEmpty()) return emptyList()
-
-    val categorySeries = topCategories.map { category ->
-        val cumulative = runningAmounts { bucket -> bucket.categorySpendMinor[category] ?: 0L }
-        TrendSeries(
-            color = category.color,
-            valuesMinor = cumulative,
-            finalLabel = "${category.displayName.take(10)} ${formatMinor(cumulative.last())}",
-        )
+private fun DrawScope.drawTotalsLine(frame: Frame, totals: List<Long>, color: Color, markerFill: Color) {
+    if (totals.size < 2) return
+    val points = totals.mapIndexed { index, total -> Offset(frame.x(index.toFloat()), frame.y(total)) }
+    val path = Path().apply {
+        moveTo(points.first().x, points.first().y)
+        points.drop(1).forEach { lineTo(it.x, it.y) }
     }
-    val allCumulative = runningAmounts { it.spendMinor }
-    return categorySeries + TrendSeries(
-        color = Color(0xFF9E9E9E),
-        valuesMinor = allCumulative,
-        finalLabel = "All ${formatMinor(allCumulative.last())}",
+    drawPath(path, color, style = Stroke(width = 2.5.dp.toPx()))
+    points.forEach { drawMarker(it, color, markerFill) }
+}
+
+/** A ringed point, hollow so the line reads through it. */
+private fun DrawScope.drawMarker(centre: Offset, color: Color, fill: Color) {
+    drawCircle(fill, radius = 4.dp.toPx(), center = centre)
+    drawCircle(color, radius = 4.dp.toPx(), center = centre, style = Stroke(width = 1.8.dp.toPx()))
+}
+
+private fun DrawScope.drawAverage(frame: Frame, average: Long, color: Color, paint: Paint, alignRight: Boolean) {
+    val y = frame.y(average)
+    drawLine(
+        color = color,
+        start = Offset(frame.left, y),
+        end = Offset(frame.right, y),
+        strokeWidth = 1.5.dp.toPx(),
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx())),
+    )
+    paint.color = color.toArgb()
+    paint.textAlign = if (alignRight) Paint.Align.RIGHT else Paint.Align.LEFT
+    drawContext.canvas.nativeCanvas.drawText(
+        "Avg: ${formatMinorWhole(average)}",
+        if (alignRight) frame.right else frame.left + 6.dp.toPx(),
+        y - 6.dp.toPx(),
+        paint,
     )
 }
 
-private fun List<TrendBucket>.runningAmounts(valueForBucket: (TrendBucket) -> Long): List<Long> {
-    var total = 0L
-    return map { bucket ->
-        total += valueForBucket(bucket)
-        total
+/** A little room above the highest point, so the line never runs along the top edge. */
+private fun headroom(maxMinor: Long): Float = max(maxMinor, 100L) * 1.15f
+
+/** "8.2K", "65K", "1.2M": short enough for an axis, trailing ".0" dropped. */
+private fun compactAmount(amountMinor: Long): String {
+    val rupees = amountMinor / 100.0
+    fun short(value: Double, suffix: String) =
+        String.format(Locale.US, "%.1f", value).removeSuffix(".0") + suffix
+    return when {
+        rupees >= 1_000_000 -> short(rupees / 1_000_000, "M")
+        rupees >= 1_000 -> short(rupees / 1_000, "K")
+        else -> String.format(Locale.US, "%.0f", rupees)
     }
+}
+
+private fun AnalyticsUiState.momentumSeries(direction: Direction): MomentumSeries {
+    val current = bucketAmounts(selection, transactions, direction)
+    val previous = bucketAmounts(Periods.shift(selection, -1), previousTransactions, direction)
+    val elapsed = if (!isCurrentPeriod) {
+        current.size
+    } else when (range) {
+        AnalyticsRange.YEAR -> Calendar.getInstance().get(Calendar.MONTH) + 1
+        else -> Periods.elapsedDays(selection)
+    }
+    return MomentumSeries(
+        current = current,
+        elapsed = elapsed.coerceIn(1, current.size),
+        previous = previous,
+        labels = axisLabels(selection, current.size),
+    )
+}
+
+private fun bucketCount(selection: PeriodSelection): Int = when (selection.range) {
+    AnalyticsRange.WEEK -> 7
+    AnalyticsRange.MONTH -> Periods.totalDays(selection)
+    AnalyticsRange.YEAR -> 12
+}
+
+private fun bucketStart(selection: PeriodSelection, index: Int): Calendar =
+    Calendar.getInstance().apply {
+        timeInMillis = Periods.start(selection)
+        when (selection.range) {
+            AnalyticsRange.WEEK, AnalyticsRange.MONTH -> add(Calendar.DAY_OF_MONTH, index)
+            AnalyticsRange.YEAR -> add(Calendar.MONTH, index)
+        }
+    }
+
+private fun bucketAmounts(
+    selection: PeriodSelection,
+    transactions: List<TransactionEntity>,
+    direction: Direction,
+): List<Long> {
+    val count = bucketCount(selection)
+    val bounds = (0..count).map { bucketStart(selection, it).timeInMillis }
+    val sums = LongArray(count)
+    transactions.forEach { transaction ->
+        if (transaction.direction != direction) return@forEach
+        val index = bounds.indexOfLast { it <= transaction.occurredAt }
+        if (index in 0 until count) sums[index] += transaction.amountMinor
+    }
+    return sums.toList()
+}
+
+/** Every fifth day for a month, every day for a week, every other month for a year. */
+private fun axisLabels(selection: PeriodSelection, count: Int): List<Pair<Int, String>> {
+    val (pattern, step) = when (selection.range) {
+        AnalyticsRange.WEEK -> "EEE" to 1
+        AnalyticsRange.MONTH -> "dd/MM" to 5
+        AnalyticsRange.YEAR -> "MMM" to 2
+    }
+    val format = SimpleDateFormat(pattern, Locale.getDefault())
+    return (step..count step step).map { position -> position to format.format(bucketStart(selection, position - 1).time) }
 }

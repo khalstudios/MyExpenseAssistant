@@ -18,8 +18,15 @@ data class CategoryGuess(
  *  1. Rules the user taught the app (highest confidence). Spending only; income ignores them.
  *  2. Built-in merchant/keyword knowledge base.
  *  3. Structural heuristics (UPI handle to a person, credits, amount bands).
+ *
+ * [isPro] is read on every payment rather than once, so a purchase or a lapse applies to the very
+ * next capture. Without Pro, a keyword naming a Pro category files the payment under its free
+ * stand-in from [MerchantKeywords.freeFallback] instead.
  */
-class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
+class Categorizer(
+    private val merchantRuleDao: MerchantRuleDao,
+    private val isPro: () -> Boolean,
+) {
 
     suspend fun categorize(payment: ParsedPayment): CategoryGuess {
         // Income never picks up merchant rules: money coming in from a merchant should not inherit
@@ -42,11 +49,11 @@ class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
 
     private fun builtInGuess(payment: ParsedPayment): CategoryGuess {
         MerchantKeywords.match(payment.merchantRaw.orEmpty())?.let { (category, len) ->
-            return CategoryGuess(category, confidenceFor(len, exactField = true))
+            return CategoryGuess(forTier(category), confidenceFor(len, exactField = true))
         }
 
         MerchantKeywords.match(payment.rawText)?.let { (category, len) ->
-            return CategoryGuess(category, confidenceFor(len, exactField = false))
+            return CategoryGuess(forTier(category), confidenceFor(len, exactField = false))
         }
 
         if (looksLikePersonHandle(payment.merchantRaw)) {
@@ -55,6 +62,14 @@ class Categorizer(private val merchantRuleDao: MerchantRuleDao) {
 
         return CategoryGuess(Category.OTHER, 0.2f)
     }
+
+    /**
+     * Only the built-in keywords go through this. A rule the user taught stands as taught: they
+     * chose that category by hand, and a lapsed Pro user keeps what they already use.
+     */
+    private fun forTier(category: Category): Category =
+        if (category.isExtended && !isPro()) MerchantKeywords.freeFallback[category] ?: Category.OTHER
+        else category
 
     /** Called when the user re-categorises a transaction so future ones match. */
     suspend fun learn(merchantRaw: String?, direction: Direction, category: Category) {

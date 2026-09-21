@@ -123,6 +123,19 @@ interface TransactionDao {
     )
     suspend fun clearCustomCategory(name: String, fallback: Category)
 
+    /**
+     * Renames and restyles a category the user made. Like deleting one, this is an edit to every
+     * transaction carrying it, since that is the only place a custom category lives.
+     */
+    @Query(
+        """
+        UPDATE transactions
+        SET customCategoryName = :newName, customCategoryColor = :colorHex, customCategoryIcon = :iconKey
+        WHERE TRIM(customCategoryName) = TRIM(:name) COLLATE NOCASE
+        """
+    )
+    suspend fun updateCustomCategory(name: String, newName: String, colorHex: String, iconKey: String)
+
     @Query("SELECT COUNT(*) FROM transactions WHERE TRIM(customCategoryName) = TRIM(:name) COLLATE NOCASE")
     suspend fun countWithCustomCategory(name: String): Int
 

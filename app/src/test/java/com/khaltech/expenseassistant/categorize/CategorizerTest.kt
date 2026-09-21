@@ -13,7 +13,32 @@ import org.junit.Test
 class CategorizerTest {
 
     private val dao = FakeMerchantRuleDao()
-    private val categorizer = Categorizer(dao)
+    private var pro = true
+    private val categorizer = Categorizer(dao, isPro = { pro })
+
+    @Test
+    fun `Pro files a garage under Vehicle Expense`() = runBlocking {
+        pro = true
+
+        assertEquals(Category.VEHICLE_EXPENSE, categorizer.categorize(payment("Shree Ganesh Garage", Direction.DEBIT)).category)
+        assertEquals(Category.HOUSE_EXPENSE, categorizer.categorize(payment("Urban Company", Direction.DEBIT)).category)
+    }
+
+    @Test
+    fun `without Pro a Pro category keyword files under its free stand-in`() = runBlocking {
+        pro = false
+
+        assertEquals(Category.TRANSPORT, categorizer.categorize(payment("Shree Ganesh Garage", Direction.DEBIT)).category)
+        assertEquals(Category.BILLS_AND_UTILITIES, categorizer.categorize(payment("Urban Company", Direction.DEBIT)).category)
+    }
+
+    @Test
+    fun `a category the user taught stands without Pro`() = runBlocking {
+        pro = false
+        categorizer.learn("Shree Ganesh Garage", Direction.DEBIT, Category.VEHICLE_EXPENSE)
+
+        assertEquals(Category.VEHICLE_EXPENSE, categorizer.categorize(payment("Shree Ganesh Garage", Direction.DEBIT)).category)
+    }
 
     @Test
     fun `spending picks up learned category, name and tags`() = runBlocking {
@@ -72,7 +97,7 @@ class CategorizerTest {
 
     @Test
     fun `income teaches no merchant rules`() = runBlocking {
-        categorizer.learn("Rahul Sharma", Direction.CREDIT, Category.FRIENDS_AND_FAMILY)
+        categorizer.learn("Rahul Sharma", Direction.CREDIT, Category.FRIENDS)
         categorizer.learnDisplayName("Rahul Sharma", Direction.CREDIT, "Rahul")
         categorizer.learnTags("Rahul Sharma", Direction.CREDIT, listOf("split"))
 

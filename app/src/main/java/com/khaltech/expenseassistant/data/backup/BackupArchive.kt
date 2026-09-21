@@ -14,6 +14,7 @@ import com.khaltech.expenseassistant.data.model.RecurringDismissal
 import com.khaltech.expenseassistant.data.model.RecurringPlanEntity
 import com.khaltech.expenseassistant.data.model.TransactionEntity
 import com.khaltech.expenseassistant.data.model.TransactionType
+import com.khaltech.expenseassistant.data.prefs.CategoryColorStore
 import com.khaltech.expenseassistant.data.prefs.CategoryIconStore
 import com.khaltech.expenseassistant.data.prefs.UserPreferences
 import com.khaltech.expenseassistant.data.prefs.UserProfile
@@ -27,6 +28,7 @@ class BackupArchive(
     private val database: AppDatabase,
     private val preferences: UserPreferences,
     private val categoryIcons: CategoryIconStore,
+    private val categoryColors: CategoryColorStore,
 ) {
     suspend fun export(): String = JSONObject().apply {
         put("formatVersion", FORMAT_VERSION)
@@ -37,6 +39,7 @@ class BackupArchive(
         put("recurringDismissals", JSONArray(database.recurringDismissalDao().allOnce().map(::dismissalToJson)))
         put("profile", profileToJson(preferences.load()))
         put("categoryIcons", JSONObject(categoryIcons.overrides.value))
+        put("categoryColors", JSONObject(categoryColors.overrides.value))
     }.toString(2)
 
     suspend fun restore(contents: String) {
@@ -46,14 +49,23 @@ class BackupArchive(
         val transactions = archive.requiredArray("transactions").map(::transactionFromJson)
         val rules = archive.requiredArray("merchantRules").map(::ruleFromJson)
         // Two retired categories can collapse onto one key, and the key plus its period is the
-        // budgets' primary key.
+        // budgets' primary key. Where they do, the limit set most recently is the one kept.
         val budgets = archive.requiredArray("budgets").map(::budgetFromJson)
+            .sortedByDescending { it.updatedAt }
             .distinctBy { it.categoryKey to it.period }
         val recurringPlans = archive.optionalArray("recurringPlans")?.map(::recurringPlanFromJson).orEmpty()
         val dismissals = archive.optionalArray("recurringDismissals")?.map(::dismissalFromJson).orEmpty()
         val profile = profileFromJson(archive.getJSONObject("profile"))
-        val icons = archive.getJSONObject("categoryIcons").keys().asSequence()
-            .associateWith { key -> archive.getJSONObject("categoryIcons").getString(key) }
+        val icons = Category.currentKeys(
+            archive.getJSONObject("categoryIcons").keys().asSequence()
+                .associateWith { key -> archive.getJSONObject("categoryIcons").getString(key) },
+        )
+        // Absent from backups made before colours could be changed, which restore as the defaults.
+        val colors = Category.currentKeys(
+            archive.optJSONObject("categoryColors")?.let { json ->
+                json.keys().asSequence().associateWith { key -> json.getString(key) }
+            }.orEmpty(),
+        )
 
         database.withTransaction {
             database.transactionDao().deleteAll()
@@ -69,6 +81,7 @@ class BackupArchive(
         }
         preferences.save(profile)
         categoryIcons.replaceAll(icons)
+        categoryColors.replaceAll(colors)
     }
 
     private fun transactionToJson(transaction: TransactionEntity) = JSONObject().apply {

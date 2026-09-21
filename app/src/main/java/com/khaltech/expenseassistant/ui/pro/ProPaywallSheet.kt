@@ -40,6 +40,8 @@ fun ProPaywallSheet(
     onBuy: (ProOffer) -> Unit,
     onRestore: () -> Unit,
     onDismiss: () -> Unit,
+    /** What the user reached for, shown ahead of the general list. Null for the plain pitch. */
+    pitch: ProPitch? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -62,6 +64,21 @@ fun ProPaywallSheet(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
+            }
+
+            pitch?.let {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        it.headline,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        it.detail,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

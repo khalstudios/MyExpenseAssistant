@@ -72,8 +72,7 @@ fun BudgetScreen(
     val inUse = LocalCategoriesInUse.current
     val isPro = LocalPro.current.isPro
     val categories = remember(inUse, isPro) {
-        (Category.Default + Category.Extended.filter { isPro || it in inUse })
-            .filter { it != Category.INCOME }
+        Category.offered(isPro, inUse).filter { it != Category.INCOME }
     }
 
     Scaffold(

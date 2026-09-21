@@ -39,6 +39,7 @@ fun ProHost(content: @Composable () -> Unit) {
     val offers by billing.offers.collectAsStateWithLifecycle()
 
     var showPaywall by remember { mutableStateOf(false) }
+    var pitch by remember { mutableStateOf<ProPitch?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     var showGrandfatherNotice by remember {
         mutableStateOf(entitlements.isGrandfathered() && !entitlements.isGrandfatherNoticeSeen())
@@ -83,7 +84,17 @@ fun ProHost(content: @Composable () -> Unit) {
     }
 
     CompositionLocalProvider(
-        LocalPro provides ProStatus(isPro = isPro, onUpgrade = { showPaywall = true }),
+        LocalPro provides ProStatus(
+            isPro = isPro,
+            onUpgrade = {
+                pitch = null
+                showPaywall = true
+            },
+            onUpgradeFor = {
+                pitch = it
+                showPaywall = true
+            },
+        ),
     ) {
         content()
     }
@@ -91,6 +102,7 @@ fun ProHost(content: @Composable () -> Unit) {
     if (showPaywall) {
         val activity = context.findActivity()
         ProPaywallSheet(
+            pitch = pitch,
             offers = offers,
             onBuy = { offer -> activity?.let { billing.purchase(it, offer) } },
             onRestore = { billing.refresh() },

@@ -6,6 +6,7 @@ import com.khaltech.expenseassistant.billing.EntitlementStore
 import com.khaltech.expenseassistant.categorize.Categorizer
 import com.khaltech.expenseassistant.data.backup.BackupArchive
 import com.khaltech.expenseassistant.data.local.AppDatabase
+import com.khaltech.expenseassistant.data.prefs.CategoryColorStore
 import com.khaltech.expenseassistant.data.prefs.CategoryIconStore
 import com.khaltech.expenseassistant.data.prefs.UserPreferences
 import com.khaltech.expenseassistant.data.repo.BudgetRepository
@@ -22,6 +23,7 @@ object ServiceLocator {
     @Volatile private var recurringPlans: RecurringPlanRepository? = null
     @Volatile private var preferences: UserPreferences? = null
     @Volatile private var categoryIcons: CategoryIconStore? = null
+    @Volatile private var categoryColors: CategoryColorStore? = null
     @Volatile private var backupArchive: BackupArchive? = null
     @Volatile private var entitlements: EntitlementStore? = null
     @Volatile private var billing: BillingManager? = null
@@ -31,7 +33,11 @@ object ServiceLocator {
             val db = AppDatabase.get(context)
             TransactionRepository(
                 transactionDao = db.transactionDao(),
-                categorizer = Categorizer(db.merchantRuleDao()),
+                categorizer = Categorizer(
+                    db.merchantRuleDao(),
+                    // Local and cheap, so capture never waits on Play to decide a category.
+                    isPro = { entitlementStore(context).isPro() },
+                ),
                 contactNameCacheDao = db.contactNameCacheDao(),
                 contactResolver = ContactResolver(context.applicationContext),
                 budgetNotifier = BudgetNotifier(
@@ -62,11 +68,16 @@ object ServiceLocator {
         categoryIcons ?: CategoryIconStore(context).also { categoryIcons = it }
     }
 
+    fun categoryColorStore(context: Context): CategoryColorStore = categoryColors ?: synchronized(this) {
+        categoryColors ?: CategoryColorStore(context).also { categoryColors = it }
+    }
+
     fun backupArchive(context: Context): BackupArchive = backupArchive ?: synchronized(this) {
         backupArchive ?: BackupArchive(
             database = AppDatabase.get(context),
             preferences = userPreferences(context),
             categoryIcons = categoryIconStore(context),
+            categoryColors = categoryColorStore(context),
         ).also { backupArchive = it }
     }
 

@@ -95,6 +95,12 @@ class BillingManager(
         }
     }
 
+    /** Debug builds only; see [EntitlementStore.debugOverride]. Takes effect immediately. */
+    fun setDebugOverride(forcePro: Boolean?) {
+        entitlements.setDebugOverride(forcePro)
+        _isPro.value = entitlements.isPro()
+    }
+
     override fun onPurchasesUpdated(result: BillingResult, purchases: List<Purchase>?) {
         when (result.responseCode) {
             BillingClient.BillingResponseCode.OK -> scope.launch {

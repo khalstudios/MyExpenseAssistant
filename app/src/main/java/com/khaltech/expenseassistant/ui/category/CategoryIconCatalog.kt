@@ -9,6 +9,8 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CarRepair
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Celebration
+import androidx.compose.material.icons.filled.FamilyRestroom
+import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.DirectionsCar
@@ -80,6 +82,8 @@ object CategoryIconCatalog {
         "pets" to Icons.Filled.Pets,
         "celebration" to Icons.Filled.Celebration,
         "gift" to Icons.Filled.CardGiftcard,
+        "donation" to Icons.Filled.VolunteerActivism,
+        "family" to Icons.Filled.FamilyRestroom,
         "bank" to Icons.Filled.AccountBalance,
         "shield" to Icons.Filled.Shield,
         "tax" to Icons.Filled.RequestQuote,
@@ -107,11 +111,13 @@ object CategoryIconCatalog {
         Category.TRAVEL -> "flight"
         Category.INVESTMENTS -> "trending_up"
         Category.TRANSFER -> "people"
-        Category.FRIENDS_AND_FAMILY -> "groups"
+        Category.FRIENDS -> "groups"
+        Category.FAMILY -> "family"
+        Category.GIFTS -> "gift"
+        Category.DONATIONS -> "donation"
         Category.EMI -> "bank"
         Category.TAXES -> "tax"
         Category.INSURANCE -> "shield"
-        Category.GIFTS_AND_DONATION -> "gift"
         Category.HOUSE_EXPENSE -> "roofing"
         Category.VEHICLE_EXPENSE -> "car_repair"
         Category.PERSONAL_CARE -> "spa"

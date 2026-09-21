@@ -6,28 +6,32 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Persists per-category icon overrides chosen by the user, keyed by Category enum name. */
-class CategoryIconStore(context: Context) {
+/**
+ * Persists per-category colour overrides chosen by the user, keyed by Category enum name, as
+ * "#RRGGBB". The counterpart of [CategoryIconStore]; categories the user made carry their colour on
+ * their transactions instead, so they never appear here.
+ */
+class CategoryColorStore(context: Context) {
 
     private val prefs = context.applicationContext
-        .getSharedPreferences("category-icons", Context.MODE_PRIVATE)
+        .getSharedPreferences("category-colors", Context.MODE_PRIVATE)
 
     private val _overrides = MutableStateFlow(loadAll())
     val overrides: StateFlow<Map<String, String>> = _overrides.asStateFlow()
 
-    fun setIcon(categoryKey: String, iconKey: String) {
-        prefs.edit().putString(categoryKey, iconKey).apply()
-        _overrides.value = _overrides.value + (categoryKey to iconKey)
+    fun setColor(categoryKey: String, colorHex: String) {
+        prefs.edit().putString(categoryKey, colorHex).apply()
+        _overrides.value = _overrides.value + (categoryKey to colorHex)
     }
 
-    fun clearIcon(categoryKey: String) {
+    fun clearColor(categoryKey: String) {
         prefs.edit().remove(categoryKey).apply()
         _overrides.value = _overrides.value - categoryKey
     }
 
     fun replaceAll(overrides: Map<String, String>) {
         prefs.edit().clear().apply {
-            overrides.forEach { (categoryKey, iconKey) -> putString(categoryKey, iconKey) }
+            overrides.forEach { (categoryKey, colorHex) -> putString(categoryKey, colorHex) }
         }.apply()
         _overrides.value = overrides
     }

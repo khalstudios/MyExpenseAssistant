@@ -165,6 +165,8 @@ fun CategoryPieChart(
         fontWeight = FontWeight.Medium,
     )
     val drawn = slices.filter { it.fraction > 0f }
+    // Read out here: the user's colour choices come from composition, which the canvas can't see.
+    val sliceColors = drawn.map { it.category.color }
 
     Canvas(
         modifier
@@ -184,10 +186,10 @@ fun CategoryPieChart(
         // Filled wedges with the hole punched out afterwards; a thick stroked arc leaves a visible
         // seam where the renderer joins its segments.
         var startAngle = -90f
-        drawn.forEach { slice ->
+        drawn.forEachIndexed { index, slice ->
             val sweep = slice.fraction * 360f
             drawArc(
-                color = slice.category.color,
+                color = sliceColors[index],
                 startAngle = startAngle,
                 sweepAngle = sweep,
                 useCenter = true,

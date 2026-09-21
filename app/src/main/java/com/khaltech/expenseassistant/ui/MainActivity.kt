@@ -83,15 +83,21 @@ import com.khaltech.expenseassistant.ui.insights.InsightsScreen
 import com.khaltech.expenseassistant.data.repo.taggedWith
 import com.khaltech.expenseassistant.ui.insights.PeriodSelection
 import com.khaltech.expenseassistant.ui.insights.Periods
+import com.khaltech.expenseassistant.ui.pro.LocalPro
 import com.khaltech.expenseassistant.ui.pro.ProHost
 import com.khaltech.expenseassistant.recurring.RecurringExpense
 import com.khaltech.expenseassistant.ui.recurring.AddRecurringScreen
 import com.khaltech.expenseassistant.ui.tag.TagScreen
+import com.khaltech.expenseassistant.ui.category.CategoriesScreen
 import com.khaltech.expenseassistant.ui.category.CategoryScreen
+import com.khaltech.expenseassistant.ui.tag.TagsScreen
 import com.khaltech.expenseassistant.ui.category.CustomCategoryActions
 import com.khaltech.expenseassistant.ui.category.LocalCategoriesInUse
+import com.khaltech.expenseassistant.ui.category.LocalCategoryColorOverrides
 import com.khaltech.expenseassistant.ui.category.LocalCategoryIconOverrides
+import com.khaltech.expenseassistant.ui.category.LocalCategoryUsage
 import com.khaltech.expenseassistant.ui.category.LocalCustomCategoryActions
+import com.khaltech.expenseassistant.ui.category.LocalCustomCategoryCount
 import com.khaltech.expenseassistant.di.ServiceLocator
 import kotlinx.coroutines.delay
 import java.util.UUID
@@ -107,20 +113,30 @@ class MainActivity : ComponentActivity() {
                     val context = LocalContext.current
                     val iconStore = remember { ServiceLocator.categoryIconStore(context) }
                     val iconOverrides by iconStore.overrides.collectAsStateWithLifecycle()
+                    val colorStore = remember { ServiceLocator.categoryColorStore(context) }
+                    val colorOverrides by colorStore.overrides.collectAsStateWithLifecycle()
                     // The same instance AppShell resolves below, this Activity being the store
                     // owner for both, so the picker's category list is read from one source.
                     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
                     val categoriesInUse by homeViewModel.categoriesInUse.collectAsStateWithLifecycle()
+                    val categoryUsage by homeViewModel.categoryUsage.collectAsStateWithLifecycle()
+                    val customCategories by homeViewModel.customCategories.collectAsStateWithLifecycle()
                     val customCategoryActions = remember(homeViewModel) {
                         CustomCategoryActions(
                             countTransactions = homeViewModel::transactionsUnderCustomCategory,
                             delete = { homeViewModel.deleteCustomCategory(it) },
+                            update = { name, newName, colorHex, iconKey ->
+                                homeViewModel.updateCustomCategory(name, newName, colorHex, iconKey)
+                            },
                         )
                     }
                     CompositionLocalProvider(
                         LocalCategoryIconOverrides provides iconOverrides,
+                        LocalCategoryColorOverrides provides colorOverrides,
                         LocalCategoriesInUse provides categoriesInUse,
                         LocalCustomCategoryActions provides customCategoryActions,
+                        LocalCategoryUsage provides categoryUsage,
+                        LocalCustomCategoryCount provides customCategories.size,
                     ) {
                         ProHost {
                             AppShell()
@@ -143,6 +159,8 @@ private sealed interface Route {
     data class TagTransactions(val tag: String, val period: PeriodSelection? = null) : Route
     data object NeedsReview : Route
     data object AllTransactions : Route
+    data object Categories : Route
+    data object Tags : Route
     /** A null [item] is a new entry; otherwise the row being opened. */
     data class EditRecurring(val item: RecurringExpense? = null) : Route
 }
@@ -180,6 +198,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     val recurring by viewModel.recurring.collectAsStateWithLifecycle()
     val tagSuggestions by viewModel.tagSuggestions.collectAsStateWithLifecycle()
     val customCategories by viewModel.customCategories.collectAsStateWithLifecycle()
+    val tagUsage by viewModel.tagUsage.collectAsStateWithLifecycle()
     val summaryScope by viewModel.summaryScope.collectAsStateWithLifecycle()
     val dailyBudget by viewModel.dailyBudgetMinor.collectAsStateWithLifecycle()
     val spendingStatus by viewModel.spendingStatus.collectAsStateWithLifecycle()
@@ -210,6 +229,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
         mutableStateOf(userPreferences.autoBackupSettings() == null && !userPreferences.isBackupNoticeDismissed())
     }
     var openAutoBackupSetup by remember { mutableStateOf(false) }
+    val pro = LocalPro.current
     var helpMenuOpen by remember { mutableStateOf(false) }
     var showTutorial by remember { mutableStateOf(false) }
 
@@ -422,6 +442,21 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     )
                 }
 
+                Route.Categories -> {
+                    CategoriesScreen(
+                        customCategories = customCategories,
+                        onBack = { goBack() },
+                    )
+                }
+
+                Route.Tags -> {
+                    TagsScreen(
+                        tags = tagUsage,
+                        onBack = { goBack() },
+                        onOpenTag = { tag -> navigate(Route.TagTransactions(tag)) },
+                    )
+                }
+
                 Route.AllTransactions -> {
                     AllTransactionsScreen(
                         transactions = allTransactions,
@@ -532,9 +567,16 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     state = recentState,
                     notificationAccessGranted = notificationAccess,
                     showBackupNotice = showBackupNotice,
+                    // Automatic backups are Pro, so a free user is taken to the upgrade rather than
+                    // to a setup dialog they could not finish.
+                    backupNeedsPro = !pro.isPro,
                     onEnableBackup = {
-                        openAutoBackupSetup = true
-                        tab = Tab.PROFILE
+                        if (pro.isPro) {
+                            openAutoBackupSetup = true
+                            tab = Tab.PROFILE
+                        } else {
+                            pro.onUpgrade()
+                        }
                     },
                     onDismissBackupNotice = {
                         userPreferences.dismissBackupNotice()
@@ -583,6 +625,8 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 Tab.PROFILE -> AccountScreen(
                     onOpenBudgets = { navigate(Route.Budgets) },
                     onOpenNeedsReview = { navigate(Route.NeedsReview) },
+                    onOpenCategories = { navigate(Route.Categories) },
+                    onOpenTags = { navigate(Route.Tags) },
                     openAutoBackupSetup = openAutoBackupSetup,
                     onAutoBackupSetupHandled = { openAutoBackupSetup = false },
                     modifier = Modifier.padding(padding),

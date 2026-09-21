@@ -83,6 +83,18 @@ object MerchantKeywords {
         Category.INCOME to listOf("salary", "payroll", "interest credited", "dividend", "reimbursement"),
     )
 
+    /**
+     * Where a keyword that names a Pro category files a free user's payment instead.
+     *
+     * Every Pro category the rules above can reach must have an entry here, and it must be a free
+     * category: otherwise the categoriser would put a Pro category on a free user's transaction by
+     * itself, which unlocks it for them. `MerchantKeywordsTest` holds both of those true.
+     */
+    val freeFallback: Map<Category, Category> = mapOf(
+        Category.HOUSE_EXPENSE to Category.BILLS_AND_UTILITIES,
+        Category.VEHICLE_EXPENSE to Category.TRANSPORT,
+    )
+
     private val flattened: List<Pair<String, Category>> = rules
         .flatMap { (category, keywords) -> keywords.map { it.trim() to category } }
         .sortedByDescending { it.first.length }

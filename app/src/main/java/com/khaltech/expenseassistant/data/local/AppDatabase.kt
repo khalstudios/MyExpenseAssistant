@@ -23,7 +23,7 @@ import com.khaltech.expenseassistant.data.model.TransactionEntity
         RecurringPlanEntity::class,
         RecurringDismissal::class,
     ],
-    version = 16,
+    version = 17,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -224,6 +224,41 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Friends/Family and Gifts/Donation were each split in two. Nothing records which half an old
+         * entry was, so each moves to the half most of them belong to — Friends / Relatives and
+         * Gifts — for the user to re-file as needed. The old names stay readable through
+         * Category.LEGACY_NAMES, which is how older backups restore the same way.
+         */
+        private val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                listOf("FRIENDS_AND_FAMILY" to "FRIENDS", "GIFTS_AND_DONATION" to "GIFTS").forEach { (old, new) ->
+                    db.execSQL("UPDATE transactions SET category = '$new' WHERE category = '$old'")
+                    db.execSQL("UPDATE merchant_rules SET category = '$new' WHERE category = '$old'")
+                    db.execSQL("UPDATE recurring_plans SET category = '$new' WHERE category = '$old'")
+                    // A budget is keyed by category and period, so an old limit and a new one for
+                    // the same period would collide. The one set most recently is kept.
+                    db.execSQL(
+                        """
+                        DELETE FROM budgets WHERE categoryKey = '$old' AND EXISTS (
+                            SELECT 1 FROM budgets b WHERE b.categoryKey = '$new'
+                            AND b.period = budgets.period AND b.updatedAt >= budgets.updatedAt
+                        )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        """
+                        DELETE FROM budgets WHERE categoryKey = '$new' AND EXISTS (
+                            SELECT 1 FROM budgets b WHERE b.categoryKey = '$old'
+                            AND b.period = budgets.period AND b.updatedAt > budgets.updatedAt
+                        )
+                        """.trimIndent()
+                    )
+                    db.execSQL("UPDATE budgets SET categoryKey = '$new' WHERE categoryKey = '$old'")
+                }
+            }
+        }
+
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -245,6 +280,7 @@ abstract class AppDatabase : RoomDatabase() {
                 MIGRATION_13_14,
                 MIGRATION_14_15,
                 MIGRATION_15_16,
+                MIGRATION_16_17,
             )
                 .build().also { instance = it }
         }
