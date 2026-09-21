@@ -24,9 +24,18 @@ val LocalPro = staticCompositionLocalOf { ProStatus(isPro = false, onUpgrade = {
 
 /** The pitch, kept in one place so the paywall and the store listing cannot drift apart. */
 val ProFeatures: List<String> = listOf(
-    "See every transaction behind a category or tag",
-    "Spending analytics for your tags",
-    "Spot recurring payments and forgotten subscriptions",
-    "Trends and comparisons across any period",
+    "Categories of your own, named and coloured how you like",
+    "As many tags of your own as you like, all charted",
+    "Spot recurring payments, and add your own",
     "Automatic backups on your schedule",
 )
+
+/**
+ * How many tags of their own a free user may create.
+ *
+ * Tagging is free — a handful of tags is enough to learn what they are for and to keep using the
+ * app happily. Somebody running a dozen of them is organising their spending in earnest, and that
+ * is the point at which Pro is worth asking for. Tags already in use are never taken away, so this
+ * only ever stops the next new one from being created.
+ */
+const val FreeTagLimit = 5

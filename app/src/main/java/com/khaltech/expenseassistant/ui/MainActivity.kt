@@ -84,8 +84,11 @@ import com.khaltech.expenseassistant.data.repo.taggedWith
 import com.khaltech.expenseassistant.ui.insights.PeriodSelection
 import com.khaltech.expenseassistant.ui.insights.Periods
 import com.khaltech.expenseassistant.ui.pro.ProHost
+import com.khaltech.expenseassistant.recurring.RecurringExpense
+import com.khaltech.expenseassistant.ui.recurring.AddRecurringScreen
 import com.khaltech.expenseassistant.ui.tag.TagScreen
 import com.khaltech.expenseassistant.ui.category.CategoryScreen
+import com.khaltech.expenseassistant.ui.category.LocalCategoriesInUse
 import com.khaltech.expenseassistant.ui.category.LocalCategoryIconOverrides
 import com.khaltech.expenseassistant.di.ServiceLocator
 import kotlinx.coroutines.delay
@@ -102,7 +105,14 @@ class MainActivity : ComponentActivity() {
                     val context = LocalContext.current
                     val iconStore = remember { ServiceLocator.categoryIconStore(context) }
                     val iconOverrides by iconStore.overrides.collectAsStateWithLifecycle()
-                    CompositionLocalProvider(LocalCategoryIconOverrides provides iconOverrides) {
+                    // The same instance AppShell resolves below, this Activity being the store
+                    // owner for both, so the picker's category list is read from one source.
+                    val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
+                    val categoriesInUse by homeViewModel.categoriesInUse.collectAsStateWithLifecycle()
+                    CompositionLocalProvider(
+                        LocalCategoryIconOverrides provides iconOverrides,
+                        LocalCategoriesInUse provides categoriesInUse,
+                    ) {
                         ProHost {
                             AppShell()
                         }
@@ -124,6 +134,8 @@ private sealed interface Route {
     data class TagTransactions(val tag: String, val period: PeriodSelection? = null) : Route
     data object NeedsReview : Route
     data object AllTransactions : Route
+    /** A null [item] is a new entry; otherwise the row being opened. */
+    data class EditRecurring(val item: RecurringExpense? = null) : Route
 }
 
 /** One opened screen; [key] is unique per visit so the same screen opened twice keeps separate state. */
@@ -285,6 +297,32 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                         },
                         customCategories = customCategories,
                         tagSuggestions = tagSuggestions,
+                    )
+                }
+
+                is Route.EditRecurring -> {
+                    val opened = current.item
+                    AddRecurringScreen(
+                        onBack = { goBack() },
+                        existing = opened,
+                        onSave = { input ->
+                            viewModel.saveRecurringPlan(
+                                id = input.id,
+                                merchant = input.merchant,
+                                category = input.category,
+                                amountMinor = input.amountMinor,
+                                cadence = input.cadence,
+                                nextDueAt = input.nextDueAt,
+                            )
+                            goBack()
+                        },
+                        // Nothing to delete on a blank form, so the action is simply absent there.
+                        onDelete = opened?.let { item ->
+                            {
+                                viewModel.deleteRecurring(item.manualId, item.merchantKey)
+                                goBack()
+                            }
+                        },
                     )
                 }
 
@@ -520,6 +558,8 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     onOpenCategory = { navigate(Route.CategoryTransactions(it)) },
                     onOpenTag = { tag -> navigate(Route.TagTransactions(tag, analytics.selection)) },
                     onOpenNeedsReview = { navigate(Route.NeedsReview) },
+                    onAddRecurring = { navigate(Route.EditRecurring()) },
+                    onOpenRecurring = { item -> navigate(Route.EditRecurring(item)) },
                     modifier = Modifier.padding(padding),
                 )
 

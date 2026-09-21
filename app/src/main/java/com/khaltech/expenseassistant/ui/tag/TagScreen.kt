@@ -36,9 +36,6 @@ import com.khaltech.expenseassistant.ui.category.displayCategoryName
 import com.khaltech.expenseassistant.ui.CardElevation
 import com.khaltech.expenseassistant.ui.formatMinor
 import com.khaltech.expenseassistant.ui.formatTimestamp
-import com.khaltech.expenseassistant.ui.pro.FreePreviewCount
-import com.khaltech.expenseassistant.ui.pro.LocalPro
-import com.khaltech.expenseassistant.ui.pro.SeeAllProCard
 import com.khaltech.expenseassistant.ui.rememberHeroGradient
 import com.khaltech.expenseassistant.ui.rememberSoftGradient
 
@@ -55,12 +52,9 @@ fun TagScreen(
     val spentMinor = transactions.filter { it.direction == Direction.DEBIT }.sumOf { it.amountMinor }
     val receivedMinor = transactions.filter { it.direction == Direction.CREDIT }.sumOf { it.amountMinor }
 
-    // Same bargain as a category drill-down: the totals above cover the whole tag, and it is the
-    // itemised list underneath that is cut short without Pro. Tagging itself stays free — this screen
-    // is the payoff, not the act of tagging, and a tag must not become the cheap way past that cap.
-    val pro = LocalPro.current
-    val visible = if (pro.isPro) transactions else transactions.take(FreePreviewCount)
-    val hidden = transactions.size - visible.size
+    // Same bargain as a category drill-down, and the same answer: the whole list, for everyone.
+    // What Pro sells around tags is room to make more of them, not permission to read the ones
+    // already counted in the totals above.
 
     Scaffold(
         topBar = {
@@ -110,21 +104,10 @@ fun TagScreen(
                 }
             }
 
-            items(visible, key = { it.id }) { transaction ->
+            items(transactions, key = { it.id }) { transaction ->
                 TagTransactionRow(transaction = transaction, onClick = { onOpenTransaction(transaction.id) })
             }
 
-            if (hidden > 0) {
-                item {
-                    SeeAllProCard(
-                        total = transactions.size,
-                        hidden = hidden,
-                        where = "tagged #$tag",
-                        explanation = "Pro shows every transaction under a tag, not just the latest few.",
-                        onUpgrade = pro.onUpgrade,
-                    )
-                }
-            }
         }
     }
 }

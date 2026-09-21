@@ -1,0 +1,13 @@
+1. Rename the app to "Kahan Gaya Paisa" instead of "Expense Assistant".
+2. Send a notification whenever a transaction is recorded. It should display as an alert and then go away.
+3. Try a new icon for the app which relates more to the app name and behavior.
+4. Add an alert or info note which would display total spend on that day.
+5. Add personalized messages or alerts ot popup about my spending data for today or current month. 
+    Such as I am doing good, I am witihin my budget for today or current month. 
+6. Reduce font size for income and expenditure amount and rename net position to current month.
+7. Add a daily budget feature.
+8. Whenever I open the app for first time on that day, it should display a pop-up dialog 
+    asking me to set budget for that day and also display the spedning trend message for the month. 
+9. The backups should create a folder with the app name and then automatically copy the file to that folder. 
+    Instead of the user creating folder on the gdrive, and restoring should show a list of available backups sorted by latest.
+10. Add an option to choose automatic daily, weekly,bi-weekly or monthly backups. 

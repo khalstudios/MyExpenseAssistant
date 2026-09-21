@@ -47,6 +47,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.khaltech.expenseassistant.data.model.BudgetEntity
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.ui.category.CategoryBadge
+import com.khaltech.expenseassistant.ui.category.LocalCategoriesInUse
+import com.khaltech.expenseassistant.ui.pro.LocalPro
 import com.khaltech.expenseassistant.ui.CardElevation
 import com.khaltech.expenseassistant.ui.formatMinor
 import com.khaltech.expenseassistant.ui.rememberSoftGradient
@@ -65,7 +67,14 @@ fun BudgetScreen(
     var editingOverall by remember { mutableStateOf(false) }
     val periodWord = period.displayName.lowercase()
 
-    val categories = remember { Category.entries.filter { it != Category.INCOME } }
+    // The same set the picker offers, so there is never a budget row for a category the user
+    // cannot file anything under, nor a category they use with nowhere to set its limit.
+    val inUse = LocalCategoriesInUse.current
+    val isPro = LocalPro.current.isPro
+    val categories = remember(inUse, isPro) {
+        (Category.Default + Category.Extended.filter { isPro || it in inUse })
+            .filter { it != Category.INCOME }
+    }
 
     Scaffold(
         topBar = {

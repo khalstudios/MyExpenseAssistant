@@ -29,6 +29,7 @@ class AccountViewModel(app: Application) : AndroidViewModel(app) {
     private val preferences = ServiceLocator.userPreferences(app)
     private val repository = ServiceLocator.repository(app)
     private val budgetRepository = ServiceLocator.budgetRepository(app)
+    private val recurringPlans = ServiceLocator.recurringPlanRepository(app)
     private val backupArchive = ServiceLocator.backupArchive(app)
 
     private val _profile = MutableStateFlow(preferences.load())
@@ -77,6 +78,7 @@ class AccountViewModel(app: Application) : AndroidViewModel(app) {
         if (alsoResetSettings) {
             repository.clearLearnedRules()
             budgetRepository.clearAll()
+            recurringPlans.clearAll()
         }
         _earliest.value = null
     }

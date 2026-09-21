@@ -32,6 +32,23 @@ class MerchantKeywordsTest {
         assertEquals(Category.GROCERIES, MerchantKeywords.match("blinkit")?.first)
     }
 
+    /**
+     * A category behind Pro that the categoriser can reach anyway is not behind Pro: it lands on a
+     * free user's transactions by itself, which unlocks it for them and makes the paywall wrong.
+     * This is why Travel, House Expense and Vehicle Expense sit in the default set.
+     */
+    @Test
+    fun `no extended category can be reached by a keyword rule`() {
+        val reachable = MerchantKeywords.rules.keys.filter { it.isExtended }
+
+        assertEquals(
+            "These are sold as Pro but the categoriser assigns them on its own. Either drop the " +
+                "keyword rules or move them into Category.Default.",
+            emptyList<Category>(),
+            reachable,
+        )
+    }
+
     @Test
     fun `normalises merchant keys`() {
         assertEquals("swiggy", Categorizer.merchantKey("Swiggy Private Limited"))

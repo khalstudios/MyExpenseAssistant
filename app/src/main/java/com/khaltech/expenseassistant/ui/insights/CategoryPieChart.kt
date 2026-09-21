@@ -47,6 +47,12 @@ data class PieSlice(
     val transactionCount: Int = 0,
 )
 
+/**
+ * How many bars the ranked chart draws. Whatever it leaves out is what the detailed breakdown is
+ * for, so the two read this rather than each guessing at the other's cut-off.
+ */
+const val RankedBarCount = 8
+
 @Composable
 fun CategoryRankedBarChart(
     slices: List<PieSlice>,
@@ -54,7 +60,7 @@ fun CategoryRankedBarChart(
     onOpenCategory: (Category) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val topSlices = slices.take(8)
+    val topSlices = slices.take(RankedBarCount)
     val maxFraction = topSlices.maxOfOrNull { it.fraction }?.coerceAtLeast(0.01f) ?: 1f
 
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {

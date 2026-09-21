@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Sell
@@ -46,6 +47,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -68,6 +70,8 @@ import com.khaltech.expenseassistant.ui.IncomeColor
 import com.khaltech.expenseassistant.ui.SpendColor
 import com.khaltech.expenseassistant.ui.formatShortDate
 import com.khaltech.expenseassistant.ui.formatTimeOnly
+import com.khaltech.expenseassistant.ui.pro.FreeTagLimit
+import com.khaltech.expenseassistant.ui.pro.LocalPro
 import com.khaltech.expenseassistant.ui.rememberHeroGradient
 
 /**
@@ -320,9 +324,19 @@ internal fun TagsCard(
     onOpenTag: ((String) -> Unit)? = null,
     showEmptyHint: Boolean = false,
 ) {
+    val pro = LocalPro.current
     var newTag by remember { mutableStateOf("") }
     val typed = newTag.trim().removePrefix("#")
     val unused = suggestions.filter { s -> tags.none { it.equals(s, ignoreCase = true) } }
+
+    // Tags the user already has, plus any created on this transaction and not yet saved, so the
+    // count does not jump once the screen is left. Reusing an existing tag is always free; the cap
+    // only ever refuses the next brand-new name.
+    val known = remember(suggestions) { suggestions.mapTo(mutableSetOf()) { it.lowercase() } }
+    val createdHere = tags.map { it.lowercase() }.filterNot { it in known }.distinct()
+    val tagsOwned = known.size + createdHere.size
+    val isNewTag = typed.isNotEmpty() && typed.lowercase() !in known && typed.lowercase() !in createdHere
+    val atFreeLimit = !pro.isPro && tagsOwned >= FreeTagLimit
     // Idle, the repository already hands these over most-used first, so the head of the list is the
     // relevant part. Typing narrows to what starts with it, then falls back to anything containing it.
     val offered = if (typed.isEmpty()) {
@@ -332,10 +346,14 @@ internal fun TagsCard(
         (starts + rest.filter { it.contains(typed, ignoreCase = true) }).take(MATCHING_TAG_SUGGESTIONS)
     }
     val addTag = {
-        if (typed.isNotEmpty() && tags.none { it.equals(typed, ignoreCase = true) }) {
-            onTagsChange(tags + typed)
+        if (isNewTag && atFreeLimit) {
+            pro.onUpgrade()
+        } else {
+            if (typed.isNotEmpty() && tags.none { it.equals(typed, ignoreCase = true) }) {
+                onTagsChange(tags + typed)
+            }
+            newTag = ""
         }
-        newTag = ""
     }
 
     FormCard {
@@ -400,7 +418,9 @@ internal fun TagsCard(
                     }
                 }
             }
-            if (typed.isNotEmpty() && offered.isEmpty()) {
+            if (isNewTag && atFreeLimit) {
+                TagLimitNotice(tagsOwned, pro.onUpgrade)
+            } else if (typed.isNotEmpty() && offered.isEmpty()) {
                 Text(
                     "No tag matches “$typed” — add it as a new one.",
                     style = MaterialTheme.typography.bodySmall,
@@ -475,6 +495,48 @@ private fun TagHint() {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
             )
+        }
+    }
+}
+
+/**
+ * Says why the new tag will not be created, in the same tinted shape as [TagHint] so it reads as
+ * part of the card rather than an error thrown over it.
+ *
+ * It names the count the user has reached, because "5 of 5" is a fact they can check, where "you
+ * have too many tags" is an accusation. The tags they already have keep working.
+ */
+@Composable
+private fun TagLimitNotice(owned: Int, onUpgrade: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(12.dp))
+            .clickable(onClick = onUpgrade)
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            Icons.Filled.Lock,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+            modifier = Modifier.size(18.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                "$owned of $FreeTagLimit tags used",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            Text(
+                "Keep using the tags you have, or unlock Pro to make as many as you like.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            TextButton(onClick = onUpgrade, contentPadding = PaddingValues(0.dp)) {
+                Text("Unlock Pro")
+            }
         }
     }
 }

@@ -14,6 +14,7 @@ import com.khaltech.expenseassistant.data.model.PaymentMode
 import com.khaltech.expenseassistant.data.model.TransactionEntity
 import com.khaltech.expenseassistant.data.repo.tagUsageOf
 import com.khaltech.expenseassistant.di.ServiceLocator
+import com.khaltech.expenseassistant.recurring.Cadence
 import com.khaltech.expenseassistant.recurring.RecurringDetector
 import com.khaltech.expenseassistant.recurring.RecurringExpense
 import com.khaltech.expenseassistant.ui.detail.TransactionEdits
@@ -68,6 +69,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repository = ServiceLocator.repository(app)
     private val budgetRepository = ServiceLocator.budgetRepository(app)
+    private val recurringPlanRepository = ServiceLocator.recurringPlanRepository(app)
 
     private val _period = MutableStateFlow(PeriodSelection.now(AnalyticsRange.MONTH))
     val period: StateFlow<PeriodSelection> = _period
@@ -219,13 +221,57 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val recurring: StateFlow<List<RecurringExpense>> =
-        repository.observeSince(sixMonthsAgo())
-            .map { RecurringDetector.detect(it) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    /**
+     * What the detector found and what the user entered, as one list, dearest first.
+     *
+     * A manual entry wins over a detected one for the same merchant: the user stating the amount and
+     * the cadence outright is better evidence than three payments that happened to line up.
+     */
+    val recurring: StateFlow<List<RecurringExpense>> = combine(
+        repository.observeSince(sixMonthsAgo()),
+        recurringPlanRepository.observeDismissals(),
+        recurringPlanRepository.observeAll(),
+    ) { transactions, dismissals, manual ->
+        val detected = RecurringDetector.detect(transactions, dismissals)
+        val claimed = manual.mapTo(mutableSetOf()) { it.merchantKey }
+        (manual + detected.filterNot { it.merchantKey in claimed })
+            .sortedByDescending { it.typicalAmountMinor }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun saveRecurringPlan(
+        id: Long = 0,
+        merchant: String,
+        category: Category,
+        amountMinor: Long,
+        cadence: Cadence,
+        nextDueAt: Long,
+    ) = viewModelScope.launch {
+        recurringPlanRepository.save(id, merchant, category, amountMinor, cadence, nextDueAt)
+    }
+
+    /** Removes the user's own entry when there is one, and stops detection re-finding the merchant. */
+    fun deleteRecurring(manualId: Long?, merchantKey: String) = viewModelScope.launch {
+        recurringPlanRepository.delete(manualId, merchantKey)
+    }
 
     val tagSuggestions: StateFlow<List<String>> = repository.observeTagSuggestions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Extended categories this user's data already mentions, whether on a transaction or on a
+     * budget they set. Whatever they are already filing money under stays theirs to pick.
+     *
+     * Budgets are included because a limit can outlive the last transaction under it, and a budget
+     * the user cannot file anything against would be a dead row on their budget screen.
+     */
+    val categoriesInUse: StateFlow<Set<Category>> = combine(
+        repository.observeAll(),
+        budgetRepository.observeAll(),
+    ) { transactions, budgets ->
+        val fromTransactions = transactions.map { it.category }
+        val fromBudgets = budgets.map { Category.fromName(it.categoryKey) }
+        (fromTransactions + fromBudgets).filterTo(mutableSetOf()) { it.isExtended }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     val customCategories: StateFlow<List<com.khaltech.expenseassistant.data.repo.CustomCategoryOption>> =
         repository.observeCustomCategorySuggestions()

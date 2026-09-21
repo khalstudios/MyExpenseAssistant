@@ -41,9 +41,6 @@ import com.khaltech.expenseassistant.ui.DayGroupCard
 import com.khaltech.expenseassistant.ui.IncomeColor
 import com.khaltech.expenseassistant.ui.SpendColor
 import com.khaltech.expenseassistant.ui.formatMinor
-import com.khaltech.expenseassistant.ui.pro.FreePreviewCount
-import com.khaltech.expenseassistant.ui.pro.LocalPro
-import com.khaltech.expenseassistant.ui.pro.SeeAllProCard
 import com.khaltech.expenseassistant.ui.rememberHeroGradient
 import com.khaltech.expenseassistant.ui.startOfDay
 
@@ -66,13 +63,10 @@ fun CategoryScreen(
     val spentMinor = debits.sumOf { it.amountMinor }
     val incomeMinor = credits.sumOf { it.amountMinor }
 
-    // The totals above are always the real ones for the whole category. Without Pro it is the
-    // itemised list that is cut short, so the number on screen is never a number we invented.
-    val pro = LocalPro.current
-    val visible = if (pro.isPro) transactions else transactions.take(FreePreviewCount)
-    val hidden = transactions.size - visible.size
-
-    val days = visible.groupBy { startOfDay(it.occurredAt) }
+    // Every transaction, for everyone. The totals above are the real ones for the whole category,
+    // and a list that stopped short of them would be the app refusing to say where its own number
+    // came from. Finding that out is the job; it is not the thing to charge for.
+    val days = transactions.groupBy { startOfDay(it.occurredAt) }
         .toList()
         .sortedByDescending { it.first }
 
@@ -139,17 +133,6 @@ fun CategoryScreen(
                 )
             }
 
-            if (hidden > 0) {
-                item {
-                    SeeAllProCard(
-                        total = transactions.size,
-                        hidden = hidden,
-                        where = "in this category",
-                        explanation = "Pro shows every transaction behind a category, not just the latest few.",
-                        onUpgrade = pro.onUpgrade,
-                    )
-                }
-            }
         }
     }
 

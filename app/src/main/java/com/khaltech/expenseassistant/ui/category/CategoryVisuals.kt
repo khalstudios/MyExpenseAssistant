@@ -36,6 +36,17 @@ import com.khaltech.expenseassistant.data.model.TransactionEntity
 /** User-chosen icon overrides, keyed by Category enum name; provided once near the app root. */
 val LocalCategoryIconOverrides = compositionLocalOf<Map<String, String>> { emptyMap() }
 
+/**
+ * Extended categories this user's data already mentions, provided once near the app root.
+ *
+ * A category is offered to whoever is already filing money under it, entitlement or not. Someone
+ * who has been using Travel since before it moved behind Pro would otherwise open the picker to
+ * find the category on their own transactions missing from the list they can choose — the app
+ * disowning its own history. Empty is the safe default: it offers nothing extra, rather than
+ * quietly offering everything if a provider is ever missed.
+ */
+val LocalCategoriesInUse = compositionLocalOf<Set<Category>> { emptySet() }
+
 val Category.icon: ImageVector
     get() = when (this) {
         Category.FOOD_AND_DRINK -> Icons.Filled.Restaurant

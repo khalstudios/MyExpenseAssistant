@@ -10,6 +10,7 @@ import com.khaltech.expenseassistant.data.prefs.CategoryIconStore
 import com.khaltech.expenseassistant.data.prefs.UserPreferences
 import com.khaltech.expenseassistant.data.repo.BudgetRepository
 import com.khaltech.expenseassistant.data.repo.ContactResolver
+import com.khaltech.expenseassistant.data.repo.RecurringPlanRepository
 import com.khaltech.expenseassistant.data.repo.TransactionRepository
 import com.khaltech.expenseassistant.notify.BudgetNotifier
 import com.khaltech.expenseassistant.notify.TransactionNotifier
@@ -18,6 +19,7 @@ object ServiceLocator {
 
     @Volatile private var repository: TransactionRepository? = null
     @Volatile private var budgets: BudgetRepository? = null
+    @Volatile private var recurringPlans: RecurringPlanRepository? = null
     @Volatile private var preferences: UserPreferences? = null
     @Volatile private var categoryIcons: CategoryIconStore? = null
     @Volatile private var backupArchive: BackupArchive? = null
@@ -44,6 +46,12 @@ object ServiceLocator {
 
     fun budgetRepository(context: Context): BudgetRepository = budgets ?: synchronized(this) {
         budgets ?: BudgetRepository(AppDatabase.get(context).budgetDao()).also { budgets = it }
+    }
+
+    fun recurringPlanRepository(context: Context): RecurringPlanRepository = recurringPlans ?: synchronized(this) {
+        recurringPlans ?: AppDatabase.get(context).let { db ->
+            RecurringPlanRepository(db.recurringPlanDao(), db.recurringDismissalDao())
+        }.also { recurringPlans = it }
     }
 
     fun userPreferences(context: Context): UserPreferences = preferences ?: synchronized(this) {

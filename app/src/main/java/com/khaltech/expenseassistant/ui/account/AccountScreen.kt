@@ -3,8 +3,8 @@ package com.khaltech.expenseassistant.ui.account
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -59,6 +59,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -202,66 +203,17 @@ fun AccountScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // Without this the paywall is only reachable by walking into a locked feature, which
+            // leaves someone who already decided to buy with nowhere to do it. First on the screen
+            // so it is seen rather than scrolled past.
+            ProNotice(isPro = pro.isPro, onUpgrade = pro.onUpgrade)
+
             ProfileHeader(profile) { editingProfile = true }
 
-            // Without this the paywall is only reachable by walking into a locked feature, which
-            // leaves someone who already decided to buy with nowhere to do it.
-            SectionCard("Pro") {
-                SettingRow(
-                    icon = Icons.Filled.WorkspacePremium,
-                    title = if (pro.isPro) "Pro is active" else "Get Pro",
-                    subtitle = if (pro.isPro) {
-                        "Thank you. Every Pro feature is unlocked on this phone."
-                    } else {
-                        "Category drill-downs, tag analytics, recurring payments, automatic backups"
-                    },
-                    actionLabel = if (pro.isPro) null else "See what's in it",
-                    onClick = { if (!pro.isPro) pro.onUpgrade() },
-                )
-            }
-
-            SectionCard("Planning") {
-                SettingRow(
-                    icon = Icons.Filled.Savings,
-                    title = "Monthly budgets",
-                    subtitle = "Set limits overall and per category",
-                    onClick = onOpenBudgets,
-                )
-                SettingRow(
-                    icon = Icons.Filled.RateReview,
-                    title = "Needs review",
-                    subtitle = "Transactions we couldn't categorise confidently",
-                    onClick = onOpenNeedsReview,
-                )
-            }
-
-            SectionCard("Capture") {
-                SettingRow(
-                    icon = Icons.Filled.Notifications,
-                    title = "Notification access",
-                    subtitle = if (notificationAccess) "Enabled" else "Disabled",
-                    onClick = { pendingDisclosure = CaptureAccess.NOTIFICATIONS },
-                )
-                SettingRow(
-                    icon = Icons.Filled.Contacts,
-                    title = "Contact names",
-                    subtitle = if (contactsAccess) "Enabled" else "Match payments to your phone contacts",
-                    onClick = { pendingDisclosure = CaptureAccess.CONTACTS },
-                )
-            }
-
-            SectionCard("Your data") {
-                InfoRow("Transactions recorded", count.toString())
-                InfoRow("Tracking since", earliest?.let { formatTimestamp(it) } ?: "No data yet")
-                InfoRow("Stored", "On this device only")
-                InfoRow("App version", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
-                SettingRow(
-                    icon = Icons.Filled.Download,
-                    title = "Export to CSV",
-                    subtitle = "Save every transaction as a spreadsheet file",
-                    actionLabel = "Export",
-                    onClick = { exportLauncher.launch(viewModel.suggestedFileName()) },
-                )
+            // Backups get their own card rather than sitting at the bottom of "Your data". This is
+            // the only copy of the user's records, so how to make one and how to bring one back
+            // should be findable without reading past the app version number.
+            SectionCard("Backup") {
                 SettingRow(
                     icon = Icons.Filled.Backup,
                     title = "Back up your data",
@@ -311,6 +263,50 @@ fun AccountScreen(
                         if (backups.isEmpty()) restoreLauncher.launch(arrayOf("application/json", "text/json"))
                         else choosingBackup = true
                     },
+                )
+            }
+
+            SectionCard("Planning") {
+                SettingRow(
+                    icon = Icons.Filled.Savings,
+                    title = "Monthly budgets",
+                    subtitle = "Set limits overall and per category",
+                    onClick = onOpenBudgets,
+                )
+                SettingRow(
+                    icon = Icons.Filled.RateReview,
+                    title = "Needs review",
+                    subtitle = "Transactions we couldn't categorise confidently",
+                    onClick = onOpenNeedsReview,
+                )
+            }
+
+            SectionCard("Capture") {
+                SettingRow(
+                    icon = Icons.Filled.Notifications,
+                    title = "Notification access",
+                    subtitle = if (notificationAccess) "Enabled" else "Disabled",
+                    onClick = { pendingDisclosure = CaptureAccess.NOTIFICATIONS },
+                )
+                SettingRow(
+                    icon = Icons.Filled.Contacts,
+                    title = "Contact names",
+                    subtitle = if (contactsAccess) "Enabled" else "Match payments to your phone contacts",
+                    onClick = { pendingDisclosure = CaptureAccess.CONTACTS },
+                )
+            }
+
+            SectionCard("Your data") {
+                InfoRow("Transactions recorded", count.toString())
+                InfoRow("Tracking since", earliest?.let { formatTimestamp(it) } ?: "No data yet")
+                InfoRow("Stored", "On this device only")
+                InfoRow("App version", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                SettingRow(
+                    icon = Icons.Filled.Download,
+                    title = "Export to CSV",
+                    subtitle = "Save every transaction as a spreadsheet file",
+                    actionLabel = "Export",
+                    onClick = { exportLauncher.launch(viewModel.suggestedFileName()) },
                 )
                 SettingRow(
                     icon = Icons.Filled.DeleteForever,
@@ -663,6 +659,70 @@ private fun ProfileDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/**
+ * Pro's state as a notice rather than a card.
+ *
+ * Every other block on this screen is a titled card of settings, which is the wrong shape for this:
+ * it is not a place to change something, it is one thing being announced. A flat tinted band with
+ * no elevation and no gradient reads as a banner and stops the offer from looking like a row the
+ * user has already dealt with.
+ *
+ * The light teal of the primary container, with its paired on-container token for the ink, so the
+ * band keeps its contrast in light and dark without a colour being picked by eye. Flat and filled
+ * rather than carded: no elevation, no gradient, no section title, so it reads as an announcement
+ * next to the settings cards around it.
+ *
+ * One colour for both states on purpose. The wording and the trailing chevron say which state it
+ * is, so the band only has to read as a notice rather than as good or bad news.
+ */
+@Composable
+private fun ProNotice(isPro: Boolean, onUpgrade: () -> Unit) {
+    val onContainer = MaterialTheme.colorScheme.onPrimaryContainer
+
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            // Active Pro has nothing to tap, so it is not offered as a target at all.
+            .then(if (isPro) Modifier else Modifier.clickable(onClick = onUpgrade))
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Icon(
+            Icons.Filled.WorkspacePremium,
+            contentDescription = null,
+            tint = onContainer,
+            modifier = Modifier.size(28.dp),
+        )
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                if (isPro) "Pro is active" else "Get Pro",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = onContainer,
+            )
+            Text(
+                if (isPro) {
+                    "Thank you. Every Pro feature is unlocked on this phone."
+                } else {
+                    "Your own categories, unlimited tags, recurring payments, automatic backups"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = onContainer,
+            )
+        }
+        if (!isPro) {
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "See what's in Pro",
+                tint = onContainer,
+            )
+        }
+    }
 }
 
 @Composable

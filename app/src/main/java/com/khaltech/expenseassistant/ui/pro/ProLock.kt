@@ -114,61 +114,6 @@ private fun UnlockPrompt(title: String, subtitle: String, onUpgrade: () -> Unit)
     }
 }
 
-/**
- * How much of an itemised list a free user sees, wherever a screen drills into one slice of their
- * spending. Enough to recognise their own transactions and judge whether the rest is worth paying
- * for; not enough to be the feature. One constant, so no drill-down quietly becomes the cheap way in.
- */
-const val FreePreviewCount = 3
-
-/**
- * Closes a list that [FreePreviewCount] cut short, and offers the rest.
- *
- * [where] names the slice in the user's words — "in this category", "tagged #travel" — so each screen
- * keeps its own voice while the offer itself stays identical everywhere it appears.
- *
- * The button counts the whole list, not the part being withheld: "See all 23 transactions" is what
- * the user is being offered, where "See all 20" would be counting from a number they never saw.
- * The card only appears once something is actually hidden, so [total] is always plural here.
- */
-@Composable
-fun SeeAllProCard(
-    total: Int,
-    hidden: Int,
-    where: String,
-    explanation: String,
-    onUpgrade: () -> Unit,
-) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onUpgrade)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Filled.Lock,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    "  $hidden more $where",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-            Text(
-                explanation,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Button(onClick = onUpgrade) { Text("See all $total transactions · Pro") }
-        }
-    }
-}
-
 /** A small "PRO" marker for rows and headers that are locked but not covered. */
 @Composable
 fun ProBadge(modifier: Modifier = Modifier) {

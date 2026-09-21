@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.repo.CustomCategoryOption
 import com.khaltech.expenseassistant.di.ServiceLocator
+import com.khaltech.expenseassistant.ui.pro.LocalPro
 
 private val CustomCategorySwatches = listOf(
     Color(0xFFF06292), Color(0xFF9575CD), Color(0xFF4FC3F7), Color(0xFF4DB6AC),
@@ -90,12 +92,22 @@ fun CategoryPickerSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
             )
+            // The default set, plus every extended category this user is already filing under —
+            // and, where the transaction being edited sits in one, that one too, so the picker can
+            // always show what it is currently set to.
+            val pro = LocalPro.current
+            val inUse = LocalCategoriesInUse.current
+            val offered = Category.Default + Category.Extended.filter {
+                pro.isPro || it in inUse || it == selected
+            }
+            val locked = Category.Extended - offered.toSet()
+
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Category.entries.forEach { category ->
+                offered.forEach { category ->
                     CategoryTile(
                         category = category,
                         isSelected = selectedCustomName == null && category == selected,
@@ -116,6 +128,7 @@ fun CategoryPickerSheet(
                 selectedCustomName = selectedCustomName,
                 onSelectCustom = onSelectCustom,
                 onAddNew = { creating = true },
+                suggestions = locked,
             )
         }
     }
@@ -211,6 +224,8 @@ private fun CustomCategoryRow(
     selectedCustomName: String?,
     onSelectCustom: (name: String, colorHex: String, iconKey: String) -> Unit,
     onAddNew: () -> Unit,
+    /** Extended categories this user has not unlocked, offered here rather than in the grid above. */
+    suggestions: List<Category> = emptyList(),
 ) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         customCategories.forEach { option ->
@@ -228,11 +243,32 @@ private fun CustomCategoryRow(
                 },
             )
         }
+        // Categories the user already made keep working whatever their entitlement, so a lapsed or
+        // restored account never finds its own filing system disabled. Only making a new one is Pro.
+        val pro = LocalPro.current
         AssistChip(
-            onClick = onAddNew,
+            onClick = { if (pro.isPro) onAddNew() else pro.onUpgrade() },
             label = { Text("New category") },
-            leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp)) },
+            leadingIcon = {
+                Icon(
+                    if (pro.isPro) Icons.Filled.Add else Icons.Filled.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+            },
         )
+        // Ready-made rather than invented: most people reaching for a new category want one of
+        // these, and picking it here files them under the real category, with its own icon and
+        // colour, instead of a look-alike of their own that analytics would count separately.
+        suggestions.forEach { category ->
+            AssistChip(
+                onClick = pro.onUpgrade,
+                label = { Text(category.displayName) },
+                leadingIcon = {
+                    Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
+                },
+            )
+        }
     }
 }
 

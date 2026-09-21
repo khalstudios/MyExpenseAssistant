@@ -10,6 +10,8 @@ import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.MerchantRule
 import com.khaltech.expenseassistant.data.model.PaymentMode
+import com.khaltech.expenseassistant.data.model.RecurringDismissal
+import com.khaltech.expenseassistant.data.model.RecurringPlanEntity
 import com.khaltech.expenseassistant.data.model.TransactionEntity
 import com.khaltech.expenseassistant.data.model.TransactionType
 import com.khaltech.expenseassistant.data.prefs.CategoryIconStore
@@ -31,6 +33,8 @@ class BackupArchive(
         put("transactions", JSONArray(database.transactionDao().allOnce().map(::transactionToJson)))
         put("merchantRules", JSONArray(database.merchantRuleDao().all().map(::ruleToJson)))
         put("budgets", JSONArray(database.budgetDao().allOnce().map(::budgetToJson)))
+        put("recurringPlans", JSONArray(database.recurringPlanDao().allOnce().map(::recurringPlanToJson)))
+        put("recurringDismissals", JSONArray(database.recurringDismissalDao().allOnce().map(::dismissalToJson)))
         put("profile", profileToJson(preferences.load()))
         put("categoryIcons", JSONObject(categoryIcons.overrides.value))
     }.toString(2)
@@ -45,6 +49,8 @@ class BackupArchive(
         // budgets' primary key.
         val budgets = archive.requiredArray("budgets").map(::budgetFromJson)
             .distinctBy { it.categoryKey to it.period }
+        val recurringPlans = archive.optionalArray("recurringPlans")?.map(::recurringPlanFromJson).orEmpty()
+        val dismissals = archive.optionalArray("recurringDismissals")?.map(::dismissalFromJson).orEmpty()
         val profile = profileFromJson(archive.getJSONObject("profile"))
         val icons = archive.getJSONObject("categoryIcons").keys().asSequence()
             .associateWith { key -> archive.getJSONObject("categoryIcons").getString(key) }
@@ -53,9 +59,13 @@ class BackupArchive(
             database.transactionDao().deleteAll()
             database.merchantRuleDao().deleteAll()
             database.budgetDao().deleteAll()
+            database.recurringPlanDao().deleteAll()
+            database.recurringDismissalDao().deleteAll()
             database.transactionDao().insertAll(transactions)
             database.merchantRuleDao().upsertAll(rules)
             database.budgetDao().upsertAll(budgets)
+            database.recurringPlanDao().upsertAll(recurringPlans)
+            database.recurringDismissalDao().upsertAll(dismissals)
         }
         preferences.save(profile)
         categoryIcons.replaceAll(icons)
@@ -147,6 +157,27 @@ class BackupArchive(
         )
     }
 
+    private fun recurringPlanToJson(plan: RecurringPlanEntity) = JSONObject().apply {
+        put("id", plan.id); put("merchant", plan.merchant); put("category", plan.category.name)
+        put("amountMinor", plan.amountMinor); put("cadence", plan.cadence)
+        put("nextDueAt", plan.nextDueAt); put("createdAt", plan.createdAt)
+    }
+
+    private fun recurringPlanFromJson(json: JSONObject) = RecurringPlanEntity(
+        id = json.getLong("id"), merchant = json.getString("merchant"),
+        category = Category.fromName(json.getString("category")),
+        amountMinor = json.getLong("amountMinor"), cadence = json.getString("cadence"),
+        nextDueAt = json.getLong("nextDueAt"), createdAt = json.getLong("createdAt"),
+    )
+
+    private fun dismissalToJson(dismissal: RecurringDismissal) = JSONObject().apply {
+        put("merchantKey", dismissal.merchantKey); put("dismissedAt", dismissal.dismissedAt)
+    }
+
+    private fun dismissalFromJson(json: JSONObject) = RecurringDismissal(
+        merchantKey = json.getString("merchantKey"), dismissedAt = json.getLong("dismissedAt"),
+    )
+
     private fun profileToJson(profile: UserProfile) = JSONObject().apply {
         put("name", profile.name); put("email", profile.email); put("monthlyIncomeMinor", profile.monthlyIncomeMinor)
     }
@@ -157,7 +188,10 @@ class BackupArchive(
 
     private fun JSONObject.requiredArray(key: String): JSONArray = getJSONArray(key)
 
-    /** Backups written before merchant rules learned tags simply leave the key out. */
+    /**
+     * Backups written before merchant rules learned tags, or before manual recurring payments
+     * existed, simply leave the key out.
+     */
     private fun JSONObject.optionalArray(key: String): JSONArray? = optJSONArray(key)
 
     private fun <T> JSONArray.map(transform: (JSONObject) -> T): List<T> =

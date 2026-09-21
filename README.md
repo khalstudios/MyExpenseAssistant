@@ -67,11 +67,25 @@ In **Account** under **Capture**, enable *Contact names* to let the app match th
 
 ### Backups
 
-In **Account** under **Your data**, select **Back up your data**. A dialog explains what happens next, then Android's picker asks only for a location — Google Drive, this device, or any other storage provider. The app creates a folder named `Kahan Gaya Paisa` there and saves the dated backup file inside it. That location is remembered, so later backups go straight into the same folder without opening the picker again; **Change location** in the dialog picks a different one. The backup contains your transactions, budgets, learned merchant categories, profile, and category icon choices. Files are named `18-09-2026-kahan-gaya-paisa-backup-1430.json`: date, app name, then the time, so two backups on the same day do not collide.
+In **Account** under **Your data**, select **Back up your data**. A dialog explains what happens next, then Android's picker asks only for a location — Google Drive, this device, or any other storage provider. The app creates a folder named `Kahan Gaya Paisa` there and saves the dated backup file inside it. That location is remembered, so later backups go straight into the same folder without opening the picker again; **Change location** in the dialog picks a different one. The backup contains your transactions, budgets, recurring payments you added, learned merchant categories, profile, and category icon choices. Files are named `18-09-2026-kahan-gaya-paisa-backup-1430.json`: date, app name, then the time, so two backups on the same day do not collide.
 
 **Restore from backup** lists the backups already in that folder, newest first, so restoring is a tap; **Pick a file instead** falls back to Android's file picker for a backup kept somewhere else. Restoring replaces those items currently stored on the device, so make a current backup first when needed.
 
 You can also enable **Automatic backups** once, choose daily, weekly, every 2 weeks, or monthly, then pick a location the same way. The app retains access only to the location you selected, and writes future dated backups into its own `Kahan Gaya Paisa` folder there without asking again. Android may delay scheduled work for battery, storage, or connectivity reasons, so backups run approximately at the selected interval. Turn off automatic backups at any time from Account. The app does not store Google account credentials.
+
+## Pro
+
+Free covers everything you record and everything you can read about it: capture, categorising, every transaction behind a category or tag, all insights, budgets, tagging with the tag analytics card, manual backup and CSV. Pro, a one-time unlock or a yearly plan, is room to organise plus the analysis on top:
+
+- **Your own categories**, named and coloured how you like.
+- **Nineteen categories are offered by default**; five narrower ones — Friends/Family, Personal Care, Hobbies, Insurance, Gifts/Donation — are offered with Pro, as one-tap suggestions beside "New category".
+- **More than five tags of your own**, all of them charted. A free user's analytics card charts up to five.
+- **Recurring payments**: the ones found from three payments at a steady interval, and your own entries for rent, subscriptions and anything paid outside the phone.
+- **Automatic backups** on a schedule.
+
+Nothing is taken away by this split, and auto-categorisation is never weakened to sell a list. The five Pro categories are precisely the ones the categoriser never assigns on its own, so nothing is being withheld that would otherwise have arrived by itself — a category the keyword rules can match, such as Travel or Vehicle Expense, stays in the default set. Any category already on your transactions or budgets remains available to pick whatever your entitlement, and custom categories you created keep working if Pro lapses; only creating a new one is gated.
+
+Everything gated lives behind [ProLock.kt](app/src/main/java/com/khaltech/expenseassistant/ui/pro/ProLock.kt) and [ProState.kt](app/src/main/java/com/khaltech/expenseassistant/ui/pro/ProState.kt), so the pitch and the limits are defined once.
 
 ## Privacy
 
