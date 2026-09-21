@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AlertDialog
@@ -38,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,6 +73,8 @@ fun CategoryPickerSheet(
 ) {
     var creating by remember { mutableStateOf(false) }
     var editingIconFor by remember { mutableStateOf<Category?>(null) }
+    val customActions = LocalCustomCategoryActions.current
+    var confirmingDelete by remember { mutableStateOf<CustomCategoryOption?>(null) }
     val context = LocalContext.current
     val iconStore = remember { ServiceLocator.categoryIconStore(context) }
     val iconOverrides by iconStore.overrides.collectAsState()
@@ -129,6 +133,7 @@ fun CategoryPickerSheet(
                 onSelectCustom = onSelectCustom,
                 onAddNew = { creating = true },
                 suggestions = locked,
+                onRemoveCustom = customActions?.let { { option -> confirmingDelete = option } },
             )
         }
     }
@@ -141,6 +146,20 @@ fun CategoryPickerSheet(
             },
             onDismiss = { creating = false },
         )
+    }
+
+    confirmingDelete?.let { option ->
+        if (customActions != null) {
+            DeleteCustomCategoryDialog(
+                option = option,
+                countTransactions = customActions.countTransactions,
+                onConfirm = {
+                    customActions.delete(option.name)
+                    confirmingDelete = null
+                },
+                onDismiss = { confirmingDelete = null },
+            )
+        }
     }
 
     editingIconFor?.let { category ->
@@ -159,6 +178,36 @@ fun CategoryPickerSheet(
             onDismiss = { editingIconFor = null },
         )
     }
+}
+
+@Composable
+private fun DeleteCustomCategoryDialog(
+    option: CustomCategoryOption,
+    countTransactions: suspend (String) -> Int,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // Null until counted, so the dialog never briefly claims the category holds nothing.
+    val count by produceState<Int?>(null, option.name) { value = countTransactions(option.name) }
+    val fallback = Category.OTHER.displayName
+    val consequence = when (val n = count) {
+        null -> ""
+        1 -> " The 1 transaction filed under it will move to $fallback."
+        else -> " The $n transactions filed under it will move to $fallback."
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete \"${option.name}\"?") },
+        text = { Text("This removes the category from every transaction, not just this one.$consequence") },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = count != null) {
+                Text("Delete", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
 }
 
 @Composable
@@ -226,6 +275,8 @@ private fun CustomCategoryRow(
     onAddNew: () -> Unit,
     /** Extended categories this user has not unlocked, offered here rather than in the grid above. */
     suggestions: List<Category> = emptyList(),
+    /** Null where nothing can act on a removal, which leaves the chips without the affordance. */
+    onRemoveCustom: ((CustomCategoryOption) -> Unit)? = null,
 ) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         customCategories.forEach { option ->
@@ -240,6 +291,19 @@ private fun CustomCategoryRow(
                         tint = color,
                         modifier = Modifier.size(16.dp),
                     )
+                },
+                // The cross carries its own click, the way a tag chip's does, so tapping the body
+                // of the chip still means "use this one" rather than "get rid of it".
+                trailingIcon = onRemoveCustom?.let { remove ->
+                    {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Remove ${option.name}",
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable { remove(option) },
+                        )
+                    }
                 },
             )
         }

@@ -88,8 +88,10 @@ import com.khaltech.expenseassistant.recurring.RecurringExpense
 import com.khaltech.expenseassistant.ui.recurring.AddRecurringScreen
 import com.khaltech.expenseassistant.ui.tag.TagScreen
 import com.khaltech.expenseassistant.ui.category.CategoryScreen
+import com.khaltech.expenseassistant.ui.category.CustomCategoryActions
 import com.khaltech.expenseassistant.ui.category.LocalCategoriesInUse
 import com.khaltech.expenseassistant.ui.category.LocalCategoryIconOverrides
+import com.khaltech.expenseassistant.ui.category.LocalCustomCategoryActions
 import com.khaltech.expenseassistant.di.ServiceLocator
 import kotlinx.coroutines.delay
 import java.util.UUID
@@ -109,9 +111,16 @@ class MainActivity : ComponentActivity() {
                     // owner for both, so the picker's category list is read from one source.
                     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
                     val categoriesInUse by homeViewModel.categoriesInUse.collectAsStateWithLifecycle()
+                    val customCategoryActions = remember(homeViewModel) {
+                        CustomCategoryActions(
+                            countTransactions = homeViewModel::transactionsUnderCustomCategory,
+                            delete = { homeViewModel.deleteCustomCategory(it) },
+                        )
+                    }
                     CompositionLocalProvider(
                         LocalCategoryIconOverrides provides iconOverrides,
                         LocalCategoriesInUse provides categoriesInUse,
+                        LocalCustomCategoryActions provides customCategoryActions,
                     ) {
                         ProHost {
                             AppShell()

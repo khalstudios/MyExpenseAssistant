@@ -99,6 +99,22 @@ class TransactionRepository(
         seen.values.toList()
     }
 
+    /** How many transactions currently wear a custom category, so the user can be told before it goes. */
+    suspend fun countWithCustomCategory(name: String): Int =
+        transactionDao.countWithCustomCategory(name)
+
+    /**
+     * Removes a custom category, re-filing its transactions under [fallback].
+     *
+     * The category disappears from the picker as a consequence rather than by being deleted: the
+     * list is derived from what transactions carry, so once nothing carries the name it is gone.
+     * Nothing is deleted here except the label — every transaction, its amount, date and merchant,
+     * survives with a category it can be found under.
+     */
+    suspend fun deleteCustomCategory(name: String, fallback: Category = Category.OTHER) {
+        transactionDao.clearCustomCategory(name, fallback)
+    }
+
     suspend fun earliestTimestamp(): Long? = transactionDao.earliestTimestamp()
 
     suspend fun deleteAll() = transactionDao.deleteAll()

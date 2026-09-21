@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -46,6 +47,22 @@ val LocalCategoryIconOverrides = compositionLocalOf<Map<String, String>> { empty
  * quietly offering everything if a provider is ever missed.
  */
 val LocalCategoriesInUse = compositionLocalOf<Set<Category>> { emptySet() }
+
+/**
+ * Removing a category the user made, provided once near the app root.
+ *
+ * The picker appears on six screens and none of them owns this: a custom category belongs to the
+ * whole history rather than to the transaction that happens to be open. Null by default, which
+ * hides the affordance rather than offering a delete that would do nothing.
+ */
+@Immutable
+data class CustomCategoryActions(
+    /** Transactions currently filed under the name, for the confirmation before it goes. */
+    val countTransactions: suspend (String) -> Int,
+    val delete: (String) -> Unit,
+)
+
+val LocalCustomCategoryActions = compositionLocalOf<CustomCategoryActions?> { null }
 
 val Category.icon: ImageVector
     get() = when (this) {

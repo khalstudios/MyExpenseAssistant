@@ -277,6 +277,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         repository.observeCustomCategorySuggestions()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** How many transactions a custom category holds, for the confirmation that precedes deleting it. */
+    suspend fun transactionsUnderCustomCategory(name: String): Int =
+        repository.countWithCustomCategory(name)
+
+    /** Drops a custom category and re-files its transactions as Unknown. */
+    fun deleteCustomCategory(name: String) = viewModelScope.launch {
+        repository.deleteCustomCategory(name)
+    }
+
     fun setRange(range: AnalyticsRange) {
         _period.value = Periods.withRange(_period.value, range)
     }

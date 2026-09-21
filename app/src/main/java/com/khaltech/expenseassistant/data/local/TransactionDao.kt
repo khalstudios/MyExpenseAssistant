@@ -102,6 +102,30 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE referenceId = :referenceId LIMIT 1")
     suspend fun findByReference(referenceId: String): TransactionEntity?
 
+    /**
+     * Drops a category the user made, re-filing everything under it as [fallback].
+     *
+     * A custom category is not a row anywhere: it exists because transactions carry its name and
+     * look. Clearing those three columns is what deleting it means, and every transaction wearing
+     * it has to be given a real category in the same statement or it would be left naming a
+     * category that no longer exists.
+     *
+     * TRIM and NOCASE because the picker trims and lowercases names when it lists them, so "Gym",
+     * "gym" and "Gym " are one category there and must be one here too.
+     */
+    @Query(
+        """
+        UPDATE transactions
+        SET customCategoryName = NULL, customCategoryColor = NULL, customCategoryIcon = NULL,
+            category = :fallback
+        WHERE TRIM(customCategoryName) = TRIM(:name) COLLATE NOCASE
+        """
+    )
+    suspend fun clearCustomCategory(name: String, fallback: Category)
+
+    @Query("SELECT COUNT(*) FROM transactions WHERE TRIM(customCategoryName) = TRIM(:name) COLLATE NOCASE")
+    suspend fun countWithCustomCategory(name: String): Int
+
     @Query("UPDATE transactions SET category = :category, userCorrected = 1 WHERE id = :id")
     suspend fun setCategory(id: Long, category: Category)
 }
