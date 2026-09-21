@@ -132,9 +132,11 @@ fun HomeScreen(
     val shownDays = if (recentOnly) days.filter { it.first >= recentCutoff } else days
 
     val todayStart = startOfDay(System.currentTimeMillis())
+    // Biggest first: the card only has room for a few rows, and the ones worth that room are the
+    // ones that moved the day's total, not the ones that happened to be most recent.
     val todaySpending = state.transactions
         .filter { it.occurredAt >= todayStart && it.direction == Direction.DEBIT }
-        .sortedByDescending { it.occurredAt }
+        .sortedWith(bySizeThenRecency)
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -568,6 +570,13 @@ private fun SectionHeader(title: String, topPadding: androidx.compose.ui.unit.Dp
     )
 }
 
+/**
+ * A day's transactions, largest amount first, with the most recent breaking a tie. Within a single
+ * day the clock order carries little meaning, so the size of the spend is what the list leads with.
+ */
+private val bySizeThenRecency: Comparator<TransactionEntity> =
+    compareByDescending<TransactionEntity> { it.amountMinor }.thenByDescending { it.occurredAt }
+
 /** One card per day, matching how the reference app groups a day's spending together. */
 @Composable
 fun DayGroupCard(
@@ -580,7 +589,7 @@ fun DayGroupCard(
     val netMinor = transactions.sumOf {
         if (it.direction == Direction.DEBIT) -it.amountMinor else it.amountMinor
     }
-    val ordered = transactions.sortedByDescending { it.occurredAt }
+    val ordered = transactions.sortedWith(bySizeThenRecency)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
