@@ -243,28 +243,26 @@ class TransactionRepository(
             }
         }
 
+        // Same amount and direction close together, by when it happened or by when it reached us,
+        // is a second sighting unless the two name different accounts, banks or references.
         val window = TimeUnit.MINUTES.toMillis(DEDUPE_WINDOW_MINUTES)
-        val similar = transactionDao.findSimilar(
+        val captureWindow = TimeUnit.MINUTES.toMillis(CAPTURE_DEDUPE_WINDOW_MINUTES)
+        val now = System.currentTimeMillis()
+        val nearby = transactionDao.findSimilar(
             amountMinor = payment.amountMinor,
             direction = payment.direction.name,
             from = payment.occurredAt - window,
             to = payment.occurredAt + window,
-        )
-        if (similar != null) {
-            Log.d(TAG, "Skipping near-duplicate of transaction ${similar.id}")
-            return null
-        }
-
-        val captureWindow = TimeUnit.MINUTES.toMillis(CAPTURE_DEDUPE_WINDOW_MINUTES)
-        val now = System.currentTimeMillis()
-        val recentlyCaptured = transactionDao.findRecentlyCaptured(
+        ) + transactionDao.findRecentlyCaptured(
             amountMinor = payment.amountMinor,
             direction = payment.direction.name,
             from = now - captureWindow,
             to = now + captureWindow,
         )
-        if (recentlyCaptured != null) {
-            Log.d(TAG, "Skipping duplicate of ${recentlyCaptured.id}: same amount captured moments ago")
+        nearby.firstOrNull { !CaptureDedupe.isDistinct(it, payment) }?.let { existing ->
+            Log.d(TAG, "Skipping near-duplicate of transaction ${existing.id}")
+            val enriched = CaptureDedupe.withDetailsFrom(existing, payment)
+            if (enriched != existing) transactionDao.update(enriched)
             return null
         }
 
@@ -453,7 +451,9 @@ class TransactionRepository(
             "ref:$reference"
         } else {
             val bucket = payment.occurredAt / TimeUnit.MINUTES.toMillis(DEDUPE_WINDOW_MINUTES)
-            "amt:${payment.amountMinor}|dir:${payment.direction}|m:${Categorizer.merchantKey(payment.merchantRaw)}|t:$bucket"
+            // The account keeps two same-amount payments to one merchant from two accounts apart.
+            "amt:${payment.amountMinor}|dir:${payment.direction}|m:${Categorizer.merchantKey(payment.merchantRaw)}|t:$bucket" +
+                "|a:${payment.bankName.orEmpty()}:${payment.accountLast4.orEmpty()}"
         }
         return MessageDigest.getInstance("SHA-256")
             .digest(raw.toByteArray())

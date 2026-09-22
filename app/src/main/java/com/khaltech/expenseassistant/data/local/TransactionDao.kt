@@ -70,17 +70,19 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE dedupeKey = :key LIMIT 1")
     suspend fun findByDedupeKey(key: String): TransactionEntity?
 
-    /** Near-duplicate guard: same amount and direction captured within a short window. */
+    /**
+     * Near-duplicate candidates: same amount and direction within a short window. Every match, not
+     * just one, so a payment from another account in the same window can be told apart.
+     */
     @Query(
         """
         SELECT * FROM transactions
         WHERE amountMinor = :amountMinor
           AND direction = :direction
           AND occurredAt BETWEEN :from AND :to
-        LIMIT 1
         """
     )
-    suspend fun findSimilar(amountMinor: Long, direction: String, from: Long, to: Long): TransactionEntity?
+    suspend fun findSimilar(amountMinor: Long, direction: String, from: Long, to: Long): List<TransactionEntity>
 
     /**
      * Second dedupe pass keyed on when we *captured* the row rather than when the payment happened.
@@ -93,10 +95,9 @@ interface TransactionDao {
         WHERE amountMinor = :amountMinor
           AND direction = :direction
           AND createdAt BETWEEN :from AND :to
-        LIMIT 1
         """
     )
-    suspend fun findRecentlyCaptured(amountMinor: Long, direction: String, from: Long, to: Long): TransactionEntity?
+    suspend fun findRecentlyCaptured(amountMinor: Long, direction: String, from: Long, to: Long): List<TransactionEntity>
 
     /** Any earlier row carrying the same bank/UPI reference, whatever the amount or timing. */
     @Query("SELECT * FROM transactions WHERE referenceId = :referenceId LIMIT 1")
