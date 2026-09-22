@@ -46,10 +46,10 @@ val LocalPro = staticCompositionLocalOf { ProStatus(isPro = false, onUpgrade = {
 
 /** The pitch, kept in one place so the paywall and the store listing cannot drift apart. */
 val ProFeatures: List<String> = listOf(
-    "Unlimited categories of your own, plus House, Vehicle, Hobbies and more",
-    "House and vehicle payments filed automatically — garages, plumbers, servicing",
+    "Unlock more categories and create unlimited categories of your own",
     "As many tags of your own as you like, all charted",
     "Spot recurring payments, and add your own",
+    "Compare current spending momentum with each of the last six weeks/months/years",
     "Automatic backups on your schedule",
 )
 

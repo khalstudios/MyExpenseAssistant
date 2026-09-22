@@ -33,7 +33,7 @@ A message with no bank, account or UPI detail falls back to the general parser, 
 
 Categorisation is a layered classifier rather than a single lookup:
 
-1. **Learned rules** â every time you correct a category or rename a captured merchant, the normalised merchant key (`Swiggy Private Limited` â `swiggy`) is stored in `merchant_rules` and wins next time. A saved rename becomes the display name for future matching payments, and the tags you save are carried forward too; category rules have confidence `0.99`. Notes are never copied to later payments, and income transactions neither create nor use learned rules.
+1. **Learned rules** â every time you correct a category or rename a captured merchant, the normalised merchant key (`Swiggy Private Limited` â `swiggy`) is stored in `merchant_rules` and wins next time. A saved rename becomes the display name for future matching payments, and the tags you save are carried forward too; category rules have confidence `0.99`. Notes are never copied to later payments, and income transactions neither create nor use learned rules. **Profile > Organise > Merchants** lists everyone you have paid, most-paid first, grouped by the same merchant key, and opens every payment made to each.
 2. **Knowledge base** â ~250 merchant/keyword patterns across 15 categories, longest match first, checked against the merchant field before the raw text. Confidence `0.6â0.95`.
 3. **Heuristics** â credits default to income; payments to a personal VPA or a 1â3 word personal name become `Transfer to People`. Confidence `0.55â0.6`.
 
@@ -82,6 +82,7 @@ Free covers everything you record and everything you can read about it: capture,
 - **More than five tags of your own**, all of them charted. A free user's analytics card charts up to five.
 - **Recurring payments**: the ones found from three payments at a steady interval, and your own entries for rent, subscriptions and anything paid outside the phone.
 - **Automatic backups** on a schedule.
+- **Momentum comparisons**: the Momentum card on Insights can lay any of the six periods before this one over it, each as its own line and bars. Comparing with the one just before stays free.
 
 Nothing is taken away by this split, and auto-categorisation is never weakened to sell a list. The five Pro categories are precisely the ones the categoriser never assigns on its own, so nothing is being withheld that would otherwise have arrived by itself — a category the keyword rules can match, such as Travel or Vehicle Expense, stays in the default set. Any category already on your transactions or budgets remains available to pick whatever your entitlement, and custom categories you created keep working if Pro lapses; only creating a new one is gated.
 

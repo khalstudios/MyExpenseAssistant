@@ -91,6 +91,10 @@ import com.khaltech.expenseassistant.ui.tag.TagScreen
 import com.khaltech.expenseassistant.ui.category.CategoriesScreen
 import com.khaltech.expenseassistant.ui.category.CategoryScreen
 import com.khaltech.expenseassistant.ui.tag.TagsScreen
+import com.khaltech.expenseassistant.ui.merchant.MerchantScreen
+import com.khaltech.expenseassistant.ui.merchant.MerchantsScreen
+import com.khaltech.expenseassistant.data.repo.merchantKey
+import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.ui.category.CustomCategoryActions
 import com.khaltech.expenseassistant.ui.category.LocalCategoriesInUse
 import com.khaltech.expenseassistant.ui.category.LocalCategoryColorOverrides
@@ -161,6 +165,8 @@ private sealed interface Route {
     data object AllTransactions : Route
     data object Categories : Route
     data object Tags : Route
+    data object Merchants : Route
+    data class Merchant(val key: String) : Route
     /** A null [item] is a new entry; otherwise the row being opened. */
     data class EditRecurring(val item: RecurringExpense? = null) : Route
 }
@@ -206,6 +212,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     val spendingTips by viewModel.spendingTips.collectAsStateWithLifecycle()
     val needsReview by viewModel.needsReviewTransactions.collectAsStateWithLifecycle()
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val merchants by viewModel.merchants.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var tab by remember { mutableStateOf(Tab.HOME) }
@@ -457,6 +464,33 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     )
                 }
 
+                Route.Merchants -> {
+                    MerchantsScreen(
+                        merchants = merchants,
+                        onBack = { goBack() },
+                        onOpenMerchant = { key -> navigate(Route.Merchant(key)) },
+                    )
+                }
+
+                is Route.Merchant -> {
+                    val merchant = merchants.firstOrNull { it.key == current.key }
+                    val payments = remember(current.key, allTransactions) {
+                        allTransactions.filter { it.direction == Direction.DEBIT && it.merchantKey == current.key }
+                    }
+                    merchant?.let {
+                        MerchantScreen(
+                            merchant = it,
+                            payments = payments,
+                            onBack = { goBack() },
+                            onOpenTransaction = { id -> navigate(Route.Detail(id)) },
+                        )
+                    } ?: Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background),
+                    )
+                }
+
                 Route.AllTransactions -> {
                     AllTransactionsScreen(
                         transactions = allTransactions,
@@ -627,6 +661,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     onOpenNeedsReview = { navigate(Route.NeedsReview) },
                     onOpenCategories = { navigate(Route.Categories) },
                     onOpenTags = { navigate(Route.Tags) },
+                    onOpenMerchants = { navigate(Route.Merchants) },
                     openAutoBackupSetup = openAutoBackupSetup,
                     onAutoBackupSetupHandled = { openAutoBackupSetup = false },
                     modifier = Modifier.padding(padding),

@@ -11,3 +11,9 @@
 9. The backups should create a folder with the app name and then automatically copy the file to that folder. 
     Instead of the user creating folder on the gdrive, and restoring should show a list of available backups sorted by latest.
 10. Add an option to choose automatic daily, weekly,bi-weekly or monthly backups. 
+11. Add a merchants name list to show all the common merchants, it can be added under profile section, under the organize card. 
+    In the merchants list, we can add a local name for that merchant and 
+    a choose a default category. So all the payments (new + past )made to the merchant would carry the local name. 
+    The original name can be added under the metadata section. 
+    We can also display the leanred rules for that merchant (such as tags, categories, notes, etc).
+12. Add spending momentum comparison for last 6 weeks/month/years.

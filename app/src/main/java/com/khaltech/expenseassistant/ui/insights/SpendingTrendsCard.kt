@@ -3,7 +3,6 @@ package com.khaltech.expenseassistant.ui.insights
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,9 +10,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.automirrored.filled.ShowChart
@@ -26,13 +28,12 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -43,17 +44,16 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.TransactionEntity
 import com.khaltech.expenseassistant.ui.CardElevation
 import com.khaltech.expenseassistant.ui.formatMinorWhole
+import com.khaltech.expenseassistant.ui.pro.LocalPro
+import com.khaltech.expenseassistant.ui.pro.ProLocked
 import com.khaltech.expenseassistant.ui.rememberSoftGradient
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -61,36 +61,61 @@ import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
 
-/** The period on screen, last period when comparing, and where this period is heading. */
+/** The period on screen, and where this period is heading. */
 private val CurrentColor = Color(0xFFE05555)
-private val PreviousColor = Color(0xFF64B5F6)
 private val ProjectionColor = Color(0xFFF4B400)
 
-private enum class MoneyFlow(val label: String, val direction: Direction) {
-    SPENDING("Spending", Direction.DEBIT),
-    INCOME("Income", Direction.CREDIT),
+/**
+ * One colour per earlier period, most recent first. A period keeps its colour whichever others are
+ * switched on, so August stays blue while July comes and goes. None of them is red or yellow, which
+ * belong to this period and its projection.
+ */
+private val PastColors = listOf(
+    Color(0xFF64B5F6),
+    Color(0xFF81C784),
+    Color(0xFFBA68C8),
+    Color(0xFF4DB6AC),
+    Color(0xFFA1887F),
+    Color(0xFF90A4AE),
+)
+
+/** How many of the most recent earlier periods anyone can compare with; the rest are Pro. */
+private const val FreeComparablePeriods = 1
+
+/** An earlier period laid over this one: [offset] periods back, split into the same buckets. */
+private class PastSeries(val offset: Int, val amounts: List<Long>) {
+    val color: Color get() = PastColors[offset - 1]
 }
 
 /**
- * One period split into buckets — days for a week or month, months for a year — with the period
- * before it split the same way. [elapsed] is how many buckets have happened: all of them for a past
- * period, up to today for the current one.
+ * One period split into buckets — days for a week or month, months for a year — with any earlier
+ * periods being compared split the same way. [elapsed] is how many buckets have happened: all of
+ * them for a past period, up to today for the current one.
  */
 private class MomentumSeries(
     val current: List<Long>,
     val elapsed: Int,
-    val previous: List<Long>,
+    /** Most recent first. */
+    val past: List<PastSeries>,
     /** Axis labels, keyed by bucket number counted from 1. */
     val labels: List<Pair<Int, String>>,
-)
+) {
+    /** Buckets across the chart: enough for the longest period on it, so 31 when a 31-day month is compared. */
+    val slots: Int get() = max(current.size, past.maxOfOrNull { it.amounts.size } ?: 0)
+}
 
 @Composable
 fun SpendingTrendsCard(state: AnalyticsUiState, modifier: Modifier = Modifier) {
-    var flow by rememberSaveable { mutableStateOf(MoneyFlow.SPENDING) }
-    var compare by rememberSaveable { mutableStateOf(false) }
-    val series = state.momentumSeries(flow.direction)
-    val previousLabel = Periods.label(Periods.shift(state.selection, -1))
-    val hasData = series.current.sum() > 0 || (compare && series.previous.sum() > 0)
+    val pro = LocalPro.current
+    // Bit k-1 set means the period k back is on the chart. A bitmask saves without a custom Saver,
+    // and an offset means the same thing in any range, so the choice survives switching ranges.
+    var shownMask by rememberSaveable { mutableIntStateOf(0) }
+    fun isShown(offset: Int) = shownMask and (1 shl (offset - 1)) != 0
+    // Last period is free; the older ones need Pro. Choices made under Pro stay remembered but
+    // stop drawing if it lapses.
+    val shown = (1..Periods.ComparablePeriods).filter { isShown(it) && (it <= FreeComparablePeriods || pro.isPro) }
+    val series = state.momentumSeries(Direction.DEBIT, shown)
+    val hasData = series.current.sum() > 0 || series.past.any { it.amounts.sum() > 0 }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -116,35 +141,37 @@ fun SpendingTrendsCard(state: AnalyticsUiState, modifier: Modifier = Modifier) {
                 )
             }
 
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                FlowToggle(selected = flow, onSelect = { flow = it })
-            }
-
             if (!hasData) {
                 Text(
-                    text = if (flow == MoneyFlow.SPENDING) {
-                        "Your spending trend will appear here once transactions are recorded."
-                    } else {
-                        "Money coming in will be charted here once some is recorded."
-                    },
+                    text = "Your spending trend will appear here once transactions are recorded.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 ChartTitle("Total")
-                // Income arrives in lumps — a salary, a refund — so extending its pace to the end
-                // of the period would predict nonsense. Only spending is projected.
-                CumulativeChart(
-                    series = series,
-                    compare = compare,
-                    project = flow == MoneyFlow.SPENDING && state.isCurrentPeriod,
-                )
+                CumulativeChart(series = series, project = state.isCurrentPeriod)
                 ChartTitle(if (state.range == AnalyticsRange.YEAR) "Month-wise" else "Day-wise")
-                BucketBars(series = series, compare = compare)
+                BucketBars(series = series)
             }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-            CompareRow(previousLabel = previousLabel, checked = compare, onCheckedChange = { compare = it })
+            val onToggle = { offset: Int -> shownMask = shownMask xor (1 shl (offset - 1)) }
+            Column {
+                CompareHeader()
+                (1..FreeComparablePeriods).forEach { offset ->
+                    CompareToggle(state.selection, offset, checked = isShown(offset), onToggle = onToggle)
+                }
+                ProLocked(
+                    title = "Compare with earlier ${state.range.label.lowercase()}s",
+                    subtitle = "Lay up to six of them over this one and see how your spending pace compares.",
+                ) {
+                    Column {
+                        (FreeComparablePeriods + 1..Periods.ComparablePeriods).forEach { offset ->
+                            CompareToggle(state.selection, offset, checked = isShown(offset), onToggle = onToggle)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -155,60 +182,41 @@ private fun ChartTitle(text: String) {
 }
 
 @Composable
-private fun FlowToggle(selected: MoneyFlow, onSelect: (MoneyFlow) -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    // A tint of the text colour rather than a surface colour, so the track shows on the card's soft
-    // gradient in both light and dark themes, with the chosen option raised out of it.
-    Row(
-        Modifier
-            .clip(RoundedCornerShape(50))
-            .background(colors.onSurface.copy(alpha = 0.07f))
-            .padding(4.dp),
-    ) {
-        MoneyFlow.entries.forEach { option ->
-            val isSelected = option == selected
-            Box(
-                Modifier
-                    .then(if (isSelected) Modifier.shadow(3.dp, RoundedCornerShape(50)) else Modifier)
-                    .clip(RoundedCornerShape(50))
-                    .background(if (isSelected) colors.surface else Color.Transparent)
-                    .clickable { onSelect(option) }
-                    .padding(horizontal = 24.dp, vertical = 10.dp),
-            ) {
-                Text(
-                    option.label,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (isSelected) colors.onSurface else colors.onSurfaceVariant.copy(alpha = 0.7f),
-                )
-            }
-        }
+private fun CompareHeader() {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.AutoMirrored.Filled.CompareArrows, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Text("Compare with", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
     }
 }
 
+/** A switch for the period [offset] back, with the colour its line takes, so the rows double as the legend. */
 @Composable
-private fun CompareRow(previousLabel: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun CompareToggle(selection: PeriodSelection, offset: Int, checked: Boolean, onToggle: (Int) -> Unit) {
     val colors = MaterialTheme.colorScheme
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) },
+            .heightIn(min = 48.dp)
+            .toggleable(value = checked, role = Role.Switch, onValueChange = { onToggle(offset) }),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.AutoMirrored.Filled.CompareArrows, contentDescription = null, tint = colors.onSurfaceVariant)
+        Box(
+            Modifier
+                .padding(horizontal = 6.dp)
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(PastColors[offset - 1]),
+        )
         Spacer(Modifier.width(12.dp))
         Text(
-            buildAnnotatedString {
-                append("Compare with ")
-                withStyle(SpanStyle(textDecoration = TextDecoration.Underline, color = colors.onSurface)) {
-                    append(previousLabel)
-                }
-            },
+            Periods.label(Periods.shift(selection, -offset)),
             style = MaterialTheme.typography.bodyLarge,
-            color = colors.onSurfaceVariant,
+            color = if (checked) colors.onSurface else colors.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        // The row carries the toggle, so the switch itself stays out of the way of TalkBack.
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 
@@ -235,25 +243,25 @@ private fun rememberChartPalette(): ChartPalette {
 
 /**
  * Running totals: the line starts at nothing on the axis and each point is the total at the end of
- * that bucket. Last period, when compared, runs the whole way in blue; this one runs to today, and
- * for spending a dashed line carries today's pace on to the end of the period.
+ * that bucket. Each earlier period being compared runs the whole way in its own colour; this one
+ * runs to today, and a dashed line carries today's pace on to the end of the period.
  */
 @Composable
-private fun CumulativeChart(series: MomentumSeries, compare: Boolean, project: Boolean) {
+private fun CumulativeChart(series: MomentumSeries, project: Boolean) {
     val palette = rememberChartPalette()
     val slots = series.current.size
     val currentTotals = series.current.take(series.elapsed).runningFold(0L) { total, amount -> total + amount }
-    val previousTotals = series.previous.runningFold(0L) { total, amount -> total + amount }
+    val pastTotals = series.past.map { past -> past to past.amounts.runningFold(0L) { total, amount -> total + amount } }
     val reached = currentTotals.last()
     val projected = if (project && series.elapsed < slots && reached > 0) reached * slots / series.elapsed else null
-    val xSlots = if (compare) max(slots, series.previous.size) else slots
     val top = headroom(
-        maxOf(reached, projected ?: 0L, if (compare) previousTotals.last() else 0L),
+        maxOf(reached, projected ?: 0L, pastTotals.maxOfOrNull { it.second.last() } ?: 0L),
     )
 
     Canvas(Modifier.fillMaxWidth().height(220.dp)) {
-        val frame = drawFrame(top, xSlots, series.labels, labelOffset = 0f, palette = palette)
-        if (compare) drawTotalsLine(frame, previousTotals, PreviousColor, palette.markerFill)
+        val frame = drawFrame(top, series.slots, series.labels, labelOffset = 0f, palette = palette)
+        // Oldest first, so the more recent periods draw over them.
+        pastTotals.asReversed().forEach { (past, totals) -> drawTotalsLine(frame, totals, past.color, palette.markerFill) }
         projected?.let { end ->
             val from = Offset(frame.x(series.elapsed.toFloat()), frame.y(reached))
             val to = Offset(frame.x(slots.toFloat()), frame.y(end))
@@ -273,31 +281,36 @@ private fun CumulativeChart(series: MomentumSeries, compare: Boolean, project: B
 }
 
 /**
- * One bar per bucket. When comparing, last period's bar stands just right of this period's, and
- * each period gets its own dashed average: this one's labelled on the right, last one's on the left
- * in blue, so the two labels never sit on top of each other.
+ * One bar per bucket, with each compared period's bar standing beside this period's in its own
+ * colour. Every period gets its own dashed average. This one's is labelled on the right; an earlier
+ * one's is labelled on the left only when it is the only one on, because six labels would pile up.
  */
 @Composable
-private fun BucketBars(series: MomentumSeries, compare: Boolean) {
+private fun BucketBars(series: MomentumSeries) {
     val palette = rememberChartPalette()
-    val slots = if (compare) max(series.current.size, series.previous.size) else series.current.size
+    val slots = series.slots
     val counted = series.current.take(series.elapsed)
     val currentAverage = counted.sum() / series.elapsed
-    val previousAverage = if (series.previous.isEmpty()) 0L else series.previous.sum() / series.previous.size
     val top = headroom(
-        maxOf(counted.maxOrNull() ?: 0L, if (compare) series.previous.maxOrNull() ?: 0L else 0L),
+        maxOf(counted.maxOrNull() ?: 0L, series.past.maxOfOrNull { it.amounts.maxOrNull() ?: 0L } ?: 0L),
     )
+    val bars = 1 + series.past.size
 
     Canvas(Modifier.fillMaxWidth().height(220.dp)) {
         // Bars sit in the middle of their slot, so the labels shift half a slot to sit under them.
         val frame = drawFrame(top, slots, series.labels, labelOffset = -0.5f, palette = palette)
         val slotWidth = (frame.right - frame.left) / slots
-        val barWidth = min(slotWidth * (if (compare) 0.3f else 0.45f), if (compare) 4.dp.toPx() else 6.dp.toPx())
         val gap = 1.dp.toPx()
+        val barWidth = if (bars == 1) {
+            min(slotWidth * 0.45f, 6.dp.toPx())
+        } else {
+            min(slotWidth * 0.8f / bars - gap, 4.dp.toPx()).coerceAtLeast(1.dp.toPx())
+        }
 
-        fun bar(index: Int, amount: Long, color: Color, shift: Float) {
+        // position runs 0 (this period) to bars - 1 (the oldest compared), centred on the slot.
+        fun bar(index: Int, amount: Long, color: Color, position: Int) {
             if (amount <= 0L) return
-            val centre = frame.x(index + 0.5f) + shift
+            val centre = frame.x(index + 0.5f) + (position - (bars - 1) / 2f) * (barWidth + gap)
             val barTop = frame.y(amount)
             drawRoundRect(
                 color = color,
@@ -307,16 +320,17 @@ private fun BucketBars(series: MomentumSeries, compare: Boolean) {
             )
         }
 
-        counted.forEachIndexed { index, amount ->
-            bar(index, amount, CurrentColor, if (compare) -(barWidth / 2f + gap) else 0f)
-        }
-        if (compare) {
-            series.previous.forEachIndexed { index, amount -> bar(index, amount, PreviousColor, barWidth / 2f + gap) }
+        counted.forEachIndexed { index, amount -> bar(index, amount, CurrentColor, 0) }
+        series.past.forEachIndexed { position, past ->
+            past.amounts.forEachIndexed { index, amount -> bar(index, amount, past.color, position + 1) }
         }
 
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13.sp.toPx() }
-        if (compare && previousAverage > 0) {
-            drawAverage(frame, previousAverage, PreviousColor, labelPaint, alignRight = false)
+        series.past.forEach { past ->
+            val average = if (past.amounts.isEmpty()) 0L else past.amounts.sum() / past.amounts.size
+            if (average > 0) {
+                drawAverage(frame, average, past.color, labelPaint, alignRight = false, labelled = series.past.size == 1)
+            }
         }
         if (currentAverage > 0) {
             drawAverage(frame, currentAverage, palette.average, labelPaint, alignRight = true)
@@ -402,7 +416,14 @@ private fun DrawScope.drawMarker(centre: Offset, color: Color, fill: Color) {
     drawCircle(color, radius = 4.dp.toPx(), center = centre, style = Stroke(width = 1.8.dp.toPx()))
 }
 
-private fun DrawScope.drawAverage(frame: Frame, average: Long, color: Color, paint: Paint, alignRight: Boolean) {
+private fun DrawScope.drawAverage(
+    frame: Frame,
+    average: Long,
+    color: Color,
+    paint: Paint,
+    alignRight: Boolean,
+    labelled: Boolean = true,
+) {
     val y = frame.y(average)
     drawLine(
         color = color,
@@ -411,6 +432,7 @@ private fun DrawScope.drawAverage(frame: Frame, average: Long, color: Color, pai
         strokeWidth = 1.5.dp.toPx(),
         pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx())),
     )
+    if (!labelled) return
     paint.color = color.toArgb()
     paint.textAlign = if (alignRight) Paint.Align.RIGHT else Paint.Align.LEFT
     drawContext.canvas.nativeCanvas.drawText(
@@ -436,9 +458,12 @@ private fun compactAmount(amountMinor: Long): String {
     }
 }
 
-private fun AnalyticsUiState.momentumSeries(direction: Direction): MomentumSeries {
+/** [shown] are the earlier periods to lay over this one, as offsets back from it. */
+private fun AnalyticsUiState.momentumSeries(direction: Direction, shown: List<Int>): MomentumSeries {
     val current = bucketAmounts(selection, transactions, direction)
-    val previous = bucketAmounts(Periods.shift(selection, -1), previousTransactions, direction)
+    val past = shown.sorted().map { offset ->
+        PastSeries(offset, bucketAmounts(Periods.shift(selection, -offset), previousTransactions, direction))
+    }
     val elapsed = if (!isCurrentPeriod) {
         current.size
     } else when (range) {
@@ -448,7 +473,7 @@ private fun AnalyticsUiState.momentumSeries(direction: Direction): MomentumSerie
     return MomentumSeries(
         current = current,
         elapsed = elapsed.coerceIn(1, current.size),
-        previous = previous,
+        past = past,
         labels = axisLabels(selection, current.size),
     )
 }

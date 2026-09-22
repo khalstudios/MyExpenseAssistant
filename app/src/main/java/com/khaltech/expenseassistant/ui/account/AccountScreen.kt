@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
@@ -103,6 +104,7 @@ fun AccountScreen(
     onOpenNeedsReview: () -> Unit = {},
     onOpenCategories: () -> Unit = {},
     onOpenTags: () -> Unit = {},
+    onOpenMerchants: () -> Unit = {},
     openAutoBackupSetup: Boolean = false,
     onAutoBackupSetupHandled: () -> Unit = {},
     viewModel: AccountViewModel = viewModel(factory = AccountViewModel.Factory),
@@ -289,6 +291,12 @@ fun AccountScreen(
                     title = "Tags",
                     subtitle = "Every tag you use, and the transactions behind it",
                     onClick = onOpenTags,
+                )
+                SettingRow(
+                    icon = Icons.Filled.Storefront,
+                    title = "Merchants",
+                    subtitle = "Everyone you pay, and the payments made to each",
+                    onClick = onOpenMerchants,
                 )
             }
 

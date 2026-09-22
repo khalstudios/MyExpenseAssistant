@@ -32,6 +32,12 @@ object Periods {
     fun previousStart(selection: PeriodSelection): Long =
         startCalendar(selection).apply { addOne(selection.range, -1) }.timeInMillis
 
+    /** How many earlier periods the momentum card can lay over the one on screen. */
+    const val ComparablePeriods = 6
+
+    /** Where the history a [selection]'s snapshot needs begins: the earliest period it can be compared with. */
+    fun historyStart(selection: PeriodSelection): Long = start(shift(selection, -ComparablePeriods))
+
     fun shift(selection: PeriodSelection, delta: Int): PeriodSelection =
         selection.copy(
             anchorMillis = startCalendar(selection).apply { addOne(selection.range, delta) }.timeInMillis

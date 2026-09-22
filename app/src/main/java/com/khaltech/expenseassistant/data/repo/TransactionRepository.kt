@@ -66,6 +66,46 @@ data class CustomCategoryOption(
     val useCount: Int = 0,
 )
 
+/**
+ * The key merchant rules match a payment on: its name as captured, normalised. Null for a payment
+ * that names no counterparty, such as an ATM withdrawal.
+ */
+val TransactionEntity.merchantKey: String? get() = Categorizer.merchantKey(merchantRaw)
+
+/** One merchant the user has paid, for the Merchants list. */
+data class MerchantSummary(
+    val key: String,
+    /** What its most recent payment is shown as. */
+    val name: String,
+    /** The category its most recent payment is filed under, for the row's icon. */
+    val category: Category,
+    val paymentCount: Int,
+    val spentMinor: Long,
+    val lastPaidAt: Long,
+)
+
+/**
+ * Every merchant paid in [transactions], most-paid first. Income is left out: this lists who the
+ * money went to, and a refund from a merchant is not a payment to it.
+ */
+fun merchantSummaries(transactions: List<TransactionEntity>): List<MerchantSummary> =
+    transactions
+        .filter { it.direction == Direction.DEBIT }
+        .groupBy { it.merchantKey }
+        .mapNotNull { (key, payments) ->
+            key ?: return@mapNotNull null
+            val latest = payments.maxBy { it.occurredAt }
+            MerchantSummary(
+                key = key,
+                name = latest.merchant,
+                category = latest.category,
+                paymentCount = payments.size,
+                spentMinor = payments.sumOf { it.amountMinor },
+                lastPaidAt = latest.occurredAt,
+            )
+        }
+        .sortedWith(compareByDescending<MerchantSummary> { it.paymentCount }.thenByDescending { it.lastPaidAt })
+
 class TransactionRepository(
     private val transactionDao: TransactionDao,
     private val categorizer: Categorizer,
@@ -88,6 +128,8 @@ class TransactionRepository(
 
     /** Every tag in use across all history, most-used first, for tag suggestions. */
     fun observeTagUsage(): Flow<List<TagUsage>> = transactionDao.observeAll().map { tagUsageOf(it) }
+
+    fun observeMerchants(): Flow<List<MerchantSummary>> = transactionDao.observeAll().map(::merchantSummaries)
 
     /** Tags ordered by how often they're used, so recent/common ones surface first as suggestions. */
     fun observeTagSuggestions(): Flow<List<String>> = observeTagUsage().map { usages -> usages.map { it.tag } }
@@ -330,7 +372,7 @@ class TransactionRepository(
                 amountMinor = amountMinor,
                 direction = direction,
                 merchant = merchant,
-                merchantRaw = merchant,
+                merchantRaw = rawAfterRename(existing, merchant),
                 occurredAt = occurredAt,
                 userCorrected = true,
             )
@@ -365,7 +407,7 @@ class TransactionRepository(
                 amountMinor = amountMinor,
                 direction = direction,
                 merchant = trimmedMerchant,
-                merchantRaw = trimmedMerchant,
+                merchantRaw = rawAfterRename(existing, trimmedMerchant),
                 occurredAt = occurredAt,
                 category = category,
                 categoryConfidence = if (categoryChanged) 1f else existing.categoryConfidence,
@@ -390,6 +432,15 @@ class TransactionRepository(
     }
 
     suspend fun delete(id: Long) = transactionDao.delete(id)
+
+    /**
+     * A captured payment keeps the name it arrived with when renamed: that is what its merchant
+     * rules match on, so later edits to it keep teaching the same merchant. A manual entry's name
+     * was typed in the first place, so renaming one simply replaces it.
+     */
+    private fun rawAfterRename(existing: TransactionEntity, merchant: String): String? =
+        if (existing.captureSource == CaptureSource.MANUAL || existing.merchantRaw.isNullOrBlank()) merchant
+        else existing.merchantRaw
 
     /**
      * A stable fingerprint for one payment, so the same payment seen twice produces the same key

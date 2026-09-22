@@ -20,7 +20,7 @@ data class BudgetProgress(
 data class AnalyticsUiState(
     val selection: PeriodSelection = PeriodSelection.now(AnalyticsRange.MONTH),
     val transactions: List<TransactionEntity> = emptyList(),
-    /** The period before [selection], for the momentum card's "compare with" overlay. */
+    /** The [Periods.ComparablePeriods] periods before [selection], for the momentum card's "compare with" lines. */
     val previousTransactions: List<TransactionEntity> = emptyList(),
     val periodLabel: String = "",
     val canGoForward: Boolean = false,

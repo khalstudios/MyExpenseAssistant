@@ -78,7 +78,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val snapshot: StateFlow<PeriodSnapshot> = _period
         .flatMapLatest { selection ->
             combine(
-                repository.observeBetween(Periods.previousStart(selection), Periods.endExclusive(selection)),
+                repository.observeBetween(Periods.historyStart(selection), Periods.endExclusive(selection)),
                 budgetRepository.observeBudgets(),
             ) { transactions, budgets -> PeriodSnapshot(selection, transactions, budgets) }
         }
@@ -305,6 +305,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         repository.deleteCustomCategory(name)
     }
 
+    /** Every merchant paid, most-paid first. */
+    val merchants: StateFlow<List<com.khaltech.expenseassistant.data.repo.MerchantSummary>> = repository.observeMerchants()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     fun setRange(range: AnalyticsRange) {
         _period.value = Periods.withRange(_period.value, range)
     }
@@ -370,8 +374,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private fun PeriodSnapshot.toAnalytics(): AnalyticsUiState {
         val start = Periods.start(selection)
         val current = currentTransactions()
+        // The snapshot may reach back several periods, for the momentum card's comparisons; the
+        // headline comparison is with the one period before only.
+        val previousStart = Periods.previousStart(selection)
         val previousSpend = transactions
-            .filter { it.occurredAt < start && it.direction == Direction.DEBIT }
+            .filter { it.occurredAt in previousStart until start && it.direction == Direction.DEBIT }
             .sumOf { it.amountMinor }
 
         val debits = current.filter { it.direction == Direction.DEBIT }

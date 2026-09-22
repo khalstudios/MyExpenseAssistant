@@ -309,7 +309,11 @@ fun TransactionDetailScreen(
 @Composable
 private fun MetadataCard(transaction: TransactionEntity) {
     SectionCard("Metadata") {
-        MetaRow("Source", "${transaction.sourceApp} (${transaction.captureSource.name.lowercase()})")
+        // The name the payment was captured with, once a rename or a learned name has replaced it.
+        transaction.merchantRaw?.trim()
+            ?.takeIf { it.isNotEmpty() && !it.equals(transaction.merchant.trim(), ignoreCase = true) }
+            ?.let { MetaRow("Original name", it) }
+        MetaRow("Source","${transaction.sourceApp} (${transaction.captureSource.name.lowercase()})")
         accountLabel(transaction)?.let { MetaRow("Account", it) }
         transaction.transactionType?.let { MetaRow("Type", it.displayName) }
         transaction.availableBalanceMinor?.let {
