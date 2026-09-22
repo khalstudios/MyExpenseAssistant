@@ -4,7 +4,7 @@ title: Privacy Policy — Kahan Gaya Paisa
 
 # Privacy Policy — Kahan Gaya Paisa
 
-**Effective date:** 19 September 2026
+**Effective date:** 22 September 2026
 
 Kahan Gaya Paisa is an Android app developed by **KHAL Tech**. It records your spending on your own
 phone. This policy explains what the app reads, what it stores, and what leaves your device.
@@ -63,16 +63,26 @@ All of it is stored on your device, in the app's private storage:
 
 - **Transactions:** amount, direction (spent or received), merchant or payee, category, payment
   mode, date and time, the text of the notification or SMS it was recorded from, and any note or
-  tags you add
+  tags you add. If you rename a recorded payee, the name it arrived with is kept alongside and
+  shown on the transaction's details.
 - **Bank alert details, when the alert states them:** bank name, account or card type, the last 4
   digits of the account or card number, transaction type (for example UPI, NEFT or ATM), reference
   number, and the balance or available limit the alert reported. Full account and card numbers are
-  never read or stored; alerts show them masked.
+  never read or stored; alerts show them masked. When one payment reaches the app both from a
+  payment app and as a bank alert, it is kept once, with the bank alert's details added to it. The
+  account details are also what the app uses to tell apart two payments of the same amount made
+  moments apart from different accounts.
 - **Learning:** categories, names and tags the app has learned from your corrections, and contact
   name matches
-- **Budgets** and budget alert history
+- **Categories of your own:** the name, colour and icon you gave each
+- **Recurring payments** you added, and the detected ones you removed, so they are not suggested
+  again
+- **Budgets** (daily, monthly and yearly) and budget alert history
 - **Profile details you enter:** name, email and monthly income
-- **Settings**, such as your automatic backup schedule and category icon choices
+- **Settings**, such as your automatic backup schedule and category icon and colour choices
+
+The app also lists the merchants you have paid and your spending over time. These are worked out
+on your phone from the transactions above; nothing extra is collected for them.
 
 Android's own cloud backup is switched off for this app, so this data is not copied to your Google
 account automatically.
@@ -80,7 +90,8 @@ account automatically.
 ## Deleting your data
 
 - **Profile › Your data › Delete all transactions** erases every recorded transaction. You can
-  choose to also clear learned categories, contact name matches and budgets.
+  choose to also clear learned categories, contact name matches, budgets and recurring payments
+  you added.
 - Uninstalling the app deletes everything it stored on the phone.
 - Backup and CSV files you saved yourself are not affected by either; delete them where you saved
   them.
@@ -88,8 +99,10 @@ account automatically.
 ## Backups and exports
 
 The app can write a backup file or a CSV export to a folder you choose, either when you ask or on
-an automatic schedule you set up. Those files contain your transactions and the details above, and
-they leave the app's private storage only by your action.
+an automatic schedule you set up. A backup contains your transactions, learned categories, names and
+tags, budgets, recurring payments, profile details, and category icon and colour choices; a CSV
+export contains your transactions. Either leaves the app's private
+storage only by your action.
 
 If you choose a folder that is synchronised to a cloud service — Google Drive, for example — that
 copy of your data is then handled by that service under its own terms and privacy policy. The app
