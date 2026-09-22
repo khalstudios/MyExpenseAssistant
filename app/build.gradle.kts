@@ -84,6 +84,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.work.runtime)
     implementation(libs.billing)
+    // Billing's play-services-base asks for fragment 1.0.0, which Play Console flags as outdated.
+    implementation(libs.androidx.fragment)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
