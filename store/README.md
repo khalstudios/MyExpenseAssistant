@@ -4,6 +4,7 @@
 | --- | --- | --- |
 | `play-icon-512.png` | App icon | 512 × 512, 32-bit PNG with alpha |
 | `feature-graphic-1024x500.png` | Feature graphic | 1024 × 500 PNG, no alpha |
+| `listing.md` | Full description | Up to 4000 characters |
 
 ## Sources
 
