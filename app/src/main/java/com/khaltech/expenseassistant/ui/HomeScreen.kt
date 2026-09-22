@@ -577,13 +577,16 @@ private fun SectionHeader(title: String, topPadding: androidx.compose.ui.unit.Dp
 }
 
 /**
- * A day's transactions, largest amount first, with the most recent breaking a tie. Within a single
- * day the clock order carries little meaning, so the size of the spend is what the list leads with.
+ * Today's spending, largest amount first, with the most recent breaking a tie: the Today card has
+ * room for only a few rows, so it leads with the ones that moved the day's total.
  */
 private val bySizeThenRecency: Comparator<TransactionEntity> =
     compareByDescending<TransactionEntity> { it.amountMinor }.thenByDescending { it.occurredAt }
 
-/** One card per day, matching how the reference app groups a day's spending together. */
+/**
+ * One card per day, matching how the reference app groups a day's spending together. Newest first
+ * within the day, like the days themselves, so the payment just made is the one at the top.
+ */
 @Composable
 fun DayGroupCard(
     dayStart: Long,
@@ -595,7 +598,7 @@ fun DayGroupCard(
     val netMinor = transactions.sumOf {
         if (it.direction == Direction.DEBIT) -it.amountMinor else it.amountMinor
     }
-    val ordered = transactions.sortedWith(bySizeThenRecency)
+    val ordered = transactions.sortedByDescending { it.occurredAt }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
