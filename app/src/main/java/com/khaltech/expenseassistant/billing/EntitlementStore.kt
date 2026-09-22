@@ -70,9 +70,9 @@ class EntitlementStore(context: Context) {
         const val KEY_DEBUG_OVERRIDE = "debug_override"
 
         /**
-         * 2026-10-01T00:00:00Z. Set this to the moment the first build containing the paywall
-         * reaches production: every install older than it keeps Pro for free.
+         * 2026-09-22T07:53:37Z, when 2.0.0 (the first build containing the paywall) was cut:
+         * every install older than it keeps Pro for free.
          */
-        const val PRO_RELEASE_MILLIS = 1_790_812_800_000L
+        const val PRO_RELEASE_MILLIS = 1_790_063_617_000L
     }
 }
