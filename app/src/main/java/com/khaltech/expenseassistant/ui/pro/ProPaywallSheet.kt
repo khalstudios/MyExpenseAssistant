@@ -38,6 +38,7 @@ import com.khaltech.expenseassistant.billing.ProProduct
 fun ProPaywallSheet(
     offers: List<ProOffer>,
     onBuy: (ProOffer) -> Unit,
+    onRetry: () -> Unit,
     onRestore: () -> Unit,
     onDismiss: () -> Unit,
     /** What the user reached for, shown ahead of the general list. Null for the plain pitch. */
@@ -107,7 +108,7 @@ fun ProPaywallSheet(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
                     Text("Retry")
                 }
             }

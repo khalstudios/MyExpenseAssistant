@@ -75,6 +75,18 @@ fun ProHost(content: @Composable () -> Unit) {
                     message = "This Google account already owns Pro, so it's unlocked again here."
                 }
 
+                PurchaseEvent.Restored -> {
+                    showPaywall = false
+                    message = "Your Pro purchase has been restored."
+                }
+
+                PurchaseEvent.NothingToRestore -> message =
+                    "Google Play found no Pro purchase on this account. If you bought Pro with a " +
+                    "different Google account, switch to it in the Play Store and try again."
+
+                PurchaseEvent.RestoreFailed -> message =
+                    "Couldn't reach Google Play. Check your connection and try again."
+
                 // Backing out of the Play sheet is a normal thing to do, not an error.
                 PurchaseEvent.Cancelled -> Unit
 
@@ -105,7 +117,8 @@ fun ProHost(content: @Composable () -> Unit) {
             pitch = pitch,
             offers = offers,
             onBuy = { offer -> activity?.let { billing.purchase(it, offer) } },
-            onRestore = { billing.refresh() },
+            onRetry = { billing.refresh() },
+            onRestore = { billing.restore() },
             onDismiss = { showPaywall = false },
         )
     }

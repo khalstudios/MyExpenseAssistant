@@ -34,5 +34,8 @@ sealed interface PurchaseEvent {
     data object Purchased : PurchaseEvent
     data object Cancelled : PurchaseEvent
     data object AlreadyOwned : PurchaseEvent
+    data object Restored : PurchaseEvent
+    data object NothingToRestore : PurchaseEvent
+    data object RestoreFailed : PurchaseEvent
     data class Failed(val message: String) : PurchaseEvent
 }

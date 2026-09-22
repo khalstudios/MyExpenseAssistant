@@ -68,17 +68,42 @@ class BillingManager(
      * resume, for instance — because a purchase made on another device only shows up when asked.
      */
     fun refresh() {
-        connect {
-            scope.launch {
-                // Selling Pro must never be able to take down an app whose actual job is recording
-                // what someone spent. If Play throws, the cached entitlement stands and the paywall
-                // simply has no prices to show.
-                runCatching {
-                    refreshEntitlements()
-                    refreshOffers()
+        connect(
+            onReady = {
+                scope.launch {
+                    // Selling Pro must never be able to take down an app whose actual job is
+                    // recording what someone spent. If Play throws, the cached entitlement stands
+                    // and the paywall simply has no prices to show.
+                    runCatching {
+                        refreshEntitlements()
+                        refreshOffers()
+                    }
                 }
-            }
-        }
+            },
+        )
+    }
+
+    /**
+     * The paywall's restore button: asks Play what this Google account owns, like [refresh], but
+     * always answers through [events], so the button is never silent whatever Play says.
+     */
+    fun restore() {
+        connect(
+            onReady = {
+                scope.launch {
+                    val owned = runCatching { refreshEntitlements() }.getOrNull()
+                    _events.tryEmit(
+                        when (owned) {
+                            true -> PurchaseEvent.Restored
+                            false -> PurchaseEvent.NothingToRestore
+                            null -> PurchaseEvent.RestoreFailed
+                        },
+                    )
+                    runCatching { refreshOffers() }
+                }
+            },
+            onUnavailable = { _events.tryEmit(PurchaseEvent.RestoreFailed) },
+        )
     }
 
     fun purchase(activity: Activity, offer: ProOffer) {
@@ -125,39 +150,56 @@ class BillingManager(
         }
     }
 
-    private fun connect(onReady: () -> Unit) {
+    /**
+     * Runs [onReady] once Play is connected, or [onUnavailable] if it cannot be. Callers arriving
+     * while a connection is already being set up wait for that one instead of being dropped.
+     */
+    private fun connect(onReady: () -> Unit, onUnavailable: () -> Unit = {}) {
         if (client.isReady) {
             onReady()
             return
         }
-        if (connecting) return
-        connecting = true
+        synchronized(waiting) {
+            waiting += onReady to onUnavailable
+            if (connecting) return
+            connecting = true
+        }
         client.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(result: BillingResult) {
-                connecting = false
-                if (result.responseCode == BillingClient.BillingResponseCode.OK) onReady()
+                val ready = result.responseCode == BillingClient.BillingResponseCode.OK
+                takeWaiting().forEach { (onReady, onUnavailable) -> if (ready) onReady() else onUnavailable() }
             }
 
             // Auto reconnection handles getting back. Nothing to undo here, because the cached
             // entitlement stays valid while Play is away.
             override fun onBillingServiceDisconnected() {
-                connecting = false
+                takeWaiting().forEach { (_, onUnavailable) -> onUnavailable() }
             }
         })
     }
 
-    private suspend fun refreshEntitlements() {
+    private val waiting = mutableListOf<Pair<() -> Unit, () -> Unit>>()
+
+    private fun takeWaiting(): List<Pair<() -> Unit, () -> Unit>> = synchronized(waiting) {
+        connecting = false
+        waiting.toList().also { waiting.clear() }
+    }
+
+    /** Whether Play says Pro is owned, or null when it could not say. */
+    private suspend fun refreshEntitlements(): Boolean? {
         val oneTime = queryPurchases(BillingClient.ProductType.INAPP)
         val subscriptions = queryPurchases(BillingClient.ProductType.SUBS)
 
         // A null answer means Play could not tell us, not that nothing is owned. Revoking here
         // would lock a paying user out of their own app the first time they opened it offline.
-        if (oneTime == null || subscriptions == null) return
+        if (oneTime == null || subscriptions == null) return null
 
         val ours = (oneTime + subscriptions).filter(::isOurs)
         ours.forEach { acknowledge(it) }
-        entitlements.setPurchased(ours.any { it.isActive() })
+        val owned = ours.any { it.isActive() }
+        entitlements.setPurchased(owned)
         _isPro.value = entitlements.isPro()
+        return owned
     }
 
     private suspend fun queryPurchases(type: String): List<Purchase>? =
