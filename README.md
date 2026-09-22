@@ -79,7 +79,7 @@ In **Profile** under **Backup**, select **Back up your data**. A dialog explains
 
 **Restore from backup** lists the backups already in that folder, newest first, so restoring is a tap; **Pick a file instead** falls back to Android's file picker for a backup kept somewhere else. Restoring replaces those items currently stored on the device, so make a current backup first when needed.
 
-With Pro, you can also enable **Automatic backups** once, choose daily, weekly, every 2 weeks, or monthly, then pick a location the same way. The app retains access only to the location you selected, and writes future dated backups into its own `Kahan Gaya Paisa` folder there without asking again. Android may delay scheduled work for battery, storage, or connectivity reasons, so backups run approximately at the selected interval. Turn off automatic backups at any time from Profile; they also stop if Pro lapses. Backing up and restoring by hand always stay free. The app does not store Google account credentials.
+With Pro, you can also enable **Automatic backups** once, choose daily, weekly, every 2 weeks, or monthly, then pick a location the same way. The app retains access only to the location you selected, and writes future dated backups into its own `Kahan Gaya Paisa` folder there without asking again. Android may delay scheduled work for battery, storage, or connectivity reasons, so backups run approximately at the selected interval. The first one runs one interval after you turn them on, not straight away. Turn off automatic backups at any time from Profile; they also stop if Pro lapses. Backing up and restoring by hand always stay free. The app does not store Google account credentials.
 
 ## Pro
 

@@ -13,7 +13,11 @@ object AutoBackupScheduler {
     private const val WORK_NAME = "expense-assistant-auto-backup"
 
     fun schedule(context: Context, settings: AutoBackupSettings) {
-        val request = PeriodicWorkRequestBuilder<AutoBackupWorker>(settings.interval.days, TimeUnit.DAYS).build()
+        // A periodic request runs its first time straight away unless delayed, which would make a
+        // backup the moment the schedule is set. The first one is due a full interval from now.
+        val request = PeriodicWorkRequestBuilder<AutoBackupWorker>(settings.interval.days, TimeUnit.DAYS)
+            .setInitialDelay(settings.interval.days, TimeUnit.DAYS)
+            .build()
         WorkManager.getInstance(context.applicationContext)
             .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
