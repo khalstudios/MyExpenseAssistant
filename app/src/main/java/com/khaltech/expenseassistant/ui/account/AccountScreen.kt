@@ -403,8 +403,18 @@ fun AccountScreen(
         ClearDataDialog(
             onDismiss = { confirmingClear = false },
             onConfirm = { alsoResetSettings ->
-                viewModel.clearAllTransactions(alsoResetSettings)
                 confirmingClear = false
+                viewModel.clearAllTransactions(alsoResetSettings) { succeeded ->
+                    scope.launch {
+                        snackbarHostState.showMessage(
+                            when {
+                                !succeeded -> "Could not delete all data. Please try again"
+                                alsoResetSettings -> "All transactions, budgets and learned categories deleted"
+                                else -> "All transactions deleted"
+                            }
+                        )
+                    }
+                }
             },
         )
     }

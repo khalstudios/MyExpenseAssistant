@@ -17,3 +17,6 @@
     The original name can be added under the metadata section. 
     We can also display the leanred rules for that merchant (such as tags, categories, notes, etc).
 12. Add spending momentum comparison for last 6 weeks/month/years.
+13. add some kind of msg or alert to notify that the apps data has been deleted.
+14. Purchase restore option is not working.
+15. Update the app to fix the vulnerabilities pointed by play console under test and release section.

@@ -73,14 +73,17 @@ class AccountViewModel(app: Application) : AndroidViewModel(app) {
         _profile.value = profile
     }
 
-    fun clearAllTransactions(alsoResetSettings: Boolean) = viewModelScope.launch {
-        repository.deleteAll()
-        if (alsoResetSettings) {
-            repository.clearLearnedRules()
-            budgetRepository.clearAll()
-            recurringPlans.clearAll()
+    fun clearAllTransactions(alsoResetSettings: Boolean, onResult: (Boolean) -> Unit) = viewModelScope.launch {
+        val result = runCatching {
+            repository.deleteAll()
+            if (alsoResetSettings) {
+                repository.clearLearnedRules()
+                budgetRepository.clearAll()
+                recurringPlans.clearAll()
+            }
         }
-        _earliest.value = null
+        _earliest.value = repository.earliestTimestamp()
+        onResult(result.isSuccess)
     }
 
     fun exportCsv(uri: Uri, onResult: (Int) -> Unit) = viewModelScope.launch {
