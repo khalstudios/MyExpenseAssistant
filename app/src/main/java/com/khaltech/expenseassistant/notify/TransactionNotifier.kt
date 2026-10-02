@@ -42,12 +42,18 @@ class TransactionNotifier(private val context: Context) {
         ).joinToString(" ").takeIf { it.isNotEmpty() }
         val details = listOfNotNull(category, account).joinToString(" · ")
 
+        // Opens this transaction's details. Clear-top with single-top hands the id to an app that is
+        // already open instead of stacking a second copy of it.
         val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            ?.addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP,
+            )
+            ?.putExtra(EXTRA_TRANSACTION_ID, transaction.id)
         val pendingIntent = launch?.let {
             PendingIntent.getActivity(
                 context,
-                0,
+                // Per transaction, or each new alert would overwrite the id in the ones still showing.
+                transaction.id.toInt(),
                 it,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
@@ -80,6 +86,9 @@ class TransactionNotifier(private val context: Context) {
     }
 
     companion object {
+        /** The id of the transaction a tapped alert should open. */
+        const val EXTRA_TRANSACTION_ID = "com.khaltech.expenseassistant.TRANSACTION_ID"
+
         // A channel's sound is fixed once created, so going silent needed a new id; the old one is deleted.
         const val CHANNEL_ID = "transaction-recorded-silent"
         private const val RETIRED_CHANNEL_ID = "transaction-recorded"

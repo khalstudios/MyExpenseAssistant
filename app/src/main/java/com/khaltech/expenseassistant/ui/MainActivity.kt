@@ -1,5 +1,6 @@
 package com.khaltech.expenseassistant.ui
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -107,14 +108,19 @@ import com.khaltech.expenseassistant.ui.category.LocalCategoryUsage
 import com.khaltech.expenseassistant.ui.category.LocalCustomCategoryActions
 import com.khaltech.expenseassistant.ui.category.LocalCustomCategoryCount
 import com.khaltech.expenseassistant.di.ServiceLocator
+import com.khaltech.expenseassistant.notify.TransactionNotifier
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
 
 class MainActivity : ComponentActivity() {
 
+    /** A transaction a tapped "Transaction recorded" alert asked to open; cleared once it is open. */
+    private var openTransactionId by mutableStateOf<Long?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        takeTransactionToOpen(intent)
         enableEdgeToEdge()
         setContent {
             AppTheme {
@@ -148,12 +154,29 @@ class MainActivity : ComponentActivity() {
                         LocalCustomCategoryCount provides customCategories.size,
                     ) {
                         ProHost {
-                            AppShell()
+                            AppShell(
+                                openTransactionId = openTransactionId,
+                                onTransactionOpened = { openTransactionId = null },
+                            )
                         }
                     }
                 }
             }
         }
+    }
+
+    /** The app was already open when the alert was tapped. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        takeTransactionToOpen(intent)
+    }
+
+    private fun takeTransactionToOpen(intent: Intent?) {
+        val id = intent?.getLongExtra(TransactionNotifier.EXTRA_TRANSACTION_ID, -1L) ?: -1L
+        if (id < 0) return
+        openTransactionId = id
+        // Taken once: rotating the screen re-reads this intent and must not open the details again.
+        intent?.removeExtra(TransactionNotifier.EXTRA_TRANSACTION_ID)
     }
 }
 
@@ -206,11 +229,16 @@ private fun dayKey(): String =
  * after a save can still say so on the screen it returns to.
  */
 @Composable
-private fun AppShell() {
+private fun AppShell(openTransactionId: Long?, onTransactionOpened: () -> Unit) {
     val messages = remember { SnackbarHostState() }
     var overTabs by remember { mutableStateOf(true) }
     Box(Modifier.fillMaxSize()) {
-        AppContent(messages = messages, onOverTabsChange = { overTabs = it })
+        AppContent(
+            messages = messages,
+            onOverTabsChange = { overTabs = it },
+            openTransactionId = openTransactionId,
+            onTransactionOpened = onTransactionOpened,
+        )
         val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         SnackbarHost(
             messages,
@@ -227,6 +255,8 @@ private fun AppShell() {
 private fun AppContent(
     messages: SnackbarHostState,
     onOverTabsChange: (Boolean) -> Unit,
+    openTransactionId: Long?,
+    onTransactionOpened: () -> Unit,
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val messageScope = rememberCoroutineScope()
@@ -349,6 +379,15 @@ private fun AppContent(
     }
 
     BackHandler(enabled = backStack.isNotEmpty()) { goBack() }
+
+    // A tapped "Transaction recorded" alert opens that transaction over whatever is showing; Back
+    // returns there.
+    LaunchedEffect(openTransactionId) {
+        openTransactionId?.let { id ->
+            navigate(Route.Detail(id))
+            onTransactionOpened()
+        }
+    }
 
     val top = backStack.lastOrNull()
     SideEffect { onOverTabsChange(top == null) }
