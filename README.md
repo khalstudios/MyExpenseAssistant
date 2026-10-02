@@ -65,7 +65,7 @@ gradle wrapper --gradle-version 8.13
 2. Tap **Enable** next to *Notification access* → toggle "Kahan Gaya Paisa" in the system list.
 3. Make a UPI payment. It appears within a second or two.
 
-Notification access covers GPay, PhonePe, Paytm and bank SMS. There is no screen reading or accessibility service; a payment that posts neither an app notification nor a bank SMS can be added with **+**.
+Notification access covers GPay, PhonePe, Paytm and bank SMS. WhatsApp notifications are never read, so chat messages can't be mistaken for payments; a WhatsApp Pay payment is still recorded from your bank's SMS. There is no screen reading or accessibility service; a payment that posts neither an app notification nor a bank SMS can be added with **+**.
 
 Automatic capture stores every completed payment notification it can parse, even when the merchant or category is unavailable or inaccurate. In those cases, the source app is used as the merchant name and the transaction can be corrected later.
 

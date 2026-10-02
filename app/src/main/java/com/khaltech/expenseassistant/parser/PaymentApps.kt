@@ -14,7 +14,8 @@ object PaymentApps {
         "in.org.npci.upiapp" to "BHIM",
         "com.dreamplug.androidapp" to "CRED",
         "com.amazon.mShop.android.shopping" to "Amazon Pay",
-        "com.whatsapp" to "WhatsApp Pay",
+        // WhatsApp is deliberately absent: its notifications are mostly personal chats, which read as
+        // payments ("Sent a sticker", "I paid Rs 500"). WhatsApp Pay is UPI, so the bank SMS still records it.
         "com.mobikwik_new" to "MobiKwik",
         "com.freecharge.android" to "Freecharge",
         // Bank apps / SMS handlers

@@ -16,8 +16,9 @@ object PaymentTextParser {
 
     // Unified digit run first, so a plain 4+ digit amount like "2300" is never
     // truncated by an alternative that only expected comma-grouped digits.
+    // "rs"/"inr" must start a word, or a chat name like "Charioteers 2.0" reads as Rs 2.0.
     private val AMOUNT = Regex(
-        """(?:₹|rs\.?|inr)\s*([0-9]+(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?)""",
+        """(?:₹|(?<![A-Za-z])(?:rs\.?|inr))\s*([0-9]+(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?)""",
         RegexOption.IGNORE_CASE,
     )
 
@@ -56,7 +57,20 @@ object PaymentTextParser {
         "failed", "failure", "declined", "cancelled", "canceled", "pending", "processing",
         "unsuccessful", "reversed", "will be", "request", "reminder", "expire", "due",
         "collect request", "requesting", "asked you", "offer", "cashback up to", "win ",
+        // Marketing broadcasts quote prices ("Starting Price: ~₹3 Cr onwards") but never move money.
+        "unsubscribe", "reply stop", "onwards",
+        // Loan and card offers from lenders the bank parser does not know ("pre-approved loan for Rs 60000").
+        "pre-approved", "preapproved", "pre approved", "apply now", "congratulations", "eligible",
     )
+
+    // A hint must start a word, so "Presenting" is not read as "sent", nor "unpaid" as "paid".
+    private fun hintPattern(hints: List<String>) = Regex(
+        """(?<![a-z])(?:${hints.joinToString("|") { Regex.escape(it) }})""",
+    )
+
+    private val DEBIT_PATTERN = hintPattern(DEBIT_HINTS)
+    private val CREDIT_PATTERN = hintPattern(CREDIT_HINTS)
+    private val SUCCESS_PATTERN = hintPattern(SUCCESS_HINTS)
 
     // Notification text often has no punctuation, so every pattern must stop at a trailing keyword.
     private const val MERCHANT_END = """(?=\s+(?:on|via|from|using|ref(?:no)?|upi|utr|txn|for|at|success|successful|completed|to)\b|[.,\n]|$)"""
@@ -113,7 +127,7 @@ object PaymentTextParser {
 
         val lower = normalized.lowercase()
         if (FAILURE_HINTS.any { lower.contains(it) }) return null
-        if (SUCCESS_HINTS.none { lower.contains(it) }) return null
+        if (!SUCCESS_PATTERN.containsMatchIn(lower)) return null
 
         val amountMinor = extractAmountMinor(normalized) ?: return null
         if (amountMinor <= 0) return null
@@ -230,8 +244,8 @@ object PaymentTextParser {
     }
 
     private fun extractDirection(lowerText: String): Direction? {
-        val creditAt = CREDIT_HINTS.mapNotNull { hint -> lowerText.indexOf(hint).takeIf { it >= 0 } }.minOrNull()
-        val debitAt = DEBIT_HINTS.mapNotNull { hint -> lowerText.indexOf(hint).takeIf { it >= 0 } }.minOrNull()
+        val creditAt = CREDIT_PATTERN.find(lowerText)?.range?.first
+        val debitAt = DEBIT_PATTERN.find(lowerText)?.range?.first
         return when {
             debitAt != null && (creditAt == null || debitAt <= creditAt) -> Direction.DEBIT
             creditAt != null -> Direction.CREDIT

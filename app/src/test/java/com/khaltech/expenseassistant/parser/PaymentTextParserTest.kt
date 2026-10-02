@@ -36,6 +36,44 @@ class PaymentTextParserTest {
     }
 
     @Test
+    fun `ignores a whatsapp chat whose group name ends in rs before a number`() {
+        val text = "NextGen Charioteers 2.0: ⤷ You got a reply — ~ Piyush Kahale: 💜 Sent a sticker"
+        assertNull(PaymentTextParser.parse(text, "com.whatsapp"))
+    }
+
+    @Test
+    fun `ignores a property ad that quotes a price`() {
+        val text = "Godrej Properties — 📷 Presenting The Sky Villas at Godrej City, Panvel A limited " +
+            "collection of 3 & 4 bed Sky Villas. Configuration & Sizes: 3 BHK Sky Villa: ~1,700 sq. ft. " +
+            "Starting Price: ~₹3 Cr onwards* Limited Period EOI Window Now Open. Please reply STOP to Unsubscribe."
+        assertNull(PaymentTextParser.parse(text, "com.google.android.apps.messaging"))
+    }
+
+    @Test
+    fun `ignores a pre-approved loan offer`() {
+        val sms = "com.google.android.apps.messaging"
+        assertNull(PaymentTextParser.parse("You have a pre-approved loan for Rs 60000", sms))
+        assertNull(
+            PaymentTextParser.parse(
+                "Bajaj Finance — You have a pre-approved loan for ₹60000. Get it credited to your account in minutes.",
+                sms,
+            ),
+        )
+    }
+
+    @Test
+    fun `does not read sent inside another word as a payment`() {
+        assertNull(PaymentTextParser.parse("Presenting our new menu, mains from ₹250", gpay))
+    }
+
+    @Test
+    fun `still reads a currency token glued to the amount`() {
+        val result = PaymentTextParser.parse("You paid Rs.500 to Swiggy", gpay)
+        assertNotNull(result)
+        assertEquals(50000L, result!!.amountMinor)
+    }
+
+    @Test
     fun `parses bank debit sms with reference`() {
         val text = "Rs.1,250.00 debited from A/c XX1234 to UBER INDIA on 12-05-25. UPI Ref No 512345678901"
         val result = PaymentTextParser.parse(text, "com.google.android.apps.messaging")
