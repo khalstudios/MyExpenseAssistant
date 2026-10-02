@@ -1,6 +1,7 @@
 package com.khaltech.expenseassistant.ui.form
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -26,7 +28,6 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Schedule
@@ -47,32 +48,40 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.PaymentMode
 import com.khaltech.expenseassistant.data.repo.MerchantSuggestion
 import com.khaltech.expenseassistant.data.repo.NoteSuggestion
-import com.khaltech.expenseassistant.data.repo.bestSuggestion
+import com.khaltech.expenseassistant.data.repo.matchingSuggestions
 import com.khaltech.expenseassistant.ui.CardElevation
 import com.khaltech.expenseassistant.ui.IncomeColor
 import com.khaltech.expenseassistant.ui.SpendColor
@@ -114,12 +123,16 @@ internal fun TransactionFieldsCard(
     // Only the field being typed in offers a suggestion, so the form stays quiet while it is read.
     var merchantFocused by remember { mutableStateOf(false) }
     var notesFocused by remember { mutableStateOf(false) }
-    val merchantSuggestion = if (merchantFocused) {
-        bestSuggestion(merchant, merchantSuggestions.filter { it.direction == direction }) { it.name }
+    val merchantMatches = if (merchantFocused) {
+        matchingSuggestions(merchant, merchantSuggestions.filter { it.direction == direction }, SuggestionLimit) { it.name }
     } else {
-        null
+        emptyList()
     }
-    val noteSuggestion = if (notesFocused) bestSuggestion(description, noteSuggestions) { it.text } else null
+    val noteMatches = if (notesFocused) {
+        matchingSuggestions(description, noteSuggestions, SuggestionLimit) { it.text }
+    } else {
+        emptyList()
+    }
     val accent = if (isDebit) SpendColor else IncomeColor
     val hero = rememberHeroGradient()
     FormCard {
@@ -168,22 +181,22 @@ internal fun TransactionFieldsCard(
                 ),
                 modifier = Modifier.fillMaxWidth(),
             )
-            merchantSuggestion?.let { suggestion ->
-                SuggestionPopup(
-                    text = suggestion.name,
-                    onUse = { onMerchantSuggestionPicked(suggestion) },
+            FieldWithSuggestion(
+                suggestions = merchantMatches.map { it.name },
+                onPick = { index -> onMerchantSuggestionPicked(merchantMatches[index]) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                OutlinedTextField(
+                    value = merchant,
+                    onValueChange = onMerchantChange,
+                    label = { Text(if (isDebit) "Paid to" else "Received from") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { merchantFocused = it.isFocused },
                 )
             }
-            OutlinedTextField(
-                value = merchant,
-                onValueChange = onMerchantChange,
-                label = { Text(if (isDebit) "Paid to" else "Received from") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged { merchantFocused = it.isFocused },
-            )
         }
         DetailRow(
             label = "Category",
@@ -208,44 +221,95 @@ internal fun TransactionFieldsCard(
         RowDivider()
         PaymentModeRow(paymentMode, onPaymentModeChange, paymentModes)
         RowDivider()
-        noteSuggestion?.let { suggestion ->
-            SuggestionPopup(
-                text = suggestion.text,
-                onUse = { onDescriptionChange(suggestion.text) },
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
-            )
-        }
-        OutlinedTextField(
-            value = description,
-            onValueChange = onDescriptionChange,
-            label = { Text("Notes") },
-            placeholder = { Text("What was this for?") },
-            maxLines = 3,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        FieldWithSuggestion(
+            suggestions = noteMatches.map { it.text },
+            onPick = { index -> onDescriptionChange(noteMatches[index].text) },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-                .onFocusChanged { notesFocused = it.isFocused },
-        )
+                .padding(16.dp),
+        ) {
+            OutlinedTextField(
+                value = description,
+                onValueChange = onDescriptionChange,
+                label = { Text("Notes") },
+                placeholder = { Text("What was this for?") },
+                maxLines = 3,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { notesFocused = it.isFocused },
+            )
+        }
     }
 }
 
+/** How many earlier entries the list offers at most, most used first. */
+private const val SuggestionLimit = 5
+
 /**
- * The one most used earlier entry matching the field, shown just above it in the same snackbar the
- * backup and restore messages use. Tapping it anywhere fills the field in.
+ * [field] with a list of matching earlier [suggestions] floating just above it. It floats in a popup
+ * rather than taking a place in the layout: inserted above the field it would push the field down,
+ * under the keyboard, at the moment the user starts typing in it.
  */
 @Composable
-private fun SuggestionPopup(text: String, onUse: () -> Unit, modifier: Modifier = Modifier) {
-    Snackbar(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(SnackbarDefaults.shape)
-            .clickable(onClickLabel = "Use $text", onClick = onUse),
-        action = { TextButton(onClick = onUse) { Text("Use", color = SnackbarDefaults.actionColor) } },
+private fun FieldWithSuggestion(
+    suggestions: List<String>,
+    onPick: (index: Int) -> Unit,
+    modifier: Modifier = Modifier,
+    field: @Composable () -> Unit,
+) {
+    var fieldWidth by remember { mutableIntStateOf(0) }
+    Box(modifier.onSizeChanged { fieldWidth = it.width }) {
+        field()
+        if (suggestions.isNotEmpty() && fieldWidth > 0) {
+            val density = LocalDensity.current
+            val gap = with(density) { SuggestionGap.roundToPx() }
+            Popup(
+                popupPositionProvider = remember(gap) { AboveAnchor(gap) },
+                // Not focusable, so the field keeps the keyboard while the list shows.
+                properties = PopupProperties(focusable = false),
+            ) {
+                SuggestionList(suggestions, onPick, Modifier.width(with(density) { fieldWidth.toDp() }))
+            }
+        }
+    }
+}
+
+private val SuggestionGap = 6.dp
+
+/** Lines a popup's bottom up just above its anchor, left edges together. */
+private class AboveAnchor(private val gapPx: Int) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset = IntOffset(anchorBounds.left, anchorBounds.top - popupContentSize.height - gapPx)
+}
+
+/** A dropdown-style panel of earlier entries; tapping one fills the field in with it. */
+@Composable
+private fun SuggestionList(suggestions: List<String>, onPick: (index: Int) -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = 3.dp,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Filled.History, contentDescription = "Previously used", modifier = Modifier.size(18.dp))
-            Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Column(Modifier.padding(vertical = 4.dp)) {
+            suggestions.forEachIndexed { index, text ->
+                Text(
+                    text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClickLabel = "Use $text") { onPick(index) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                )
+            }
         }
     }
 }

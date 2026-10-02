@@ -43,6 +43,24 @@ class EntrySuggestionsTest {
     }
 
     @Test
+    fun `the list holds every match up to the limit, most used first`() {
+        val ranked = merchantSuggestions(
+            listOf(
+                entry("Dzire Petrol", at = 1),
+                entry("Dzire Petrol", at = 2),
+                entry("Dzire Washing", at = 3),
+                entry("Dzire EMI", at = 4),
+                entry("Uber", at = 5),
+            ),
+        )
+
+        assertEquals(
+            listOf("Dzire Petrol", "Dzire EMI"),
+            matchingSuggestions("dzire", ranked, limit = 2) { it.name }.map { it.name },
+        )
+    }
+
+    @Test
     fun `a name already in the field is not offered back`() {
         val ranked = merchantSuggestions(listOf(entry("Uber", at = 1)))
 

@@ -60,12 +60,19 @@ fun noteSuggestions(transactions: List<TransactionEntity>): List<NoteSuggestion>
  * "insta" finds "Swiggy Instamart". Blank text offers the most used option outright. An option the
  * field already holds is never offered back.
  */
-fun <T> bestSuggestion(typed: String, ranked: List<T>, textOf: (T) -> String): T? {
+fun <T> bestSuggestion(typed: String, ranked: List<T>, textOf: (T) -> String): T? =
+    matchingSuggestions(typed, ranked, limit = 1, textOf).firstOrNull()
+
+/** Up to [limit] options matching what has been typed, by the same rule as [bestSuggestion], most used first. */
+fun <T> matchingSuggestions(typed: String, ranked: List<T>, limit: Int, textOf: (T) -> String): List<T> {
     val query = typed.trim().lowercase()
-    return ranked.firstOrNull { option ->
-        val text = textOf(option).lowercase()
-        text != query && (query.isEmpty() || text.startsWith(query) || text.contains(" $query"))
-    }
+    return ranked.asSequence()
+        .filter { option ->
+            val text = textOf(option).lowercase()
+            text != query && (query.isEmpty() || text.startsWith(query) || text.contains(" $query"))
+        }
+        .take(limit)
+        .toList()
 }
 
 /** [current] with any of [added] it lacks appended; tags differing only in case count as the same. */
