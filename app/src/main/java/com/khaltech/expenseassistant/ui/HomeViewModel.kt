@@ -12,6 +12,11 @@ import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.PaymentMode
 import com.khaltech.expenseassistant.data.model.TransactionEntity
+import com.khaltech.expenseassistant.data.repo.MerchantSuggestion
+import com.khaltech.expenseassistant.data.repo.NoteSuggestion
+import com.khaltech.expenseassistant.data.repo.merchantKey
+import com.khaltech.expenseassistant.data.repo.merchantSuggestions as merchantSuggestionsOf
+import com.khaltech.expenseassistant.data.repo.noteSuggestions as noteSuggestionsOf
 import com.khaltech.expenseassistant.data.repo.tagUsageOf
 import com.khaltech.expenseassistant.di.ServiceLocator
 import com.khaltech.expenseassistant.recurring.Cadence
@@ -122,6 +127,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Complete history for the "See more" screen, independent of the home summary scope. */
     val allTransactions: StateFlow<List<TransactionEntity>> = repository.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Names and notes used before, for the transaction forms to offer while typing. */
+    val merchantSuggestions: StateFlow<List<MerchantSuggestion>> = repository.observeAll()
+        .map(::merchantSuggestionsOf)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val noteSuggestions: StateFlow<List<NoteSuggestion>> = repository.observeAll()
+        .map(::noteSuggestionsOf)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Every low-confidence transaction, regardless of period, for the "needs a category" screen. */
@@ -365,10 +379,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    /** Debits dated today; the home banner reports the day's running total. */
+    /** Debits dated today; the home banner reports the day's running total, not future-dated entries. */
     private fun List<TransactionEntity>.spentToday(): List<TransactionEntity> {
-        val dayStart = startOfDay(System.currentTimeMillis())
-        return filter { it.occurredAt >= dayStart }
+        val today = dayRange(System.currentTimeMillis())
+        return filter { it.occurredAt in today }
     }
 
     private fun PeriodSnapshot.toAnalytics(): AnalyticsUiState {
@@ -389,6 +403,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val spentByCategory = debits.groupBy { it.category }
             .mapValues { (_, items) -> items.sumOf { it.amountMinor } }
         val paceFraction = elapsedDays.toFloat() / totalDays
+        val topMerchantPayments = debits.groupBy { it.merchant }
+            .maxByOrNull { (_, items) -> items.sumOf { it.amountMinor } }
+            ?.toPair()
 
         return AnalyticsUiState(
             selection = selection,
@@ -415,9 +432,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             transactionCount = current.size,
             activeDays = debits.map { dayKey(it.occurredAt) }.distinct().size,
             largestTransaction = debits.maxByOrNull { it.amountMinor },
-            topMerchant = debits.groupBy { it.merchant }
-                .map { (merchant, items) -> merchant to items.sumOf { it.amountMinor } }
-                .maxByOrNull { it.second },
+            topMerchant = topMerchantPayments?.let { (merchant, items) -> merchant to items.sumOf { it.amountMinor } },
+            // A display name can gather payments under more than one merchant key; the biggest share wins.
+            topMerchantKey = topMerchantPayments?.second
+                ?.filter { it.merchantKey != null }
+                ?.groupBy { it.merchantKey }
+                ?.maxByOrNull { (_, items) -> items.sumOf { it.amountMinor } }
+                ?.key,
+            topMerchantLargestId = topMerchantPayments?.second?.maxByOrNull { it.amountMinor }?.id,
             needsReviewCount = current.count { it.needsCategoryReview },
             tagUsage = tagUsageOf(current),
             overallBudget = budgets[BudgetEntity.OVERALL]?.let { limit ->

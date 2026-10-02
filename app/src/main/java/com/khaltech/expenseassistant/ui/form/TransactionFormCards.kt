@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Schedule
@@ -46,6 +47,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -56,6 +59,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -65,6 +70,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.PaymentMode
+import com.khaltech.expenseassistant.data.repo.MerchantSuggestion
+import com.khaltech.expenseassistant.data.repo.NoteSuggestion
+import com.khaltech.expenseassistant.data.repo.bestSuggestion
 import com.khaltech.expenseassistant.ui.CardElevation
 import com.khaltech.expenseassistant.ui.IncomeColor
 import com.khaltech.expenseassistant.ui.SpendColor
@@ -98,8 +106,20 @@ internal fun TransactionFieldsCard(
     description: String,
     onDescriptionChange: (String) -> Unit,
     paymentModes: List<PaymentMode> = PaymentMode.entries,
+    merchantSuggestions: List<MerchantSuggestion> = emptyList(),
+    onMerchantSuggestionPicked: (MerchantSuggestion) -> Unit = { onMerchantChange(it.name) },
+    noteSuggestions: List<NoteSuggestion> = emptyList(),
 ) {
     val isDebit = direction == Direction.DEBIT
+    // Only the field being typed in offers a suggestion, so the form stays quiet while it is read.
+    var merchantFocused by remember { mutableStateOf(false) }
+    var notesFocused by remember { mutableStateOf(false) }
+    val merchantSuggestion = if (merchantFocused) {
+        bestSuggestion(merchant, merchantSuggestions.filter { it.direction == direction }) { it.name }
+    } else {
+        null
+    }
+    val noteSuggestion = if (notesFocused) bestSuggestion(description, noteSuggestions) { it.text } else null
     val accent = if (isDebit) SpendColor else IncomeColor
     val hero = rememberHeroGradient()
     FormCard {
@@ -148,13 +168,21 @@ internal fun TransactionFieldsCard(
                 ),
                 modifier = Modifier.fillMaxWidth(),
             )
+            merchantSuggestion?.let { suggestion ->
+                SuggestionPopup(
+                    text = suggestion.name,
+                    onUse = { onMerchantSuggestionPicked(suggestion) },
+                )
+            }
             OutlinedTextField(
                 value = merchant,
                 onValueChange = onMerchantChange,
                 label = { Text(if (isDebit) "Paid to" else "Received from") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { merchantFocused = it.isFocused },
             )
         }
         DetailRow(
@@ -180,6 +208,13 @@ internal fun TransactionFieldsCard(
         RowDivider()
         PaymentModeRow(paymentMode, onPaymentModeChange, paymentModes)
         RowDivider()
+        noteSuggestion?.let { suggestion ->
+            SuggestionPopup(
+                text = suggestion.text,
+                onUse = { onDescriptionChange(suggestion.text) },
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
+            )
+        }
         OutlinedTextField(
             value = description,
             onValueChange = onDescriptionChange,
@@ -189,8 +224,29 @@ internal fun TransactionFieldsCard(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(16.dp)
+                .onFocusChanged { notesFocused = it.isFocused },
         )
+    }
+}
+
+/**
+ * The one most used earlier entry matching the field, shown just above it in the same snackbar the
+ * backup and restore messages use. Tapping it anywhere fills the field in.
+ */
+@Composable
+private fun SuggestionPopup(text: String, onUse: () -> Unit, modifier: Modifier = Modifier) {
+    Snackbar(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(SnackbarDefaults.shape)
+            .clickable(onClickLabel = "Use $text", onClick = onUse),
+        action = { TextButton(onClick = onUse) { Text("Use", color = SnackbarDefaults.actionColor) } },
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(Icons.Filled.History, contentDescription = "Previously used", modifier = Modifier.size(18.dp))
+            Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 

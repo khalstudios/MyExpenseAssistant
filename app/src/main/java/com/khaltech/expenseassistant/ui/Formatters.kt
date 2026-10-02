@@ -47,6 +47,16 @@ fun startOfDay(epochMillis: Long): Long = Calendar.getInstance().apply {
     set(Calendar.MILLISECOND, 0)
 }.timeInMillis
 
+/** Midnight to midnight of the day holding [epochMillis], so later-dated entries fall outside it. */
+fun dayRange(epochMillis: Long): LongRange {
+    val start = startOfDay(epochMillis)
+    val nextStart = Calendar.getInstance().apply {
+        timeInMillis = start
+        add(Calendar.DAY_OF_MONTH, 1)
+    }.timeInMillis
+    return start until nextStart
+}
+
 /** "22 August", or "22 August 2025" once the date falls outside the current year. */
 fun formatDayHeader(epochMillis: Long): String {
     val thisYear = Calendar.getInstance().get(Calendar.YEAR)

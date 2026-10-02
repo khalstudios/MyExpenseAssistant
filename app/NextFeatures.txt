@@ -20,3 +20,18 @@
 13. add some kind of msg or alert to notify that the apps data has been deleted.
 14. Purchase restore option is not working.
 15. Update the app to fix the vulnerabilities pointed by play console under test and release section.
+16. The app should create backup folder automatically in the root directory of the local device or the g drive, 
+    currnetly when I try to choose a location, it first says cannot create folder in this location.
+17. Setting automatic backup schedule should not immediately create a backup. 
+    Backup should only be created after the specified interval.
+18. I would like to integrate a coupon code model, so that I can create different coupon codes
+    based on my friends names, these coupons would give additional 20% discount,
+    and also my friends can share it with their circle and earn.
+19. Fix Bug - The app reads a whatsapp group chat messages notifications and saves them as a Transaction. 
+20. Fix Bug - Future payments are also counted in Spent Today card. SPENT TODAY card should display only todays expenses.
+21. Fix Bug - Some messages related to property buying promotional SMS are also being recorded as transactions. (eg. Godrej Properties)
+22. Fix bug - Loan offers are also captured as transactions by the app.
+23. Clicking on most Spent at and largest transaction card, should take me to that transaction.
+24. Notes and Marchant inputs should show suggestions of the existing common notes/merchant names when editing any of these fields. 
+    A single most used name should be shown and can be selected. Once the suggestion is selected, 
+    the related category and tags for that merchant should also be populated.

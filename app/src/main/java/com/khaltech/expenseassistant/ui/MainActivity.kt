@@ -8,6 +8,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -67,6 +69,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.os.Build
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -104,6 +108,7 @@ import com.khaltech.expenseassistant.ui.category.LocalCustomCategoryActions
 import com.khaltech.expenseassistant.ui.category.LocalCustomCategoryCount
 import com.khaltech.expenseassistant.di.ServiceLocator
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 class MainActivity : ComponentActivity() {
@@ -119,7 +124,7 @@ class MainActivity : ComponentActivity() {
                     val iconOverrides by iconStore.overrides.collectAsStateWithLifecycle()
                     val colorStore = remember { ServiceLocator.categoryColorStore(context) }
                     val colorOverrides by colorStore.overrides.collectAsStateWithLifecycle()
-                    // The same instance AppShell resolves below, this Activity being the store
+                    // The same instance AppContent resolves below, this Activity being the store
                     // owner for both, so the picker's category list is read from one source.
                     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
                     val categoriesInUse by homeViewModel.categoriesInUse.collectAsStateWithLifecycle()
@@ -163,6 +168,8 @@ private sealed interface Route {
     data class TagTransactions(val tag: String, val period: PeriodSelection? = null) : Route
     data object NeedsReview : Route
     data object AllTransactions : Route
+    /** The home summary's income or expenditure, over the scope it showed when tapped. */
+    data class SummaryTransactions(val direction: Direction, val scope: SummaryScope) : Route
     data object Categories : Route
     data object Tags : Route
     data object Merchants : Route
@@ -194,8 +201,41 @@ private fun dayKey(): String =
     java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The app plus one message bar over whichever screen is showing, so a screen that closes itself
+ * after a save can still say so on the screen it returns to.
+ */
 @Composable
-private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)) {
+private fun AppShell() {
+    val messages = remember { SnackbarHostState() }
+    var overTabs by remember { mutableStateOf(true) }
+    Box(Modifier.fillMaxSize()) {
+        AppContent(messages = messages, onOverTabsChange = { overTabs = it })
+        val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        SnackbarHost(
+            messages,
+            // On the tabs it clears the bottom bar and its centre button, the way the tip bar does.
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = navInset + if (overTabs) BottomBarHeight + FabClearance else 16.dp),
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun AppContent(
+    messages: SnackbarHostState,
+    onOverTabsChange: (Boolean) -> Unit,
+    viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
+) {
+    val messageScope = rememberCoroutineScope()
+    fun showMessage(text: String) {
+        messageScope.launch {
+            messages.currentSnackbarData?.dismiss()
+            messages.showSnackbar(text)
+        }
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val recentState by viewModel.recentState.collectAsStateWithLifecycle()
     val analytics by viewModel.analytics.collectAsStateWithLifecycle()
@@ -203,6 +243,8 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     val yearlyBudgetAnalytics by viewModel.yearlyBudgetAnalytics.collectAsStateWithLifecycle()
     val recurring by viewModel.recurring.collectAsStateWithLifecycle()
     val tagSuggestions by viewModel.tagSuggestions.collectAsStateWithLifecycle()
+    val merchantSuggestions by viewModel.merchantSuggestions.collectAsStateWithLifecycle()
+    val noteSuggestions by viewModel.noteSuggestions.collectAsStateWithLifecycle()
     val customCategories by viewModel.customCategories.collectAsStateWithLifecycle()
     val tagUsage by viewModel.tagUsage.collectAsStateWithLifecycle()
     val summaryScope by viewModel.summaryScope.collectAsStateWithLifecycle()
@@ -309,6 +351,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
     BackHandler(enabled = backStack.isNotEmpty()) { goBack() }
 
     val top = backStack.lastOrNull()
+    SideEffect { onOverTabsChange(top == null) }
     if (top != null) {
         saveableStateHolder.SaveableStateProvider(top.key) {
             when (val current = top.route) {
@@ -330,9 +373,12 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                                 tags = input.tags,
                             )
                             goBack()
+                            showMessage("Transaction added")
                         },
                         customCategories = customCategories,
                         tagSuggestions = tagSuggestions,
+                        merchantSuggestions = merchantSuggestions,
+                        noteSuggestions = noteSuggestions,
                     )
                 }
 
@@ -382,14 +428,21 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                         TransactionDetailScreen(
                             transaction = detail,
                             onBack = { goBack() },
-                            onSave = { edits -> viewModel.saveDetails(detail.id, edits) },
+                            // The screen closes itself after saving, so the message lands on the one beneath.
+                            onSave = { edits ->
+                                viewModel.saveDetails(detail.id, edits)
+                                showMessage("Transaction saved")
+                            },
                             onDelete = {
                                 viewModel.delete(detail.id)
                                 goBack()
+                                showMessage("Transaction deleted")
                             },
                             customCategories = customCategories,
                             tagSuggestions = tagSuggestions,
                             onOpenTag = { tag -> navigate(Route.TagTransactions(tag)) },
+                            merchantSuggestions = merchantSuggestions,
+                            noteSuggestions = noteSuggestions,
                         )
                     } ?: Box(
                         Modifier
@@ -494,6 +547,28 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                 Route.AllTransactions -> {
                     AllTransactionsScreen(
                         transactions = allTransactions,
+                        onBack = { goBack() },
+                        onOpenTransaction = { id -> navigate(Route.Detail(id)) },
+                        onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
+                        onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
+                        customCategories = customCategories,
+                        onDelete = { id -> viewModel.delete(id) },
+                    )
+                }
+
+                is Route.SummaryTransactions -> {
+                    val isIncome = current.direction == Direction.CREDIT
+                    val periodLabel = when (current.scope) {
+                        SummaryScope.MONTH -> currentMonthYearName()
+                        SummaryScope.YEAR -> yearToDateLabel()
+                        SummaryScope.ALL -> current.scope.label
+                    }
+                    AllTransactionsScreen(
+                        // recentState already holds exactly the summary's scope; the card is not reachable
+                        // to change it while this screen is open.
+                        transactions = recentState.transactions.filter { it.direction == current.direction },
+                        title = "${if (isIncome) "Income" else "Expenses"} · $periodLabel",
+                        emptyText = if (isIncome) "No income in this period." else "No expenses in this period.",
                         onBack = { goBack() },
                         onOpenTransaction = { id -> navigate(Route.Detail(id)) },
                         onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
@@ -628,6 +703,7 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     spendingStatus = spendingStatus,
                     onOpenNeedsReview = { navigate(Route.NeedsReview) },
                     onOpenAllTransactions = { navigate(Route.AllTransactions) },
+                    onOpenSummaryTransactions = { direction -> navigate(Route.SummaryTransactions(direction, summaryScope)) },
                     onDelete = { id -> viewModel.delete(id) },
                     onOpenTransaction = { id -> navigate(Route.Detail(id)) },
                     modifier = Modifier.padding(padding),
@@ -645,6 +721,8 @@ private fun AppShell(viewModel: HomeViewModel = viewModel(factory = HomeViewMode
                     onOpenNeedsReview = { navigate(Route.NeedsReview) },
                     onAddRecurring = { navigate(Route.EditRecurring()) },
                     onOpenRecurring = { item -> navigate(Route.EditRecurring(item)) },
+                    onOpenMerchant = { key -> navigate(Route.Merchant(key)) },
+                    onOpenTransaction = { id -> navigate(Route.Detail(id)) },
                     modifier = Modifier.padding(padding),
                 )
 

@@ -109,6 +109,7 @@ fun HomeScreen(
     needsReviewFilter: Boolean = false,
     onOpenNeedsReview: () -> Unit = {},
     onOpenAllTransactions: () -> Unit = {},
+    onOpenSummaryTransactions: (Direction) -> Unit = {},
     onClearFilter: () -> Unit = {},
     transactionOverride: List<TransactionEntity>? = null,
     modifier: Modifier = Modifier,
@@ -133,11 +134,11 @@ fun HomeScreen(
     val recentCutoff = startOfDay(System.currentTimeMillis() - 2 * MillisPerDay)
     val shownDays = if (recentOnly) days.filter { it.first >= recentCutoff } else days
 
-    val todayStart = startOfDay(System.currentTimeMillis())
+    val today = dayRange(System.currentTimeMillis())
     // Biggest first: the card only has room for a few rows, and the ones worth that room are the
     // ones that moved the day's total, not the ones that happened to be most recent.
     val todaySpending = state.transactions
-        .filter { it.occurredAt >= todayStart && it.direction == Direction.DEBIT }
+        .filter { it.occurredAt in today && it.direction == Direction.DEBIT }
         .sortedWith(bySizeThenRecency)
 
     val listState = rememberLazyListState()
@@ -188,7 +189,7 @@ fun HomeScreen(
                 item { SpendingStatusCard(status) }
             }
             item { SectionHeader("Income & Expenditure", topPadding = 0.dp) }
-            item { SummaryCard(state, summaryScope, onSummaryScopeChange, onOpenNeedsReview) }
+            item { SummaryCard(state, summaryScope, onSummaryScopeChange, onOpenNeedsReview, onOpenSummaryTransactions) }
 
             if (state.spendByCategory.isNotEmpty()) {
                 item { SectionHeader("Where it went") }
@@ -648,6 +649,7 @@ private fun SummaryCard(
     scope: SummaryScope,
     onScopeChange: (SummaryScope) -> Unit,
     onOpenNeedsReview: () -> Unit,
+    onOpenTransactions: (Direction) -> Unit,
 ) {
     val hero = rememberHeroGradient()
     Card(
@@ -698,8 +700,14 @@ private fun SummaryCard(
             }
             // Each side takes half the row, so a seven-figure amount ellipsizes instead of running
             // into the other column.
+            // Each amount opens the transactions behind it, over the scope the card is showing.
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.weight(1f)) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClickLabel = "See income") { onOpenTransactions(Direction.CREDIT) },
+                ) {
                     Text(
                         "INCOME",
                         style = MaterialTheme.typography.labelMedium,
@@ -715,7 +723,13 @@ private fun SummaryCard(
                         maxLines = 1,
                     )
                 }
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClickLabel = "See expenses") { onOpenTransactions(Direction.DEBIT) },
+                    horizontalAlignment = Alignment.End,
+                ) {
                     Text(
                         "EXPENDITURE",
                         style = MaterialTheme.typography.labelMedium,

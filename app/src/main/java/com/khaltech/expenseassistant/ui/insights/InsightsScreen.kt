@@ -77,6 +77,8 @@ fun InsightsScreen(
     onOpenNeedsReview: () -> Unit = {},
     onAddRecurring: () -> Unit = {},
     onOpenRecurring: (RecurringExpense) -> Unit = {},
+    onOpenMerchant: (String) -> Unit = {},
+    onOpenTransaction: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // Read here rather than inside the list: a LazyColumn's content block is not a composable scope.
@@ -119,7 +121,14 @@ fun InsightsScreen(
             }
         }
         state.topMerchant?.let { (merchant, amount) ->
-            item { TopMerchantCard(merchant, amount) }
+            val key = state.topMerchantKey
+            val largestId = state.topMerchantLargestId
+            val onClick = when {
+                key != null -> { -> onOpenMerchant(key) }
+                largestId != null -> { -> onOpenTransaction(largestId) }
+                else -> null
+            }
+            item { TopMerchantCard(merchant, amount, onClick) }
         }
         state.largestTransaction?.let { transaction ->
             item {
@@ -129,6 +138,7 @@ fun InsightsScreen(
                     primary = formatMinor(transaction.amountMinor),
                     secondary = transaction.merchant,
                     badge = { CategoryBadge(transaction, size = 40.dp) },
+                    onClick = { onOpenTransaction(transaction.id) },
                 )
             }
         }
@@ -498,12 +508,13 @@ private fun ComparisonCard(state: AnalyticsUiState) {
 }
 
 @Composable
-private fun TopMerchantCard(merchant: String, amountMinor: Long) {
+private fun TopMerchantCard(merchant: String, amountMinor: Long, onClick: (() -> Unit)?) {
     HighlightCard(
         icon = Icons.Filled.Storefront,
         title = "Most spent at",
         primary = merchant,
         secondary = formatMinor(amountMinor),
+        onClick = onClick,
     )
 }
 
@@ -514,8 +525,10 @@ private fun HighlightCard(
     primary: String,
     secondary: String,
     badge: (@Composable () -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
 ) {
-    Card(Modifier.fillMaxWidth()) {
+    val clickModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+    Card(Modifier.fillMaxWidth().then(clickModifier)) {
         Row(
             Modifier
                 .fillMaxWidth()

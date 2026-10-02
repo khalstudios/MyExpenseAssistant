@@ -41,6 +41,8 @@ fun AllTransactionsScreen(
     onCategoryChangeCustom: (Long, String, String, String) -> Unit = { _, _, _, _ -> },
     customCategories: List<CustomCategoryOption> = emptyList(),
     onDelete: (Long) -> Unit = {},
+    title: String = "All transactions",
+    emptyText: String = "No transactions recorded yet.",
     modifier: Modifier = Modifier,
 ) {
     var editing by remember { mutableStateOf<TransactionEntity?>(null) }
@@ -54,7 +56,7 @@ fun AllTransactionsScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("All transactions", fontWeight = FontWeight.Bold) },
+                title = { Text(title, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -71,7 +73,7 @@ fun AllTransactionsScreen(
             if (days.isEmpty()) {
                 item {
                     Text(
-                        "No transactions recorded yet.",
+                        emptyText,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

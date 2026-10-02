@@ -45,6 +45,9 @@ import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.PaymentMode
 import com.khaltech.expenseassistant.data.repo.CustomCategoryOption
+import com.khaltech.expenseassistant.data.repo.MerchantSuggestion
+import com.khaltech.expenseassistant.data.repo.NoteSuggestion
+import com.khaltech.expenseassistant.data.repo.mergeTags
 import com.khaltech.expenseassistant.ui.category.CategoryBadge
 import com.khaltech.expenseassistant.ui.category.CategoryIconCatalog
 import com.khaltech.expenseassistant.ui.category.CategoryPickerSheet
@@ -74,6 +77,8 @@ fun AddTransactionScreen(
     onSave: (ManualTransactionInput) -> Unit,
     customCategories: List<CustomCategoryOption> = emptyList(),
     tagSuggestions: List<String> = emptyList(),
+    merchantSuggestions: List<MerchantSuggestion> = emptyList(),
+    noteSuggestions: List<NoteSuggestion> = emptyList(),
 ) {
     var amount by remember { mutableStateOf("") }
     var direction by remember { mutableStateOf(Direction.DEBIT) }
@@ -182,6 +187,16 @@ fun AddTransactionScreen(
                 onDescriptionChange = { description = it },
                 // Nothing was captured, so there is no unknown mode to fall back to.
                 paymentModes = PaymentMode.entries.filter { it != PaymentMode.UNKNOWN },
+                merchantSuggestions = merchantSuggestions,
+                onMerchantSuggestionPicked = { picked ->
+                    merchant = picked.name
+                    category = picked.category
+                    customCategoryName = picked.customCategoryName
+                    customCategoryColor = picked.customCategoryColor
+                    customCategoryIcon = picked.customCategoryIcon
+                    tags = mergeTags(tags, picked.tags)
+                },
+                noteSuggestions = noteSuggestions,
             )
             TagsCard(
                 tags = tags,

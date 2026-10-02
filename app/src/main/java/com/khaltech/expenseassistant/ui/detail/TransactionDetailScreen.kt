@@ -49,6 +49,9 @@ import com.khaltech.expenseassistant.data.model.AccountType
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.TransactionEntity
 import com.khaltech.expenseassistant.data.repo.CustomCategoryOption
+import com.khaltech.expenseassistant.data.repo.MerchantSuggestion
+import com.khaltech.expenseassistant.data.repo.NoteSuggestion
+import com.khaltech.expenseassistant.data.repo.mergeTags
 import com.khaltech.expenseassistant.ui.CardElevation
 import com.khaltech.expenseassistant.ui.category.CategoryBadge
 import com.khaltech.expenseassistant.ui.category.CategoryPickerSheet
@@ -70,6 +73,8 @@ fun TransactionDetailScreen(
     customCategories: List<CustomCategoryOption> = emptyList(),
     tagSuggestions: List<String> = emptyList(),
     onOpenTag: (String) -> Unit = {},
+    merchantSuggestions: List<MerchantSuggestion> = emptyList(),
+    noteSuggestions: List<NoteSuggestion> = emptyList(),
 ) {
     // Seeded per transaction id only, so the entity flow re-emitting after a save never clobbers typing.
     var amount by remember(transaction.id) { mutableStateOf(amountInput(transaction.amountMinor)) }
@@ -185,6 +190,16 @@ fun TransactionDetailScreen(
                 onPaymentModeChange = { paymentMode = it },
                 description = description,
                 onDescriptionChange = { description = it },
+                merchantSuggestions = merchantSuggestions,
+                onMerchantSuggestionPicked = { picked ->
+                    merchant = picked.name
+                    category = picked.category
+                    customName = picked.customCategoryName
+                    customColor = picked.customCategoryColor
+                    customIcon = picked.customCategoryIcon
+                    tags = mergeTags(tags, picked.tags)
+                },
+                noteSuggestions = noteSuggestions,
             )
             TagsCard(
                 tags = tags,

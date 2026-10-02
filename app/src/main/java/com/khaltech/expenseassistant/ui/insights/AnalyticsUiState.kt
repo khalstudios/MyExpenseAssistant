@@ -35,6 +35,9 @@ data class AnalyticsUiState(
     val activeDays: Int = 0,
     val largestTransaction: TransactionEntity? = null,
     val topMerchant: Pair<String, Long>? = null,
+    /** Where tapping the top merchant leads: its Merchants page, or its largest payment when it has no page. */
+    val topMerchantKey: String? = null,
+    val topMerchantLargestId: Long? = null,
     val needsReviewCount: Int = 0,
     val overallBudget: BudgetProgress? = null,
     val categoryBudgets: List<BudgetProgress> = emptyList(),
