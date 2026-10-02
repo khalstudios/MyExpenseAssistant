@@ -47,10 +47,7 @@ data class PieSlice(
     val transactionCount: Int = 0,
 )
 
-/**
- * How many bars the ranked chart draws. Whatever it leaves out is what the detailed breakdown is
- * for, so the two read this rather than each guessing at the other's cut-off.
- */
+/** How many bars the ranked chart draws; the detailed breakdown under it lists every category. */
 const val RankedBarCount = 8
 
 @Composable

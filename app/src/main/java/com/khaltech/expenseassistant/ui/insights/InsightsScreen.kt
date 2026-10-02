@@ -354,16 +354,15 @@ private fun SpendByCategoryCard(state: AnalyticsUiState, onOpenCategory: (Catego
                     totalMinor = state.totalSpendMinor,
                     onOpenCategory = onOpenCategory,
                 )
-                // Only worth opening when it holds more than the bars already showed.
-                if (state.slices.size > RankedBarCount) {
-                    HorizontalDivider()
-                    DetailedBreakdown(
-                        slices = state.slices,
-                        isOpen = detailsOpen,
-                        onToggle = { detailsOpen = !detailsOpen },
-                        onOpenCategory = onOpenCategory,
-                    )
-                }
+                // Always offered: beyond any categories the bars leave out, it gives each one's exact
+                // amount and transaction count, which the bars' percentages do not.
+                HorizontalDivider()
+                DetailedBreakdown(
+                    slices = state.slices,
+                    isOpen = detailsOpen,
+                    onToggle = { detailsOpen = !detailsOpen },
+                    onOpenCategory = onOpenCategory,
+                )
             }
         }
     }
