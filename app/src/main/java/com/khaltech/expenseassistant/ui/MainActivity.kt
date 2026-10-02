@@ -232,7 +232,8 @@ private fun dayKey(): String =
 private fun AppShell(openTransactionId: Long?, onTransactionOpened: () -> Unit) {
     val messages = remember { SnackbarHostState() }
     var overTabs by remember { mutableStateOf(true) }
-    Box(Modifier.fillMaxSize()) {
+    // Any touch dismisses the message, and still reaches what was touched.
+    Box(Modifier.fillMaxSize().dismissMessageOnTouch(messages)) {
         AppContent(
             messages = messages,
             onOverTabsChange = { overTabs = it },
@@ -242,10 +243,10 @@ private fun AppShell(openTransactionId: Long?, onTransactionOpened: () -> Unit) 
         val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         SnackbarHost(
             messages,
-            // On the tabs it clears the bottom bar and its centre button, the way the tip bar does.
+            // On the tabs it sits just above the bottom bar, where the Profile screen shows its messages.
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = navInset + if (overTabs) BottomBarHeight + FabClearance else 16.dp),
+                .padding(bottom = navInset + if (overTabs) BottomBarHeight else 16.dp),
         )
     }
 }
@@ -261,10 +262,7 @@ private fun AppContent(
 ) {
     val messageScope = rememberCoroutineScope()
     fun showMessage(text: String) {
-        messageScope.launch {
-            messages.currentSnackbarData?.dismiss()
-            messages.showSnackbar(text)
-        }
+        messageScope.launch { messages.showBriefly(text) }
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val recentState by viewModel.recentState.collectAsStateWithLifecycle()

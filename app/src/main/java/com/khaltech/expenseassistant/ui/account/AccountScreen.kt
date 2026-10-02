@@ -85,8 +85,10 @@ import com.khaltech.expenseassistant.service.PermissionStatus
 import com.khaltech.expenseassistant.ui.CardElevation
 import com.khaltech.expenseassistant.ui.DisclosureDialog
 import com.khaltech.expenseassistant.ui.Disclosures
+import com.khaltech.expenseassistant.ui.dismissMessageOnTouch
 import com.khaltech.expenseassistant.ui.formatMinor
 import com.khaltech.expenseassistant.ui.formatTimestamp
+import com.khaltech.expenseassistant.ui.showBriefly
 import java.util.Locale
 import com.khaltech.expenseassistant.ui.rememberHeroGradient
 import com.khaltech.expenseassistant.ui.rememberSoftGradient
@@ -208,7 +210,7 @@ fun AccountScreen(
         }
     }
 
-    Box(modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize().dismissMessageOnTouch(snackbarHostState)) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -816,10 +818,7 @@ private fun SettingRow(
     }
 }
 
-private suspend fun SnackbarHostState.showMessage(message: String) {
-    currentSnackbarData?.dismiss()
-    showSnackbar(message)
-}
+private suspend fun SnackbarHostState.showMessage(message: String) = showBriefly(message)
 
 /**
  * Debug builds only: switches this device between the free and Pro tiers without buying anything
