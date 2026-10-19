@@ -35,3 +35,8 @@
 24. Notes and Marchant inputs should show suggestions of the existing common notes/merchant names when editing any of these fields. 
     A single most used name should be shown and can be selected. Once the suggestion is selected, 
     the related category and tags for that merchant should also be populated.
+25. The spent today card become orange when the daily spend is more than half of 
+    the daily budget. It should become red when it crosses the daily budget.
+26. The daily spent total for each of the card in activity list should not 
+    take income into consideration. It should always display the total of that day 
+    based on total expenditure. 

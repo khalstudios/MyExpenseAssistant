@@ -267,8 +267,8 @@ fun HomeScreen(
 }
 
 /**
- * At-a-glance banner for the money spent since midnight, above the period summary. It turns amber
- * once the day has outspent its even share of the overall monthly budget, and expands in place to
+ * At-a-glance banner for the money spent since midnight, above the period summary. It turns orange
+ * once the day has spent half its daily budget and red once it goes over, and expands in place to
  * list the day's spending.
  */
 @Composable
@@ -285,12 +285,14 @@ private fun TodaySpendCard(
     var editingDailyBudget by remember { mutableStateOf(false) }
     val spentSomething = todaySpendMinor > 0
     val overDailyPace = dailyBudgetMinor > 0 && todaySpendMinor > dailyBudgetMinor
-    // Half the day's cap is where the card turns from green to red: a warning that today is
-    // running hot while there is still budget left to protect.
+    // Half the day's cap is where the card turns from green to orange: a warning that today is
+    // running hot while there is still budget left to protect. Crossing the cap turns it red.
     val pastHalfDailyBudget = dailyBudgetMinor > 0 && todaySpendMinor * 2 > dailyBudgetMinor
     val accent = when {
+        overDailyPace -> SpendColor
+        pastHalfDailyBudget -> WarningColor
         // With no cap there is no halfway mark to measure against, so any spending reads as spend.
-        dailyBudgetMinor > 0 -> if (pastHalfDailyBudget) SpendColor else IncomeColor
+        dailyBudgetMinor > 0 -> IncomeColor
         spentSomething -> SpendColor
         else -> IncomeColor
     }
@@ -596,9 +598,8 @@ fun DayGroupCard(
     onEditCategory: (TransactionEntity) -> Unit,
     onDelete: (Long) -> Unit,
 ) {
-    val netMinor = transactions.sumOf {
-        if (it.direction == Direction.DEBIT) -it.amountMinor else it.amountMinor
-    }
+    // The day's figure is what went out; money received that day does not offset it.
+    val spentMinor = transactions.sumOf { if (it.direction == Direction.DEBIT) it.amountMinor else 0L }
     val ordered = transactions.sortedByDescending { it.occurredAt }
 
     Card(
@@ -619,9 +620,10 @@ fun DayGroupCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
-                val dayColor = if (netMinor < 0) SpendColor else IncomeColor
+                // An income-only day has nothing spent, so it reads as neutral rather than red.
+                val dayColor = if (spentMinor > 0) SpendColor else MaterialTheme.colorScheme.onSurfaceVariant
                 Text(
-                    (if (netMinor < 0) "-" else "+") + formatMinor(kotlin.math.abs(netMinor)),
+                    formatMinor(spentMinor),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = dayColor,
