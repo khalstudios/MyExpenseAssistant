@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PieChart
@@ -505,18 +506,35 @@ private fun AppContent(
                 }
 
                 Route.NeedsReview -> {
-                    HomeScreen(
-                        state = recentState,
-                        notificationAccessGranted = notificationAccess,
-                        onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
-                        onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
-                        customCategories = customCategories,
-                        onDelete = { id -> viewModel.delete(id) },
-                        onOpenTransaction = { id -> navigate(Route.Detail(id)) },
-                        needsReviewFilter = true,
-                        transactionOverride = needsReview,
-                        onClearFilter = { goBack() },
-                    )
+                    // Its own scaffold, like the other pushed screens: the window is edge to edge, so
+                    // without one the list runs under the status bar and the navigation bar.
+                    Scaffold(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        topBar = {
+                            TopAppBar(
+                                title = { Text("Needs a category", fontWeight = FontWeight.Bold) },
+                                navigationIcon = {
+                                    IconButton(onClick = { goBack() }) {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                                    }
+                                },
+                            )
+                        },
+                    ) { padding ->
+                        HomeScreen(
+                            state = recentState,
+                            notificationAccessGranted = notificationAccess,
+                            onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
+                            onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
+                            customCategories = customCategories,
+                            onDelete = { id -> viewModel.delete(id) },
+                            onOpenTransaction = { id -> navigate(Route.Detail(id)) },
+                            needsReviewFilter = true,
+                            transactionOverride = needsReview,
+                            onClearFilter = { goBack() },
+                            modifier = Modifier.padding(padding),
+                        )
+                    }
                 }
 
                 is Route.TagTransactions -> {
