@@ -6,7 +6,6 @@ import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.CarRepair
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.VolunteerActivism
@@ -23,7 +22,6 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.RequestQuote
 import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Roofing
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShoppingBag
@@ -110,8 +108,8 @@ val Category.icon: ImageVector
         Category.EMI -> Icons.Filled.AccountBalance
         Category.TAXES -> Icons.Filled.RequestQuote
         Category.INSURANCE -> Icons.Filled.Shield
-        Category.HOUSE_EXPENSE -> Icons.Filled.Roofing
-        Category.VEHICLE_EXPENSE -> Icons.Filled.CarRepair
+        Category.HOUSE_EXPENSE -> RepairIcons.House
+        Category.VEHICLE_EXPENSE -> RepairIcons.Vehicle
         Category.PERSONAL_CARE -> Icons.Filled.Spa
         Category.HOBBIES -> Icons.Filled.Palette
         Category.INCOME -> Icons.Filled.Payments
@@ -132,7 +130,7 @@ val Category.defaultColor: Color
         Category.GROCERIES -> Color(0xFF43A047)
         Category.TRANSPORT -> Color(0xFF1E88E5)
         Category.FUEL -> Color(0xFF00897B)
-        Category.SHOPPING -> Color(0xFF5C6BC0)
+        Category.SHOPPING -> Color(0xFFEC407A)
         Category.BILLS_AND_UTILITIES -> Color(0xFFEF5350)
         Category.RENT -> Color(0xFF8E24AA)
         Category.ENTERTAINMENT -> Color(0xFFD81B60)
@@ -145,7 +143,7 @@ val Category.defaultColor: Color
         Category.FAMILY -> Color(0xFFF06292)
         Category.GIFTS -> Color(0xFFFF8A65)
         Category.DONATIONS -> Color(0xFF9575CD)
-        Category.EMI -> Color(0xFF6D4C41)
+        Category.EMI -> Color(0xFFD84343)
         Category.TAXES -> Color(0xFF546E7A)
         Category.INSURANCE -> Color(0xFF00838F)
         Category.HOUSE_EXPENSE -> Color(0xFFF9A825)

@@ -10,8 +10,8 @@ package com.khaltech.expenseassistant.data.model
  * **The categoriser must never put an extended category on a free user's payment.** Free users are
  * not stopped from being filed under a category, only from choosing it; so a category assigned
  * automatically would appear on their transactions, unlock itself for them, and make the paywall's
- * claim about it false. Most extended categories have no keyword rules at all. House Expense and
- * Vehicle Expense do — plumbers, garages — and those rules only apply with Pro: without it the
+ * claim about it false. Most extended categories have no keyword rules at all. House Maintenance and
+ * Vehicle Maintenance do — plumbers, garages — and those rules only apply with Pro: without it the
  * payment goes to the free stand-in in `MerchantKeywords.freeFallback`, which makes precise
  * automatic filing itself part of what Pro sells. Any new keyword rule for an extended category
  * needs a fallback there too; `MerchantKeywordsTest` fails the build otherwise.
@@ -26,11 +26,11 @@ enum class Category(val displayName: String, val isExtended: Boolean = false) {
     GROCERIES("Groceries"),
     TRANSPORT("Transport"),
     FUEL("Fuel"),
-    VEHICLE_EXPENSE("Vehicle Expense", isExtended = true),
+    VEHICLE_EXPENSE("Vehicle Maintenance", isExtended = true),
     SHOPPING("Shopping"),
     BILLS_AND_UTILITIES("Bills & Utilities"),
     RENT("Rent"),
-    HOUSE_EXPENSE("House Expense", isExtended = true),
+    HOUSE_EXPENSE("House Maintenance", isExtended = true),
     ENTERTAINMENT("Entertainment"),
     TRAVEL("Travel"),
     HEALTH("Health"),

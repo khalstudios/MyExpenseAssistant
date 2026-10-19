@@ -38,7 +38,7 @@ A message with no bank, account or UPI detail falls back to the general parser, 
 Categorisation is a layered classifier rather than a single lookup:
 
 1. **Learned rules**: every time you correct a category or rename a captured merchant, the normalised merchant key (`Swiggy Private Limited` → `swiggy`) is stored in `merchant_rules` and wins next time. A saved rename becomes the display name for future matching payments, and the tags you save are carried forward too; category rules have confidence `0.99`. Notes are never copied to later payments, choosing one of your own categories teaches nothing, and income transactions neither create nor use learned rules.
-2. **Knowledge base**: ~290 merchant/keyword patterns across 15 categories, longest match first, checked against the merchant field before the raw text. Confidence `0.6–0.95`. The House Expense and Vehicle Expense keywords (plumbers, garages) apply only with Pro; without it those payments go to Bills & Utilities and Transport.
+2. **Knowledge base**: ~290 merchant/keyword patterns across 15 categories, longest match first, checked against the merchant field before the raw text. Confidence `0.6–0.95`. The House Maintenance and Vehicle Maintenance keywords (plumbers, garages) apply only with Pro; without it those payments go to Bills & Utilities and Transport.
 3. **Heuristics**: credits default to income; payments to a personal VPA or a 1–3 word personal name become `People`. Confidence `0.55–0.6`.
 
 Anything under `0.6` confidence that you have not corrected is collected under **Needs review**, so corrections feed straight back into layer 1.
@@ -86,13 +86,13 @@ With Pro, you can also enable **Automatic backups** once, choose daily, weekly, 
 Free covers everything you record and everything you can read about it: capture, categorising, every transaction behind a category, tag or merchant, insights, budgets, tagging with up to five tags of your own and the tag analytics card, two categories of your own, manual backup and restore, and CSV export. Pro, a one-time unlock or a yearly plan, is room to organise plus the analysis on top:
 
 - **Unlimited categories of your own**, named, coloured and given an icon how you like. The first two are free.
-- **Ten more built-in categories**: House Expense, Vehicle Expense, Taxes, Friends / Relatives, Family, Personal Care, Hobbies, Insurance, Gifts and Donations. With Pro, house and vehicle payments are also filed automatically.
+- **Ten more built-in categories**: House Maintenance, Vehicle Maintenance, Taxes, Friends / Relatives, Family, Personal Care, Hobbies, Insurance, Gifts and Donations. With Pro, house and vehicle payments are also filed automatically.
 - **More than five tags of your own**, all of them charted.
 - **Recurring payments**: the ones found from three payments at a steady interval, and your own entries for rent, subscriptions and anything paid outside the phone.
 - **Automatic backups** on a schedule.
 - **Momentum comparisons**: the Momentum card on Insights can lay each of the six weeks, months or years before the one on screen over it, each as its own line and bars. Comparing with the one just before stays free.
 
-Nothing is taken away by this split. The categoriser never files a free user's payment under a Pro category: most have no keyword rules at all, and the House Expense and Vehicle Expense rules fall back to a free category without Pro, so the precise filing is part of what Pro sells rather than a category that would appear on its own. Any category already on your transactions or budgets remains available to pick whatever your entitlement, and custom categories you created keep working if Pro lapses; only creating a new one past the free two is gated.
+Nothing is taken away by this split. The categoriser never files a free user's payment under a Pro category: most have no keyword rules at all, and the House Maintenance and Vehicle Maintenance rules fall back to a free category without Pro, so the precise filing is part of what Pro sells rather than a category that would appear on its own. Any category already on your transactions or budgets remains available to pick whatever your entitlement, and custom categories you created keep working if Pro lapses; only creating a new one past the free two is gated.
 
 Everything gated lives behind [ProLock.kt](app/src/main/java/com/khaltech/expenseassistant/ui/pro/ProLock.kt) and [ProState.kt](app/src/main/java/com/khaltech/expenseassistant/ui/pro/ProState.kt), so the pitch and the limits are defined once.
 

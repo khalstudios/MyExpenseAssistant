@@ -56,11 +56,13 @@ object CategoryIconCatalog {
         "transport" to Icons.Filled.DirectionsBus,
         "car" to Icons.Filled.DirectionsCar,
         "car_repair" to Icons.Filled.CarRepair,
+        "vehicle_maintenance" to RepairIcons.Vehicle,
         "fuel" to Icons.Filled.LocalGasStation,
         "shopping" to Icons.Filled.ShoppingBag,
         "bills" to Icons.AutoMirrored.Filled.ReceiptLong,
         "home" to Icons.Filled.Home,
         "roofing" to Icons.Filled.Roofing,
+        "house_maintenance" to RepairIcons.House,
         "repair" to Icons.Filled.HomeRepairService,
         "handyman" to Icons.Filled.Handyman,
         "spa" to Icons.Filled.Spa,
@@ -118,8 +120,8 @@ object CategoryIconCatalog {
         Category.EMI -> "bank"
         Category.TAXES -> "tax"
         Category.INSURANCE -> "shield"
-        Category.HOUSE_EXPENSE -> "roofing"
-        Category.VEHICLE_EXPENSE -> "car_repair"
+        Category.HOUSE_EXPENSE -> "house_maintenance"
+        Category.VEHICLE_EXPENSE -> "vehicle_maintenance"
         Category.PERSONAL_CARE -> "spa"
         Category.HOBBIES -> "palette"
         Category.INCOME -> "payments"

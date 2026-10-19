@@ -33,8 +33,8 @@ Everything you record and everything you can read about it is free: capture, aut
 categorising, insights, budgets, tags, two categories of your own, backups by hand, and CSV
 export. Pro is an optional one-time unlock or yearly plan that adds:
 
-- Unlimited categories of your own, and ten more built-in ones, such as House Expense and Vehicle
-  Expense, with house and vehicle payments filed automatically
+- Unlimited categories of your own, and ten more built-in ones, such as House Maintenance and Vehicle
+  Maintenance, with house and vehicle payments filed automatically
 - More than five tags of your own
 - Recurring payments, found automatically or added yourself
 - Automatic backups on a schedule
