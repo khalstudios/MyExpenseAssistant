@@ -26,8 +26,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AssistChip
@@ -176,23 +174,12 @@ fun CategoryPickerSheet(
                         is PickerEntry.Custom -> entry.option.name.equals(selectedCustomName, ignoreCase = true)
                     }
                 }
-                var showAll by remember { mutableStateOf(false) }
-                // Collapsing only pays off when it hides a meaningful number of tiles.
-                val collapsible = ordered.size > PickerTopCount + 2
-                val shown = when {
-                    showAll || !collapsible -> ordered
-                    else -> ordered.take(PickerTopCount).let { top ->
-                        // The current category is always visible, even when it is rarely used.
-                        if (current != null && current !in top) top + current else top
-                    }
-                }
-    
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    shown.forEach { entry ->
+                    ordered.forEach { entry ->
                         when (entry) {
                             is PickerEntry.BuiltIn -> CategoryTile(
                                 category = entry.category,
@@ -211,13 +198,6 @@ fun CategoryPickerSheet(
                                 onLongClick = { if (customActions != null) editor.custom = entry.option },
                             )
                         }
-                    }
-                    if (collapsible) {
-                        MoreCategoriesTile(
-                            expanded = showAll,
-                            hiddenCount = ordered.size - shown.size,
-                            onClick = { showAll = !showAll },
-                        )
                     }
                 }
     
@@ -659,43 +639,6 @@ private fun CreateCustomCategoryChip(onCreate: () -> Unit, modifier: Modifier = 
         },
         modifier = modifier,
     )
-}
-
-/** Tiles shown before the grid collapses the rest behind "More". Two rows on a typical phone. */
-private const val PickerTopCount = 8
-
-@Composable
-private fun MoreCategoriesTile(expanded: Boolean, hiddenCount: Int, onClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .width(92.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Text(
-            if (expanded) "Show less" else "$hiddenCount more",
-            style = MaterialTheme.typography.labelSmall,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-        )
-    }
 }
 
 /**
