@@ -34,6 +34,7 @@ import com.khaltech.expenseassistant.data.model.TransactionEntity
 import com.khaltech.expenseassistant.ui.category.CategoryBadge
 import com.khaltech.expenseassistant.ui.category.displayCategoryName
 import com.khaltech.expenseassistant.ui.CardElevation
+import com.khaltech.expenseassistant.ui.NetBalance
 import com.khaltech.expenseassistant.ui.formatMinor
 import com.khaltech.expenseassistant.ui.formatTimestamp
 import com.khaltech.expenseassistant.ui.rememberHeroGradient
@@ -152,6 +153,14 @@ private fun TagTotalsCard(spentMinor: Long, receivedMinor: Long, count: Int) {
                     )
                 }
             }
+            NetBalance(
+                receivedMinor,
+                spentMinor,
+                labelColor = hero.onGradientMuted,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(top = 8.dp),
+            )
         }
     }
 }

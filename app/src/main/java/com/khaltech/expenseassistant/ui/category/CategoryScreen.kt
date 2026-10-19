@@ -39,6 +39,7 @@ import com.khaltech.expenseassistant.data.repo.CustomCategoryOption
 import com.khaltech.expenseassistant.ui.CardElevation
 import com.khaltech.expenseassistant.ui.DayGroupCard
 import com.khaltech.expenseassistant.ui.IncomeColor
+import com.khaltech.expenseassistant.ui.NetBalance
 import com.khaltech.expenseassistant.ui.SpendColor
 import com.khaltech.expenseassistant.ui.formatMinor
 import com.khaltech.expenseassistant.ui.rememberHeroGradient
@@ -212,6 +213,12 @@ private fun CategoryTotalsCard(
                     }
                 }
             }
+            NetBalance(
+                incomeMinor,
+                spentMinor,
+                labelColor = hero.onGradientMuted,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
         }
     }
 }
