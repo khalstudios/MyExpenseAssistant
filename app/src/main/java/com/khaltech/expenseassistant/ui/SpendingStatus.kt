@@ -34,33 +34,33 @@ fun spendingStatus(
         budget.isOverBudget -> SpendingStatus(
             mood = SpendingMood.OVER,
             headline = "Over budget",
-            detail = "${formatMinor(-budget.remainingMinor)} past this month's budget, $daysClause.",
+            detail = "${formatMinorWhole(-budget.remainingMinor)} past this month's budget, $daysClause.",
         )
 
         budget.isAheadOfPace -> SpendingStatus(
             mood = SpendingMood.WATCH,
             headline = "Spending fast",
-            detail = "${formatMinor(budget.remainingMinor)} left $daysClause — ahead of an even pace.",
+            detail = "${formatMinorWhole(budget.remainingMinor)} left $daysClause — ahead of an even pace.",
         )
 
         dailyShareMinor > 0 && todaySpendMinor > dailyShareMinor -> SpendingStatus(
             mood = SpendingMood.WATCH,
             headline = "Heavy day",
-            detail = "${formatMinor(todaySpendMinor - dailyShareMinor)} over today's share, " +
+            detail = "${formatMinorWhole(todaySpendMinor - dailyShareMinor)} over today's share, " +
                 "but the month is still on track.",
         )
 
         todaySpendMinor == 0L -> SpendingStatus(
             mood = SpendingMood.GOOD,
             headline = "Nothing spent yet today",
-            detail = "${formatMinor(budget.remainingMinor)} left for the month, $daysClause.",
+            detail = "${formatMinorWhole(budget.remainingMinor)} left for the month, $daysClause.",
         )
 
         else -> SpendingStatus(
             mood = SpendingMood.GOOD,
             headline = "Looking good",
             detail = "Within budget today and for the month — " +
-                "${formatMinor(budget.remainingMinor)} left $daysClause.",
+                "${formatMinorWhole(budget.remainingMinor)} left $daysClause.",
         )
     }
 }

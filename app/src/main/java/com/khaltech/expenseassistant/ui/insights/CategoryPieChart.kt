@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.khaltech.expenseassistant.data.model.Category
@@ -107,7 +108,8 @@ private fun RankedCategoryBar(slice: PieSlice, maxFraction: Float, onOpenCategor
     ) {
         Text(
             text = slice.category.displayName,
-            modifier = Modifier.widthIn(min = 108.dp, max = 118.dp),
+            // Fixed widths either side keep every bar starting and ending at the same place.
+            modifier = Modifier.width(112.dp),
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -137,7 +139,8 @@ private fun RankedCategoryBar(slice: PieSlice, maxFraction: Float, onOpenCategor
         }
         Text(
             text = formatMinor(slice.amountMinor),
-            modifier = Modifier.widthIn(min = 58.dp, max = 76.dp),
+            modifier = Modifier.width(76.dp),
+            textAlign = TextAlign.End,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
@@ -261,10 +264,16 @@ fun CategorySpendList(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(
                         Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(slice.category.displayName, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            slice.category.displayName,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                         Text(
                             formatMinor(slice.amountMinor),
                             style = MaterialTheme.typography.bodyLarge,

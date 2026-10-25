@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.khaltech.expenseassistant.data.model.Direction
+import com.khaltech.expenseassistant.data.model.isInvestment
 import com.khaltech.expenseassistant.data.model.TransactionEntity
 import com.khaltech.expenseassistant.ui.CardElevation
 import com.khaltech.expenseassistant.ui.formatMinorWhole
@@ -502,7 +503,8 @@ private fun bucketAmounts(
     val bounds = (0..count).map { bucketStart(selection, it).timeInMillis }
     val sums = LongArray(count)
     transactions.forEach { transaction ->
-        if (transaction.direction != direction) return@forEach
+        // Investments are saved, not spent, so they stay off the spending trend.
+        if (transaction.direction != direction || transaction.isInvestment) return@forEach
         val index = bounds.indexOfLast { it <= transaction.occurredAt }
         if (index in 0 until count) sums[index] += transaction.amountMinor
     }

@@ -17,7 +17,7 @@ class CategorizerTest {
     private val categorizer = Categorizer(dao, isPro = { pro })
 
     @Test
-    fun `Pro files a garage under Vehicle Maintenance`() = runBlocking {
+    fun `Pro files a garage under Vehicle Expense`() = runBlocking {
         pro = true
 
         assertEquals(Category.VEHICLE_EXPENSE, categorizer.categorize(payment("Shree Ganesh Garage", Direction.DEBIT)).category)

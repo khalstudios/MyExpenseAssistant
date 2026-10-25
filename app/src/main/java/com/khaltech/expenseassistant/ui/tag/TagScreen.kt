@@ -31,6 +31,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.TransactionEntity
+import com.khaltech.expenseassistant.data.model.isInvestment
+import com.khaltech.expenseassistant.ui.investColor
 import com.khaltech.expenseassistant.ui.category.CategoryBadge
 import com.khaltech.expenseassistant.ui.category.displayCategoryName
 import com.khaltech.expenseassistant.ui.CardElevation
@@ -196,7 +198,11 @@ private fun TagTransactionRow(transaction: TransactionEntity, onClick: () -> Uni
             Text(
                 (if (isDebit) "- " else "+ ") + formatMinor(transaction.amountMinor),
                 style = MaterialTheme.typography.titleSmall,
-                color = if (isDebit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                color = when {
+                    transaction.isInvestment -> investColor()
+                    isDebit -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.primary
+                },
             )
         }
     }

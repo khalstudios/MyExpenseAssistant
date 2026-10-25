@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +60,8 @@ import androidx.compose.ui.unit.offset
 import androidx.compose.ui.unit.sp
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
+import com.khaltech.expenseassistant.data.model.isInvestment
+import com.khaltech.expenseassistant.data.model.isSpending
 import com.khaltech.expenseassistant.data.model.TransactionEntity
 import com.khaltech.expenseassistant.data.repo.CustomCategoryOption
 import com.khaltech.expenseassistant.ui.budget.BudgetAmountDialog
@@ -109,7 +112,7 @@ fun HomeScreen(
     needsReviewFilter: Boolean = false,
     onOpenNeedsReview: () -> Unit = {},
     onOpenAllTransactions: () -> Unit = {},
-    onOpenSummaryTransactions: (Direction) -> Unit = {},
+    onOpenSummaryTransactions: (SummaryFlow) -> Unit = {},
     onClearFilter: () -> Unit = {},
     transactionOverride: List<TransactionEntity>? = null,
     modifier: Modifier = Modifier,
@@ -138,7 +141,7 @@ fun HomeScreen(
     // Biggest first: the card only has room for a few rows, and the ones worth that room are the
     // ones that moved the day's total, not the ones that happened to be most recent.
     val todaySpending = state.transactions
-        .filter { it.occurredAt in today && it.direction == Direction.DEBIT }
+        .filter { it.occurredAt in today && it.isSpending }
         .sortedWith(bySizeThenRecency)
 
     val listState = rememberLazyListState()
@@ -599,7 +602,8 @@ fun DayGroupCard(
     onEditCategory: (TransactionEntity) -> Unit,
     onDelete: (Long) -> Unit,
 ) {
-    // The day's figure is what went out; money received that day does not offset it.
+    // The day's figure is what went out, investments included, so it adds up the rows listed under
+    // it; money received that day does not offset it.
     val spentMinor = transactions.sumOf { if (it.direction == Direction.DEBIT) it.amountMinor else 0L }
     val ordered = transactions.sortedByDescending { it.occurredAt }
 
@@ -652,7 +656,7 @@ private fun SummaryCard(
     scope: SummaryScope,
     onScopeChange: (SummaryScope) -> Unit,
     onOpenNeedsReview: () -> Unit,
-    onOpenTransactions: (Direction) -> Unit,
+    onOpenTransactions: (SummaryFlow) -> Unit,
 ) {
     val hero = rememberHeroGradient()
     Card(
@@ -690,66 +694,78 @@ private fun SummaryCard(
                 )
             }
             ScopeToggle(scope = scope, onScopeChange = onScopeChange, hero = hero)
-            val proportionTotal = (state.spendMinor + state.incomeMinor).coerceAtLeast(1)
-            val spendFraction = (state.spendMinor.toFloat() / proportionTotal).coerceIn(0.04f, 0.96f)
+            // Net savings is income less spending, so money invested counts as saved; Left is what
+            // remains in hand after investing too.
+            val hasIncome = state.incomeMinor > 0
+            val savedMinor = state.incomeMinor - state.spendMinor
+            val inHandMinor = savedMinor - state.investedMinor
+            val investColor = investColor()
+
+            // Where the income went: spent, invested, and what is left. When money out passes income
+            // the bar is measured against money out instead, so the segments always fill it.
+            val barTotal = maxOf(state.incomeMinor, state.spendMinor + state.investedMinor).coerceAtLeast(1)
+            val segments = listOf(
+                SpendColor to state.spendMinor,
+                investColor to state.investedMinor,
+                IncomeColor to inHandMinor.coerceAtLeast(0),
+            ).filter { (_, amount) -> amount > 0 }
             Row(
                 Modifier
                     .fillMaxWidth()
                     .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(hero.onGradient.copy(alpha = 0.08f)),
             ) {
-                Box(Modifier.weight(1f - spendFraction).fillMaxHeight().background(IncomeColor))
-                Box(Modifier.weight(spendFraction).fillMaxHeight().background(SpendColor))
+                segments.forEach { (color, amount) ->
+                    Box(Modifier.weight(amount.toFloat() / barTotal).fillMaxHeight().background(color))
+                }
             }
-            // Each side takes half the row, so a seven-figure amount ellipsizes instead of running
-            // into the other column.
-            // Each amount opens the transactions behind it, over the scope the card is showing.
+
+            // Two by two, every figure in the same style. Each one but Left opens the transactions
+            // behind it, over the scope the card is showing.
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable(onClickLabel = "See income") { onOpenTransactions(Direction.CREDIT) },
-                ) {
-                    Text(
-                        "INCOME",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = IncomeColor,
-                    )
-                    Text(
-                        formatMinorWhole(state.incomeMinor),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontSize = SummaryAmountSize,
-                        fontWeight = FontWeight.Bold,
-                        color = hero.onGradient,
-                        maxLines = 1,
-                    )
-                }
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable(onClickLabel = "See expenses") { onOpenTransactions(Direction.DEBIT) },
-                    horizontalAlignment = Alignment.End,
-                ) {
-                    Text(
-                        "EXPENDITURE",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = SpendColor,
-                    )
-                    Text(
-                        formatMinorWhole(state.spendMinor),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontSize = SummaryAmountSize,
-                        fontWeight = FontWeight.Bold,
-                        color = hero.onGradient,
-                        maxLines = 1,
-                    )
-                }
+                SummaryStat(
+                    label = "INCOME",
+                    labelColor = IncomeColor,
+                    amount = formatMinorWhole(state.incomeMinor),
+                    amountColor = hero.onGradient,
+                    onClickLabel = "See income",
+                    onClick = { onOpenTransactions(SummaryFlow.INCOME) },
+                )
+                SummaryStat(
+                    label = "EXPENDITURE",
+                    labelColor = SpendColor,
+                    amount = formatMinorWhole(state.spendMinor),
+                    amountColor = hero.onGradient,
+                    alignEnd = true,
+                    onClickLabel = "See expenses",
+                    onClick = { onOpenTransactions(SummaryFlow.SPENDING) },
+                )
             }
-            val netMinor = state.incomeMinor - state.spendMinor
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SummaryStat(
+                    label = "INVESTED",
+                    labelColor = investColor,
+                    amount = formatMinorWhole(state.investedMinor),
+                    amountColor = investColor,
+                    onClickLabel = "See investments",
+                    onClick = { onOpenTransactions(SummaryFlow.INVESTED) },
+                )
+                // Without income these figures would just be spending with a minus sign.
+                SummaryStat(
+                    label = "LEFT",
+                    labelColor = MaterialTheme.colorScheme.primary,
+                    amount = if (hasIncome) signedWhole(inHandMinor) else "—",
+                    amountColor = when {
+                        !hasIncome -> hero.onGradient
+                        inHandMinor < 0 -> SpendColor
+                        else -> MaterialTheme.colorScheme.primary
+                    },
+                    note = if (hasIncome) null else "Add income to see this",
+                    noteColor = hero.onGradientMuted,
+                    alignEnd = true,
+                )
+            }
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -759,16 +775,25 @@ private fun SummaryCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                Column {
+                    Text("Net Savings", style = MaterialTheme.typography.bodyMedium, color = hero.onGradientMuted)
+                    if (hasIncome) {
+                        Text(
+                            "${savedMinor * 100 / state.incomeMinor}% of income",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = hero.onGradientMuted,
+                        )
+                    }
+                }
                 Text(
-                    "Net Balance",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = hero.onGradientMuted,
-                )
-                Text(
-                    (if (netMinor < 0) "-" else "") + formatMinor(kotlin.math.abs(netMinor)),
+                    if (hasIncome) signedWhole(savedMinor) else "—",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (netMinor < 0) SpendColor else IncomeColor,
+                    color = when {
+                        !hasIncome -> hero.onGradientMuted
+                        savedMinor < 0 -> SpendColor
+                        else -> IncomeColor
+                    },
                 )
             }
             if (state.needsReviewCount > 0) {
@@ -796,6 +821,48 @@ private fun SummaryCard(
                 }
             }
         }
+    }
+}
+
+/** A whole-rupee amount with a leading minus when negative. */
+private fun signedWhole(amountMinor: Long): String =
+    (if (amountMinor < 0) "-" else "") + formatMinorWhole(kotlin.math.abs(amountMinor))
+
+/**
+ * One figure on the summary card: a coloured caption over the amount. Half the row each, so a
+ * seven-figure amount ellipsizes instead of running into the other column.
+ */
+@Composable
+private fun RowScope.SummaryStat(
+    label: String,
+    labelColor: Color,
+    amount: String,
+    amountColor: Color,
+    alignEnd: Boolean = false,
+    note: String? = null,
+    noteColor: Color = Color.Unspecified,
+    onClickLabel: String? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    // No rounded clip here: the caption sits flush with the top corners, and a clip shaved the
+    // first letter on the left and the last on the right.
+    Column(
+        Modifier
+            .weight(1f)
+            .then(if (onClick != null) Modifier.clickable(onClickLabel = onClickLabel, onClick = onClick) else Modifier),
+        horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start,
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = labelColor)
+        Text(
+            amount,
+            style = MaterialTheme.typography.titleLarge,
+            fontSize = SummaryAmountSize,
+            fontWeight = FontWeight.Bold,
+            color = amountColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = noteColor, maxLines = 1) }
     }
 }
 
@@ -935,7 +1002,12 @@ private fun TransactionRow(
                 (if (isDebit) "-" else "+") + formatMinor(transaction.amountMinor),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = if (isDebit) SpendColor else IncomeColor,
+                // Gold for money invested, matching the summary card: it went out but was saved.
+                color = when {
+                    transaction.isInvestment -> investColor()
+                    isDebit -> SpendColor
+                    else -> IncomeColor
+                },
             )
             Text(
                 formatTimeOnly(transaction.occurredAt),

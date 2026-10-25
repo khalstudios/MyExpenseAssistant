@@ -31,7 +31,7 @@ import com.khaltech.expenseassistant.data.model.BudgetPeriod
 import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.ui.category.CategoryBadge
 import com.khaltech.expenseassistant.ui.CardElevation
-import com.khaltech.expenseassistant.ui.formatMinor
+import com.khaltech.expenseassistant.ui.formatMinorWhole
 import com.khaltech.expenseassistant.ui.insights.BudgetProgress
 import com.khaltech.expenseassistant.ui.rememberSoftGradient
 
@@ -109,9 +109,9 @@ private fun OverallBudgetHero(progress: BudgetProgress) {
         else -> onTrackColor
     }
     val status = when {
-        progress.isOverBudget -> "Over limit by ${formatMinor(-progress.remainingMinor)}"
-        progress.isAheadOfPace -> "${formatMinor(progress.remainingMinor)} left · spending fast"
-        else -> "${formatMinor(progress.remainingMinor)} left · on track"
+        progress.isOverBudget -> "Over limit by ${formatMinorWhole(-progress.remainingMinor)}"
+        progress.isAheadOfPace -> "${formatMinorWhole(progress.remainingMinor)} left · spending fast"
+        else -> "${formatMinorWhole(progress.remainingMinor)} left · on track"
     }
     Column(
         Modifier
@@ -132,7 +132,7 @@ private fun OverallBudgetHero(progress: BudgetProgress) {
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                "${formatMinor(progress.spentMinor)} / ${formatMinor(progress.limitMinor)}",
+                "${formatMinorWhole(progress.spentMinor)} / ${formatMinorWhole(progress.limitMinor)}",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -163,8 +163,8 @@ private fun CategoryBudgetRow(
         else -> onTrackColor
     }
     val statusText = when {
-        progress.isOverBudget -> "Over by ${formatMinor(-progress.remainingMinor)}"
-        else -> "${formatMinor(progress.remainingMinor)} left"
+        progress.isOverBudget -> "Over by ${formatMinorWhole(-progress.remainingMinor)}"
+        else -> "${formatMinorWhole(progress.remainingMinor)} left"
     }
 
     val category = progress.category
@@ -201,12 +201,12 @@ private fun CategoryBudgetRow(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    formatMinor(progress.spentMinor),
+                    formatMinorWhole(progress.spentMinor),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    "of ${formatMinor(progress.limitMinor)}",
+                    "of ${formatMinorWhole(progress.limitMinor)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

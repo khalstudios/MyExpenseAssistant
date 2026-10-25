@@ -13,6 +13,10 @@ val CardElevation = 2.dp
 val SpendColor = Color(0xFFEF6C6C)
 val IncomeColor = Color(0xFF4DD0A7)
 
+/** Gold for money invested: brighter on dark backgrounds, deeper on light ones so it stays legible. */
+@Composable
+fun investColor(): Color = if (isSystemInDarkTheme()) Color(0xFFE8C15A) else Color(0xFFA67C00)
+
 /** Spending that is running hot but not yet over a limit, matching the budget screens' amber. */
 val WarningColor = Color(0xFFEF6C00)
 

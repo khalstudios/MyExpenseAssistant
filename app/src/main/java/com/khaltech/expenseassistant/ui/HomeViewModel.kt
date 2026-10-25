@@ -12,6 +12,8 @@ import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.PaymentMode
 import com.khaltech.expenseassistant.data.model.TransactionEntity
+import com.khaltech.expenseassistant.data.model.isInvestment
+import com.khaltech.expenseassistant.data.model.isSpending
 import com.khaltech.expenseassistant.data.repo.MerchantSuggestion
 import com.khaltech.expenseassistant.data.repo.NoteSuggestion
 import com.khaltech.expenseassistant.data.repo.merchantKey
@@ -42,8 +44,10 @@ import java.util.Calendar
 
 data class HomeUiState(
     val transactions: List<TransactionEntity> = emptyList(),
+    /** Spending only; money put into Investments is in [investedMinor] instead. */
     val spendMinor: Long = 0,
     val incomeMinor: Long = 0,
+    val investedMinor: Long = 0,
     val spendByCategory: List<Pair<Category, Long>> = emptyList(),
     val needsReviewCount: Int = 0,
     val todaySpendMinor: Long = 0,
@@ -68,6 +72,20 @@ enum class SummaryScope(val label: String, val headline: String) {
     MONTH("Month", "Current Month"),
     YEAR("Year", "Current Year"),
     ALL("All time", "Overall"),
+}
+
+/** The kinds of money the home summary totals; each amount opens the transactions behind it. */
+enum class SummaryFlow(val title: String, val emptyText: String) {
+    INCOME("Income", "No income in this period."),
+    SPENDING("Expenses", "No expenses in this period."),
+    INVESTED("Investments", "No investments in this period."),
+    ;
+
+    fun includes(transaction: TransactionEntity): Boolean = when (this) {
+        INCOME -> transaction.direction == Direction.CREDIT
+        SPENDING -> transaction.isSpending
+        INVESTED -> transaction.isInvestment
+    }
 }
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
@@ -228,7 +246,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         repository.observeSince(startOfDay(System.currentTimeMillis())),
         budgetRepository.observeAll(),
     ) { todayTransactions, budgets ->
-        val debits = todayTransactions.filter { it.direction == Direction.DEBIT }
+        // Today only: the query reaches forward too, and a future-dated bill is not today's spending.
+        val today = dayRange(System.currentTimeMillis())
+        val debits = todayTransactions.filter { it.isSpending && it.occurredAt in today }
         fun limitOf(period: BudgetPeriod) = budgets
             .firstOrNull { it.categoryKey == BudgetEntity.OVERALL && it.period == period }
             ?.limitMinor
@@ -358,12 +378,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun PeriodSnapshot.toHomeState(): HomeUiState {
         val current = currentTransactions()
-        val debits = current.filter { it.direction == Direction.DEBIT }
+        val debits = current.filter { it.isSpending }
         val today = debits.spentToday()
         return HomeUiState(
             transactions = current,
             spendMinor = debits.sumOf { it.amountMinor },
             incomeMinor = current.filter { it.direction == Direction.CREDIT }.sumOf { it.amountMinor },
+            investedMinor = current.filter { it.isInvestment }.sumOf { it.amountMinor },
             spendByCategory = debits.groupBy { it.category }
                 .map { (category, items) -> category to items.sumOf { it.amountMinor } }
                 .sortedByDescending { it.second },
@@ -374,12 +395,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun List<TransactionEntity>.toRecentHomeState(): HomeUiState {
-        val debits = filter { it.direction == Direction.DEBIT }
+        val debits = filter { it.isSpending }
         val today = debits.spentToday()
         return HomeUiState(
             transactions = this,
             spendMinor = debits.sumOf { it.amountMinor },
             incomeMinor = filter { it.direction == Direction.CREDIT }.sumOf { it.amountMinor },
+            investedMinor = filter { it.isInvestment }.sumOf { it.amountMinor },
             spendByCategory = debits.groupBy { it.category }
                 .map { (category, items) -> category to items.sumOf { it.amountMinor } }
                 .sortedByDescending { it.second },
@@ -402,10 +424,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         // headline comparison is with the one period before only.
         val previousStart = Periods.previousStart(selection)
         val previousSpend = transactions
-            .filter { it.occurredAt in previousStart until start && it.direction == Direction.DEBIT }
+            .filter { it.occurredAt in previousStart until start && it.isSpending }
             .sumOf { it.amountMinor }
 
-        val debits = current.filter { it.direction == Direction.DEBIT }
+        // Spending leaves investments out; a budget set on the Investments category itself still
+        // tracks them, so category budgets measure every debit.
+        val debits = current.filter { it.isSpending }
+        val debitsByCategory = current.filter { it.direction == Direction.DEBIT }
+            .groupBy { it.category }
+            .mapValues { (_, items) -> items.sumOf { it.amountMinor } }
         val totalSpend = debits.sumOf { it.amountMinor }
         val elapsedDays = Periods.elapsedDays(selection)
         val totalDays = Periods.totalDays(selection)
@@ -459,7 +486,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 .filterKeys { it != BudgetEntity.OVERALL }
                 .map { (key, limit) ->
                     val category = Category.fromName(key)
-                    BudgetProgress(category, limit, spentByCategory[category] ?: 0L, paceFraction)
+                    BudgetProgress(category, limit, debitsByCategory[category] ?: 0L, paceFraction)
                 }
                 .sortedByDescending { it.fraction },
         )

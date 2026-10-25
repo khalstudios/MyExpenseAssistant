@@ -34,8 +34,10 @@ interface TransactionDao {
         """
         SELECT COALESCE(SUM(amountMinor), 0) FROM transactions
         WHERE direction = 'DEBIT' AND occurredAt >= :from AND occurredAt < :to
+          AND NOT (category = 'INVESTMENTS' AND customCategoryName IS NULL)
         """
     )
+    /** Spending in the window; money put into Investments is saved, not spent, and left out. */
     suspend fun spendBetween(from: Long, to: Long): Long
 
     @Query(

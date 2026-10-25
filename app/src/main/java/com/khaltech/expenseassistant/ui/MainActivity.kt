@@ -193,7 +193,7 @@ private sealed interface Route {
     data object NeedsReview : Route
     data object AllTransactions : Route
     /** The home summary's income or expenditure, over the scope it showed when tapped. */
-    data class SummaryTransactions(val direction: Direction, val scope: SummaryScope) : Route
+    data class SummaryTransactions(val flow: SummaryFlow, val scope: SummaryScope) : Route
     data object Categories : Route
     data object Tags : Route
     data object Merchants : Route
@@ -651,7 +651,6 @@ private fun AppContent(
                 }
 
                 is Route.SummaryTransactions -> {
-                    val isIncome = current.direction == Direction.CREDIT
                     val periodLabel = when (current.scope) {
                         SummaryScope.MONTH -> currentMonthYearName()
                         SummaryScope.YEAR -> yearToDateLabel()
@@ -660,9 +659,9 @@ private fun AppContent(
                     AllTransactionsScreen(
                         // recentState already holds exactly the summary's scope; the card is not reachable
                         // to change it while this screen is open.
-                        transactions = recentState.transactions.filter { it.direction == current.direction },
-                        title = "${if (isIncome) "Income" else "Expenses"} · $periodLabel",
-                        emptyText = if (isIncome) "No income in this period." else "No expenses in this period.",
+                        transactions = recentState.transactions.filter { current.flow.includes(it) },
+                        title = "${current.flow.title} · $periodLabel",
+                        emptyText = current.flow.emptyText,
                         onBack = { goBack() },
                         onOpenTransaction = { id -> navigate(Route.Detail(id)) },
                         onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
@@ -790,7 +789,7 @@ private fun AppContent(
                     spendingStatus = spendingStatus,
                     onOpenNeedsReview = { navigate(Route.NeedsReview) },
                     onOpenAllTransactions = { navigate(Route.AllTransactions) },
-                    onOpenSummaryTransactions = { direction -> navigate(Route.SummaryTransactions(direction, summaryScope)) },
+                    onOpenSummaryTransactions = { flow -> navigate(Route.SummaryTransactions(flow, summaryScope)) },
                     onDelete = { id -> viewModel.delete(id) },
                     onOpenTransaction = { id -> navigate(Route.Detail(id)) },
                     modifier = Modifier.padding(padding),

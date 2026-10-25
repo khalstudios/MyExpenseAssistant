@@ -74,3 +74,14 @@ data class TransactionEntity(
     @get:Ignore
     val displayTitle: String get() = userNote ?: merchant
 }
+
+/**
+ * Money put into the built-in Investments category. It leaves the account but is saved rather than
+ * spent, so totals, averages and budgets leave it out of spending and report it on its own.
+ */
+val TransactionEntity.isInvestment: Boolean
+    get() = direction == Direction.DEBIT && category == Category.INVESTMENTS && customCategoryName == null
+
+/** Money out that counts as spending: every debit except an investment. */
+val TransactionEntity.isSpending: Boolean
+    get() = direction == Direction.DEBIT && !isInvestment

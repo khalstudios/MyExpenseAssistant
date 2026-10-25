@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.khaltech.expenseassistant.data.model.BudgetPeriod
@@ -44,6 +45,7 @@ import com.khaltech.expenseassistant.ui.CardElevation
 import com.khaltech.expenseassistant.ui.category.CategoryBadge
 import com.khaltech.expenseassistant.ui.category.color
 import com.khaltech.expenseassistant.ui.formatMinor
+import com.khaltech.expenseassistant.ui.formatMinorWhole
 import com.khaltech.expenseassistant.ui.insights.AnalyticsUiState
 import com.khaltech.expenseassistant.ui.insights.BudgetProgress
 import com.khaltech.expenseassistant.ui.rememberSoftGradient
@@ -187,10 +189,16 @@ private fun OverallUsageRing(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
+            // Whole rupees, and "over" rather than a negative "left", so it fits inside the ring.
             Text(
-                progress?.let { formatMinor(it.remainingMinor) + " left" } ?: "Set a budget",
+                progress?.let {
+                    if (it.remainingMinor < 0) formatMinorWhole(-it.remainingMinor) + " over"
+                    else formatMinorWhole(it.remainingMinor) + " left"
+                } ?: "Set a budget",
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                 color = accent,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -232,15 +240,19 @@ private fun CategoryBudgetBars(
                     Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
+                    // A long name shortens with an ellipsis rather than running into the percentage.
                     Row(
                         Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             category.displayName,
+                            modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             "${(progress.fraction * 100).toInt()}%",
