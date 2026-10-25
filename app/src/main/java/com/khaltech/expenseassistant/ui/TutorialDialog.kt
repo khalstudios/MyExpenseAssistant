@@ -65,6 +65,7 @@ private val TutorialSteps = listOf(
         summary = "Payments arrive on their own once you grant access under Profile › Capture.",
         points = listOf(
             "Notification access lets the app read payment alerts from GPay, PhonePe, Paytm and your bank's SMS.",
+            "Keep notifications on for your SMS app so bank alerts come through. Silent notifications are fine.",
             "Contact names turn person-to-person transfers into a real name instead of a number.",
         ),
     ),

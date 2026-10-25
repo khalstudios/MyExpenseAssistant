@@ -86,11 +86,11 @@ private val TodayAmountSize = 19.sp
 fun HomeScreen(
     state: HomeUiState,
     notificationAccessGranted: Boolean,
-    showBackupNotice: Boolean = false,
-    /** True when automatic backups are locked behind Pro, which turns the notice into an upgrade offer. */
-    backupNeedsPro: Boolean = false,
-    onEnableBackup: () -> Unit = {},
-    onDismissBackupNotice: () -> Unit = {},
+    /** True when nothing has ever been recorded, which turns the empty feed into a first-run hint. */
+    noTransactionsYet: Boolean = false,
+    showSmsNotice: Boolean = false,
+    onCheckSmsSettings: () -> Unit = {},
+    onDismissSmsNotice: () -> Unit = {},
     onCategoryChange: (Long, Category) -> Unit,
     onCategoryChangeCustom: (Long, String, String, String) -> Unit = { _, _, _, _ -> },
     customCategories: List<CustomCategoryOption> = emptyList(),
@@ -146,7 +146,7 @@ fun HomeScreen(
     // Items emitted ahead of the "Latest activity" header, so the today card can scroll straight to
     // it. Kept in step with the item order below.
     val latestActivityIndex = 1 + // permissions card, emitted even when it draws nothing
-        (if (showBackupNotice) 1 else 0) +
+        (if (showSmsNotice) 1 else 0) +
         1 + // today card
         (if (spendingStatus != null) 1 else 0) +
         2 + // "Income & Expenditure" header and summary card
@@ -163,13 +163,9 @@ fun HomeScreen(
             item {
                 PermissionsCard(notificationAccessGranted)
             }
-            if (showBackupNotice) {
+            if (showSmsNotice) {
                 item {
-                    BackupNoticeCard(
-                        needsPro = backupNeedsPro,
-                        onEnable = onEnableBackup,
-                        onDismiss = onDismissBackupNotice,
-                    )
+                    SmsNoticeCard(onOpenSettings = onCheckSmsSettings, onDismiss = onDismissSmsNotice)
                 }
             }
             item {
@@ -211,6 +207,11 @@ fun HomeScreen(
                 Text(
                     when {
                         filterLabel != null -> "No transactions found."
+                        // A new user learns how capture works by watching their first payment arrive.
+                        recentOnly && noTransactionsYet && notificationAccessGranted ->
+                            "Make a UPI payment and it'll show up here within a few seconds. Cash goes in with +."
+                        recentOnly && noTransactionsYet ->
+                            "Turn on notification access above and your payments will show up here on their own. Cash goes in with +."
                         recentOnly -> "No transactions in the last 3 days."
                         else -> "No transactions this month."
                     },

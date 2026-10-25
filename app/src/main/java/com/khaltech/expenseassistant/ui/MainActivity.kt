@@ -213,6 +213,7 @@ private val BottomBarHeight = 68.dp
 /** Long enough to read one line, short enough not to sit over the app. */
 private const val TipVisibleMillis = 10_000L
 private const val TipEveryOpenings = 3
+private const val HintDelayMillis = 700L
 
 /** Clears the centre add button, which overhangs the bottom bar. */
 private val FabClearance = 56.dp
@@ -220,9 +221,6 @@ private val FabClearance = 56.dp
 /** Dims the app behind the tip so only the message reads. */
 private val ScrimColor = Color(0x99000000)
 
-/** Calendar day the start-of-day prompt is keyed on, in the phone's own timezone. */
-private fun dayKey(): String =
-    java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
 
 @OptIn(ExperimentalMaterial3Api::class)
 /**
@@ -267,6 +265,8 @@ private fun AppContent(
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val recentState by viewModel.recentState.collectAsStateWithLifecycle()
+    val hasAnyTransactions by viewModel.hasAnyTransactions.collectAsStateWithLifecycle()
+    val hasAnyBudget by viewModel.hasAnyBudget.collectAsStateWithLifecycle()
     val analytics by viewModel.analytics.collectAsStateWithLifecycle()
     val monthlyBudgetAnalytics by viewModel.monthlyBudgetAnalytics.collectAsStateWithLifecycle()
     val yearlyBudgetAnalytics by viewModel.yearlyBudgetAnalytics.collectAsStateWithLifecycle()
@@ -303,68 +303,90 @@ private fun AppContent(
     var notificationAccess by remember { mutableStateOf(PermissionStatus.isNotificationAccessGranted(context)) }
 
     val userPreferences = remember { ServiceLocator.userPreferences(context) }
-    var showBackupNotice by remember {
-        mutableStateOf(userPreferences.autoBackupSettings() == null && !userPreferences.isBackupNoticeDismissed())
-    }
-    var openAutoBackupSetup by remember { mutableStateOf(false) }
     val pro = LocalPro.current
     var helpMenuOpen by remember { mutableStateOf(false) }
     var showTutorial by remember { mutableStateOf(false) }
+    // A new user gets one short welcome with a single setup step; the full walkthrough waits under Help.
+    var showWelcome by remember { mutableStateOf(!userPreferences.isTutorialSeen()) }
+    var showCaptureDisclosure by remember { mutableStateOf(false) }
+
+    // Bank SMS also need the SMS app's own notifications: asked once just after access is granted,
+    // then a Home card if days go by without a single SMS notification arriving.
+    var showSmsPrompt by remember { mutableStateOf(false) }
+    var showSmsNotice by remember { mutableStateOf(false) }
+    fun offerSmsPrompt() {
+        if (PermissionStatus.isNotificationAccessGranted(context) &&
+            !userPreferences.isSmsPromptSeen() && !userPreferences.isSmsNotificationSeen()
+        ) {
+            showSmsPrompt = true
+        }
+    }
+
+    // Payment and budget alerts need runtime permission from Android 13 onwards. It is asked for
+    // once capture is switched on, or when the first budget is set, when those alerts start to mean
+    // something, not at first launch.
+    val postNotifications = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { offerSmsPrompt() }
+
+    // Only the change from no budget to a first one asks, so a user who already has budgets and
+    // said no is not asked again on every launch.
+    var budgetsSeenEmpty by remember { mutableStateOf(false) }
+    LaunchedEffect(hasAnyBudget) {
+        when (hasAnyBudget) {
+            false -> budgetsSeenEmpty = true
+            true -> if (budgetsSeenEmpty && PermissionStatus.needsPostNotificationsPermission(context)) {
+                budgetsSeenEmpty = false
+                postNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+            null -> Unit
+        }
+    }
 
     // Re-check after the user returns from system settings.
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            notificationAccess = PermissionStatus.isNotificationAccessGranted(context)
-            showBackupNotice = userPreferences.autoBackupSettings() == null && !userPreferences.isBackupNoticeDismissed()
+            val granted = PermissionStatus.isNotificationAccessGranted(context)
+            if (granted) userPreferences.markCaptureConnected(System.currentTimeMillis())
+            if (granted && !notificationAccess) {
+                if (PermissionStatus.needsPostNotificationsPermission(context)) {
+                    postNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    offerSmsPrompt()
+                }
+            }
+            notificationAccess = granted
+            showSmsNotice = granted && !showSmsPrompt && userPreferences.isSmsCheckDue(System.currentTimeMillis())
         }
     }
 
-    // Re-check after the user sets up backups from the Profile tab and comes back.
-    LaunchedEffect(tab) {
-        if (tab == Tab.HOME) {
-            showBackupNotice = userPreferences.autoBackupSettings() == null && !userPreferences.isBackupNoticeDismissed()
-        }
-    }
+    // Every 3 days until automatic backups are on, starting 3 days after install so a new user is
+    // not offered Pro straight away. A free user is taken to the upgrade rather than to a setup
+    // dialog they could not finish.
+    var showBackupReminder by remember { mutableStateOf(false) }
+    var openAutoBackupSetup by remember { mutableStateOf(false) }
 
-    // Budget alerts need runtime permission from Android 13 onwards.
-    var permissionPromptSettled by remember {
-        mutableStateOf(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
-    }
-    val postNotifications = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { permissionPromptSettled = true }
-    LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            postNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
+    val dialogOpen = showWelcome || showCaptureDisclosure || showTutorial || showSmsPrompt || showBackupReminder
 
-    // The walkthrough runs itself once, after the system permission prompt is out of the way.
-    LaunchedEffect(permissionPromptSettled) {
-        if (permissionPromptSettled && !userPreferences.isTutorialSeen()) {
-            showTutorial = true
-        }
-    }
-
-    // First opening of the day: set today's budget, with the month's trend for context. Waits for
-    // the walkthrough so a new user never meets two dialogs at once.
-    var showDailyPrompt by remember { mutableStateOf(false) }
-    LaunchedEffect(permissionPromptSettled, showTutorial) {
-        val today = dayKey()
-        if (permissionPromptSettled && !showTutorial && !userPreferences.isDailyPromptSeen(today)) {
-            showDailyPrompt = true
-            userPreferences.markDailyPromptSeen(today)
-        }
-    }
-
-    // A tip every third opening: shown on the first batch of data, then it closes itself. The day's
-    // first opening already says its piece in the dialog, so the bar waits for the next one. The
-    // opening is counted once, not again when the screen is recreated on rotation.
     var tip by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(dialogOpen) {
+        val now = System.currentTimeMillis()
+        if (!dialogOpen && tip == null && userPreferences.isBackupReminderDue(now)) {
+            showBackupReminder = true
+            userPreferences.markBackupReminderShown(now)
+        }
+    }
+
+    // A tip every third opening: shown on the first batch of data, then it closes itself. It waits
+    // for any open dialog. The opening is counted once, not again when the screen is recreated on
+    // rotation.
     var tipShown by rememberSaveable { mutableStateOf(false) }
     val openingsSinceTip = rememberSaveable { userPreferences.recordOpening() }
-    LaunchedEffect(spendingTips, showDailyPrompt) {
-        if (!tipShown && openingsSinceTip >= TipEveryOpenings && !showDailyPrompt && spendingTips.isNotEmpty()) {
+    LaunchedEffect(spendingTips, dialogOpen) {
+        // Reads the reminder state itself: the reminder may have opened earlier in this same frame.
+        if (!tipShown && tip == null && openingsSinceTip >= TipEveryOpenings && !dialogOpen &&
+            !showBackupReminder && spendingTips.isNotEmpty()
+        ) {
             tip = spendingTips.random()
             tipShown = true
             userPreferences.markTipShown()
@@ -375,6 +397,23 @@ private fun AppContent(
             delay(TipVisibleMillis)
             tip = null
         }
+    }
+
+    // A new install's feature hints, in the same bar: each once, when its feature is on screen with
+    // nothing else competing for attention.
+    val dueHint = when {
+        dialogOpen || tip != null || backStack.isNotEmpty() -> null
+        tab == Tab.HOME && hasAnyTransactions == true -> FeatureHint.EDIT_TRANSACTION
+        tab == Tab.INSIGHTS -> FeatureHint.INSIGHTS
+        tab == Tab.BUDGET -> FeatureHint.BUDGET
+        else -> null
+    }?.takeIf { userPreferences.isHintPending(it.key) }
+    LaunchedEffect(dueHint) {
+        val hint = dueHint ?: return@LaunchedEffect
+        // Lets the screen settle first; leaving it in the meantime cancels the hint for later.
+        delay(HintDelayMillis)
+        tip = hint.text
+        userPreferences.markHintShown(hint.key)
     }
 
     BackHandler(enabled = backStack.isNotEmpty()) { goBack() }
@@ -730,21 +769,14 @@ private fun AppContent(
                 Tab.HOME -> HomeScreen(
                     state = recentState,
                     notificationAccessGranted = notificationAccess,
-                    showBackupNotice = showBackupNotice,
-                    // Automatic backups are Pro, so a free user is taken to the upgrade rather than
-                    // to a setup dialog they could not finish.
-                    backupNeedsPro = !pro.isPro,
-                    onEnableBackup = {
-                        if (pro.isPro) {
-                            openAutoBackupSetup = true
-                            tab = Tab.PROFILE
-                        } else {
-                            pro.onUpgrade()
-                        }
+                    noTransactionsYet = hasAnyTransactions == false,
+                    showSmsNotice = showSmsNotice,
+                    onCheckSmsSettings = {
+                        runCatching { context.startActivity(PermissionStatus.smsNotificationSettingsIntent(context)) }
                     },
-                    onDismissBackupNotice = {
-                        userPreferences.dismissBackupNotice()
-                        showBackupNotice = false
+                    onDismissSmsNotice = {
+                        userPreferences.dismissSmsNotice()
+                        showSmsNotice = false
                     },
                     onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
                     onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
@@ -790,13 +822,13 @@ private fun AppContent(
                 )
 
                 Tab.PROFILE -> AccountScreen(
+                    openAutoBackupSetup = openAutoBackupSetup,
+                    onAutoBackupSetupHandled = { openAutoBackupSetup = false },
                     onOpenBudgets = { navigate(Route.Budgets) },
                     onOpenNeedsReview = { navigate(Route.NeedsReview) },
                     onOpenCategories = { navigate(Route.Categories) },
                     onOpenTags = { navigate(Route.Tags) },
                     onOpenMerchants = { navigate(Route.Merchants) },
-                    openAutoBackupSetup = openAutoBackupSetup,
-                    onAutoBackupSetupHandled = { openAutoBackupSetup = false },
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -830,15 +862,62 @@ private fun AppContent(
         }
     }
 
-    if (showDailyPrompt) {
-        DailyBudgetPromptDialog(
-            suggestedMinor = dailyBudget,
-            status = spendingStatus,
-            onSave = { limitMinor ->
-                viewModel.setDailyBudget(limitMinor)
-                showDailyPrompt = false
+    if (showBackupReminder) {
+        BackupReminderDialog(
+            needsPro = !pro.isPro,
+            onEnable = {
+                showBackupReminder = false
+                if (pro.isPro) {
+                    openAutoBackupSetup = true
+                    tab = Tab.PROFILE
+                } else {
+                    pro.onUpgrade()
+                }
             },
-            onDismiss = { showDailyPrompt = false },
+            onDismiss = { showBackupReminder = false },
+        )
+    }
+
+    if (showSmsPrompt) {
+        SmsNotificationDialog(
+            onOpenSettings = {
+                showSmsPrompt = false
+                userPreferences.markSmsPromptSeen()
+                runCatching { context.startActivity(PermissionStatus.smsNotificationSettingsIntent(context)) }
+            },
+            onDismiss = {
+                showSmsPrompt = false
+                userPreferences.markSmsPromptSeen()
+            },
+        )
+    }
+
+    if (showWelcome) {
+        WelcomeDialog(
+            captureEnabled = notificationAccess,
+            onSetUpCapture = {
+                showWelcome = false
+                userPreferences.markTutorialSeen()
+                userPreferences.queueHints(FeatureHint.entries.map { it.key })
+                showCaptureDisclosure = true
+            },
+            onDismiss = {
+                showWelcome = false
+                userPreferences.markTutorialSeen()
+                userPreferences.queueHints(FeatureHint.entries.map { it.key })
+            },
+        )
+    }
+
+    // Consent is asked for here, before the user reaches the system screen that grants it.
+    if (showCaptureDisclosure) {
+        DisclosureDialog(
+            disclosure = Disclosures.Notifications,
+            onAccept = {
+                showCaptureDisclosure = false
+                runCatching { context.startActivity(PermissionStatus.notificationAccessIntent()) }
+            },
+            onDismiss = { showCaptureDisclosure = false },
         )
     }
 

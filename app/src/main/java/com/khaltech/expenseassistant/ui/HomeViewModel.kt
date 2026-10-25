@@ -125,6 +125,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     fun observeTransaction(id: Long) = repository.observeById(id)
 
+    /** False until the first transaction is stored; null while the count is still loading. */
+    val hasAnyTransactions: StateFlow<Boolean?> = repository.observeCount()
+        .map { it > 0 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     /** Complete history for the "See more" screen, independent of the home summary scope. */
     val allTransactions: StateFlow<List<TransactionEntity>> = repository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -169,6 +174,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         budgetRepository.observeBudgets(BudgetPeriod.YEARLY),
     ) { transactions, budgets -> PeriodSnapshot(yearlyBudgetSelection, transactions, budgets).toAnalytics() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AnalyticsUiState(selection = yearlyBudgetSelection))
+
+    /** True once any budget limit is set, of any period; null while loading. */
+    val hasAnyBudget: StateFlow<Boolean?> = budgetRepository.observeAll()
+        .map { budgets -> budgets.any { it.limitMinor > 0 } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** A daily cap the user set by hand, or zero when they have not set one. */
     val explicitDailyBudgetMinor: StateFlow<Long> = budgetRepository.observeBudgets(BudgetPeriod.DAILY)

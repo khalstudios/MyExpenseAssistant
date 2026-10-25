@@ -4,6 +4,15 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
+    <!-- Package visibility only, not a permission: lets the app name the default SMS app and open
+         its notification settings. Without it Android 11+ reports no default SMS app. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
+        </intent>
+    </queries>
+
     <application
         android:name=".ExpenseApp"
         android:allowBackup="false"

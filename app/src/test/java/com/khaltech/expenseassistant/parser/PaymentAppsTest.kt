@@ -16,4 +16,14 @@ class PaymentAppsTest {
         assertTrue(PaymentApps.isSupported("com.google.android.apps.nbu.paisa.user"))
         assertTrue(PaymentApps.isSupported("com.google.android.apps.messaging"))
     }
+
+    @Test
+    fun `sms apps are told apart from bank and upi apps`() {
+        assertTrue(PaymentApps.isSmsApp("com.google.android.apps.messaging"))
+        assertTrue(PaymentApps.isSmsApp("com.truecaller"))
+        assertTrue(PaymentApps.carriesBankAlerts("com.samsung.android.messaging"))
+        assertFalse(PaymentApps.isSmsApp("com.snapwork.hdfc"))
+        assertTrue(PaymentApps.carriesBankAlerts("com.snapwork.hdfc"))
+        assertFalse(PaymentApps.isSmsApp("com.phonepe.app"))
+    }
 }

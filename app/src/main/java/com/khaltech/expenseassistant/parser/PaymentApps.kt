@@ -30,12 +30,16 @@ object PaymentApps {
         "com.msf.kbank.mobile" to "Kotak",
     )
 
-    /** SMS apps and bank apps: their notifications carry bank alerts rather than UPI-app wording. */
-    private val bankAlertPackages = setOf(
+    /** SMS apps: bank SMS alerts only reach the app while these are allowed to post notifications. */
+    private val smsPackages = setOf(
         "com.google.android.apps.messaging",
         "com.samsung.android.messaging",
         "com.android.mms",
         "com.truecaller",
+    )
+
+    /** SMS apps and bank apps: their notifications carry bank alerts rather than UPI-app wording. */
+    private val bankAlertPackages = smsPackages + setOf(
         "com.sbi.lotusintouch",
         "com.snapwork.hdfc",
         "com.csam.icici.bank.imobile",
@@ -44,6 +48,8 @@ object PaymentApps {
     )
 
     fun isSupported(packageName: String?): Boolean = packageName != null && known.containsKey(packageName)
+
+    fun isSmsApp(packageName: String?): Boolean = packageName in smsPackages
 
     fun carriesBankAlerts(packageName: String?): Boolean = packageName in bankAlertPackages
 

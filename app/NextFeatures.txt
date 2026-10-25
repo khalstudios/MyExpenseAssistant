@@ -40,3 +40,6 @@
 26. The daily spent total for each of the card in activity list should not 
     take income into consideration. It should always display the total of that day 
     based on total expenditure. 
+27. After first install, I would like to display a modal saying something like 
+    - "Make sure SMS app notifications are turned ON so that I can capture them (emoji)".
+28. Dont show the daily budget modal for the first time install.

@@ -62,8 +62,13 @@ gradle wrapper --gradle-version 8.13
 ## Enabling capture on device
 
 1. Install and open the app.
-2. Tap **Enable** next to *Notification access* → toggle "Kahan Gaya Paisa" in the system list.
-3. Make a UPI payment. It appears within a second or two.
+2. Tap **Set up automatic capture** on the welcome screen (or **Enable** next to *Notification access* on Home if you skipped it) → toggle "Kahan Gaya Paisa" in the system list.
+3. Back in the app, allow notifications when asked, so each recorded payment and budget alert can pop up (Android 13+). This is asked once capture is on, or when you set your first budget if you skipped capture, not at first launch.
+4. Make a UPI payment. It appears within a second or two.
+
+First launch shows only a short welcome; the full walkthrough is under **Help › Tutorial**. There is no daily budget prompt; set or change today's limit from **Set budget** on the Spent today card. Instead of the walkthrough, a new install shows a one-off hint the first time each feature has something to show: editing a payment once the first one is on Home, and what the Insights and Budget tabs are for on first visit.
+
+Bank SMS alerts only arrive while the SMS app is allowed to post notifications; silent ones are fine, switched-off ones (for the app or a bank's conversation) never reach the listener. Android does not let one app read another's notification settings, so right after access is granted the app asks once, with a button to the default SMS app's notification settings. If capture then runs for 3 days without a single SMS-app notification arriving, Home shows a dismissible card with the same button. Only the fact that an SMS-app notification arrived is kept, never its content.
 
 Notification access covers GPay, PhonePe, Paytm and bank SMS. WhatsApp notifications are never read, so chat messages can't be mistaken for payments; a WhatsApp Pay payment is still recorded from your bank's SMS. There is no screen reading or accessibility service; a payment that posts neither an app notification nor a bank SMS can be added with **+**.
 
@@ -78,6 +83,8 @@ In **Profile** under **Capture**, enable *Contact names* to let the app match th
 In **Profile** under **Backup**, select **Back up your data**. A dialog explains what happens next, then Android's picker asks only for a location: Google Drive, this device, or any other storage provider. The app creates a folder named `Kahan Gaya Paisa` there and saves the dated backup file inside it. That location is remembered, so later backups go straight into the same folder without opening the picker again; **Change location** in the dialog picks a different one. The backup contains your transactions, learned merchant rules, budgets, recurring payments you added or removed, profile, and category icon and colour choices. Files are named `18-09-2026-kahan-gaya-paisa-backup-1430.json`: date, app name, then the time, so two backups on the same day do not collide.
 
 **Restore from backup** lists the backups already in that folder, newest first, so restoring is a tap; **Pick a file instead** falls back to Android's file picker for a backup kept somewhere else. Restoring replaces those items currently stored on the device, so make a current backup first when needed.
+
+Until automatic backups are on, a reminder offers them every 3 days, starting 3 days after install; on the free plan its button leads to the Pro upgrade. **Not now** closes it until the next time.
 
 With Pro, you can also enable **Automatic backups** once, choose daily, weekly, every 2 weeks, or monthly, then pick a location the same way. The app retains access only to the location you selected, and writes future dated backups into its own `Kahan Gaya Paisa` folder there without asking again. Android may delay scheduled work for battery, storage, or connectivity reasons, so backups run approximately at the selected interval. The first one runs one interval after you turn them on, not straight away. Turn off automatic backups at any time from Profile; they also stop if Pro lapses. Backing up and restoring by hand always stay free. The app does not store Google account credentials.
 

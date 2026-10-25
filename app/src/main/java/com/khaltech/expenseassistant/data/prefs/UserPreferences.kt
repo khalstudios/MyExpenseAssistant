@@ -80,25 +80,74 @@ class UserPreferences(context: Context) {
         prefs.edit().putString(KEY_BACKUP_LOCATION_URI, uri).apply()
     }
 
-    fun isBackupNoticeDismissed(): Boolean = prefs.getBoolean(KEY_BACKUP_NOTICE_DISMISSED, false)
-
-    fun dismissBackupNotice() {
-        prefs.edit().putBoolean(KEY_BACKUP_NOTICE_DISMISSED, true).apply()
-    }
-
     fun isTutorialSeen(): Boolean = prefs.getBoolean(KEY_TUTORIAL_SEEN, false)
 
     fun markTutorialSeen() {
         prefs.edit().putBoolean(KEY_TUTORIAL_SEEN, true).apply()
     }
 
-    /** True once the start-of-day budget prompt has been shown for [dayKey]. */
-    fun isDailyPromptSeen(dayKey: String): Boolean =
-        prefs.getString(KEY_DAILY_PROMPT_DAY, null) == dayKey
-
-    fun markDailyPromptSeen(dayKey: String) {
-        prefs.edit().putString(KEY_DAILY_PROMPT_DAY, dayKey).apply()
+    /**
+     * True when the automatic-backup reminder should show: never before backups are on, never on the
+     * first opening (which starts the clock), then once every [BackupReminderIntervalMillis].
+     */
+    fun isBackupReminderDue(now: Long): Boolean {
+        if (autoBackupSettings() != null) return false
+        val last = prefs.getLong(KEY_BACKUP_REMINDER_AT, 0)
+        if (last == 0L) {
+            prefs.edit().putLong(KEY_BACKUP_REMINDER_AT, now).apply()
+            return false
+        }
+        return now - last >= BackupReminderIntervalMillis
     }
+
+    fun markBackupReminderShown(now: Long) {
+        prefs.edit().putLong(KEY_BACKUP_REMINDER_AT, now).apply()
+    }
+
+    /** When notification capture was first seen working, so the SMS check gives alerts time to arrive. */
+    fun markCaptureConnected(now: Long) {
+        if (!prefs.contains(KEY_CAPTURE_CONNECTED_AT)) prefs.edit().putLong(KEY_CAPTURE_CONNECTED_AT, now).apply()
+    }
+
+    /** True once any notification from an SMS app has reached the listener. Only the fact is kept, never the message. */
+    fun isSmsNotificationSeen(): Boolean = prefs.getBoolean(KEY_SMS_NOTIFICATION_SEEN, false)
+
+    fun markSmsNotificationSeen() {
+        if (!isSmsNotificationSeen()) prefs.edit().putBoolean(KEY_SMS_NOTIFICATION_SEEN, true).apply()
+    }
+
+    fun isSmsPromptSeen(): Boolean = prefs.getBoolean(KEY_SMS_PROMPT_SEEN, false)
+
+    fun markSmsPromptSeen() {
+        prefs.edit().putBoolean(KEY_SMS_PROMPT_SEEN, true).apply()
+    }
+
+    fun dismissSmsNotice() {
+        prefs.edit().putBoolean(KEY_SMS_NOTICE_DISMISSED, true).apply()
+    }
+
+    /**
+     * True when capture has been running for [SmsCheckDelayMillis] without a single SMS-app
+     * notification, which usually means the SMS app's notifications are turned off.
+     */
+    fun isSmsCheckDue(now: Long): Boolean {
+        if (isSmsNotificationSeen() || prefs.getBoolean(KEY_SMS_NOTICE_DISMISSED, false)) return false
+        val connectedAt = prefs.getLong(KEY_CAPTURE_CONNECTED_AT, 0)
+        return connectedAt > 0 && now - connectedAt >= SmsCheckDelayMillis
+    }
+
+    /** Queues one-off hints, by key, to be shown once each. Only a new install queues them. */
+    fun queueHints(keys: Collection<String>) {
+        prefs.edit().putStringSet(KEY_PENDING_HINTS, pendingHints() + keys).apply()
+    }
+
+    fun isHintPending(key: String): Boolean = key in pendingHints()
+
+    fun markHintShown(key: String) {
+        prefs.edit().putStringSet(KEY_PENDING_HINTS, pendingHints() - key).apply()
+    }
+
+    private fun pendingHints(): Set<String> = prefs.getStringSet(KEY_PENDING_HINTS, null).orEmpty().toSet()
 
     /** Counts this opening of the app and returns how many openings there have been since the last spending tip. */
     fun recordOpening(): Int {
@@ -118,9 +167,15 @@ class UserPreferences(context: Context) {
         const val KEY_BACKUP_INTERVAL = "backup_interval"
         const val KEY_BACKUP_FOLDER_URI = "backup_folder_uri"
         const val KEY_BACKUP_LOCATION_URI = "backup_location_uri"
-        const val KEY_BACKUP_NOTICE_DISMISSED = "backup_notice_dismissed"
         const val KEY_TUTORIAL_SEEN = "tutorial_seen"
-        const val KEY_DAILY_PROMPT_DAY = "daily_prompt_day"
         const val KEY_OPENINGS_SINCE_TIP = "openings_since_tip"
+        const val KEY_CAPTURE_CONNECTED_AT = "capture_connected_at"
+        const val KEY_SMS_NOTIFICATION_SEEN = "sms_notification_seen"
+        const val KEY_SMS_PROMPT_SEEN = "sms_prompt_seen"
+        const val KEY_SMS_NOTICE_DISMISSED = "sms_notice_dismissed"
+        const val KEY_PENDING_HINTS = "pending_hints"
+        const val KEY_BACKUP_REMINDER_AT = "backup_reminder_at"
+        const val BackupReminderIntervalMillis = 3 * 24 * 60 * 60 * 1000L
+        const val SmsCheckDelayMillis = 3 * 24 * 60 * 60 * 1000L
     }
 }

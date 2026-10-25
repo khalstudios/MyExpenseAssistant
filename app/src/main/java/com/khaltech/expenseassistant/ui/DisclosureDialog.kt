@@ -33,30 +33,26 @@ object Disclosures {
 
     val Notifications = Disclosure(
         title = "Read payment notifications?",
-        summary = "This is how Kahan Gaya Paisa records spending without you typing every payment in.",
+        summary = "To record your spending automatically, Kahan Gaya Paisa reads notifications from payment " +
+            "apps, banking apps and SMS apps such as Google Messages, Samsung Messages and Truecaller.",
         points = listOf(
             DisclosurePoint(
-                "What it reads",
-                "Notifications from payment apps, banking apps, and messaging apps such as Google Messages, " +
-                    "Samsung Messages and Truecaller, so bank SMS alerts are caught too.",
-            ),
-            DisclosurePoint(
                 "What it keeps",
-                "Only completed payments and bank transactions: the amount, payee, time, and details the alert " +
-                    "states such as the bank and last 4 digits of the account. Personal messages, OTPs and " +
-                    "promotions are checked on this phone and discarded, never stored.",
-            ),
-            DisclosurePoint(
-                "Why",
-                "To add each payment to your transaction list automatically and sort it into a category.",
+                "Only completed payments: the alert's text and what it states, such as amount, payee, time, " +
+                    "bank, last 4 digits of the account, reference number and balance. Personal messages, OTPs " +
+                    "and promotions are discarded, never stored.",
             ),
             DisclosurePoint(
                 "Where it goes",
-                "Onto this phone only. There is no account and no server behind the app, so none of this is uploaded or shared with anyone.",
+                "It stays on this phone. Nothing is uploaded or shared.",
+            ),
+            DisclosurePoint(
+                "Android's next screen",
+                "It warns that the app could read all notifications. It ignores notifications from every other app.",
             ),
             DisclosurePoint(
                 "Your control",
-                "You can turn this off at any time in Android Settings, and delete recorded transactions from Profile.",
+                "Turn this off any time in Android Settings, and delete transactions from Profile.",
             ),
         ),
         confirmLabel = "Continue",

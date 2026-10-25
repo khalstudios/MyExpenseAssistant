@@ -18,9 +18,25 @@ class PaymentNotificationListener : NotificationListenerService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    override fun onListenerConnected() {
+        scope.launch {
+            runCatching {
+                val preferences = ServiceLocator.userPreferences(applicationContext)
+                preferences.markCaptureConnected(System.currentTimeMillis())
+                // An SMS notification already in the shade shows the SMS app is allowed to post them.
+                if (activeNotifications.orEmpty().any { PaymentApps.isSmsApp(it.packageName) }) {
+                    preferences.markSmsNotificationSeen()
+                }
+            }.onFailure { Log.e(TAG, "Failed to check notifications on connect", it) }
+        }
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val packageName = sbn.packageName
         if (!PaymentApps.isSupported(packageName)) return
+        if (PaymentApps.isSmsApp(packageName)) {
+            scope.launch { ServiceLocator.userPreferences(applicationContext).markSmsNotificationSeen() }
+        }
         if (sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
 
         val text = sbn.notification.extractText()
