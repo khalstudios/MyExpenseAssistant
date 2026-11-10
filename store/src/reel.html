@@ -1,0 +1,327 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Kahan Gaya Paisa reel</title>
+<!--
+  Instagram / Facebook Reel, 1080x1920, 22 seconds. Open in a browser to preview it looping; add
+  #t=5.2 to hold one moment. store/src/render-reel.js steps renderAt(t) frame by frame and encodes
+  store/reel/reel.mp4. Key content keeps inside y 220–1560 and x 60–940, clear of the Reels
+  caption, buttons and progress bar. Sample figures only.
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; }
+  body {
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    color: #fff; position: relative;
+    background:
+      radial-gradient(circle at 92% 8%, rgba(255, 217, 120, .20) 0 210px, transparent 211px),
+      radial-gradient(circle at 0% 96%, rgba(224, 120, 95, .24) 0 300px, transparent 301px),
+      linear-gradient(160deg, #00897B 0%, #00695C 45%, #004D40 100%);
+  }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .abs { position: absolute; }
+
+  .brand { position: absolute; left: 72px; top: 236px; display: flex; align-items: center; gap: 20px; z-index: 5; }
+  .brand img { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 10px 24px rgba(0, 0, 0, .28); }
+  .brand .name { font-size: 38px; font-weight: 800; letter-spacing: -.3px; }
+  .brand .kicker { font-size: 20px; font-weight: 700; color: #FFD978; letter-spacing: 1.5px; margin-top: 2px; }
+
+  .h { position: absolute; left: 72px; right: 72px; top: 400px; }
+  .h div { font-size: 118px; line-height: 1.02; font-weight: 800; letter-spacing: -2.5px; }
+  .gold { color: #FFD978; }
+
+  .phone { position: absolute; left: 230px; top: 720px; width: 620px; height: 780px; border-radius: 76px; background: #0f1113; padding: 18px; box-shadow: 0 40px 80px rgba(0, 0, 0, .38); }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 60px; background: #F6F7FA; overflow: hidden; color: #20242C; }
+  .status { height: 56px; display: flex; justify-content: space-between; padding: 20px 40px 0; font-size: 22px; font-weight: 600; color: #4b4f57; }
+  .card { background: #fff; border-radius: 30px; padding: 24px 28px; box-shadow: 0 3px 14px rgba(0, 0, 0, .06); color: #20242C; }
+  .label { font-size: 21px; color: #737780; font-weight: 700; letter-spacing: .5px; }
+  .row { display: flex; justify-content: space-between; align-items: center; background: #fff; border-radius: 26px; padding: 16px 22px; }
+  .who { display: flex; align-items: center; gap: 16px; }
+  .ico { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font-size: 27px; color: #fff; flex: none; }
+  .row b { font-size: 25px; }
+  .row small { display: block; font-size: 19px; color: #737780; margin-top: 2px; }
+  .amt { font-size: 26px; font-weight: 800; color: #C5544C; }
+
+  .notif { background: #fff; color: #20242C; border-radius: 30px; padding: 22px 26px; box-shadow: 0 20px 44px rgba(0, 0, 0, .28); }
+  .notif .app { display: flex; align-items: center; gap: 12px; font-size: 21px; color: #6b7079; }
+  .notif .app img, .notif .app .sq { width: 30px; height: 30px; border-radius: 8px; }
+  .notif .t { font-size: 28px; font-weight: 800; margin-top: 8px; }
+  .notif .x { font-size: 25px; color: #3a3f47; margin-top: 4px; }
+  .ring { border: 4px solid #FFD978; }
+  .pill { background: #EAF0EF; border-radius: 999px; padding: 9px 20px; font-size: 23px; font-weight: 600; color: #20242C; }
+  .chip { padding: 12px 26px; border-radius: 999px; font-size: 28px; font-weight: 600; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .28); }
+
+  .bar { height: 18px; border-radius: 9px; background: #E7EAEE; overflow: hidden; margin-top: 12px; }
+  .bar i { display: block; height: 100%; border-radius: 9px; }
+  .item { display: flex; align-items: center; gap: 28px; font-size: 46px; font-weight: 700; }
+  .tick { width: 78px; height: 78px; border-radius: 50%; background: #FFD978; display: grid; place-items: center; flex: none; }
+</style>
+</head>
+<body>
+
+<div class="brand" id="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+
+<!-- 1: hook -->
+<section class="scene" id="sc1">
+  <div class="h" style="top: 470px;">
+    <div id="s1a" style="font-size: 92px;">Mahine ke end mein:</div>
+    <div id="s1b" class="gold" style="font-size: 140px; margin-top: 10px; transform-origin: left center;">“Paisa kahan<br>gaya?”</div>
+  </div>
+  <div id="wallet" class="abs" style="left: 430px; top: 1140px; font-size: 220px; line-height: 1;">👛</div>
+  <div id="coins"></div>
+  <div id="s1c" class="abs" style="left: 72px; right: 72px; top: 1470px; text-align: center; font-size: 42px; font-weight: 600; color: #E3F6F3;">Every month, the same question.</div>
+</section>
+
+<!-- 2: automatic capture -->
+<section class="scene" id="sc2">
+  <div class="h">
+    <div id="s2a">You pay.</div>
+    <div id="s2b" class="gold">It’s recorded.</div>
+  </div>
+  <div class="phone">
+    <div class="screen">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div style="padding: 16px 22px 0;">
+        <div class="card">
+          <div class="label">SPENT TODAY</div>
+          <div id="total" style="font-size: 64px; font-weight: 800; margin-top: 2px;">₹0</div>
+        </div>
+        <div id="rows" style="position: relative; margin-top: 16px;"></div>
+      </div>
+      <div id="n1" class="notif abs" style="left: 14px; right: 14px; top: 64px; z-index: 3; background:#F1F3F5;">
+        <div class="app"><span class="sq" style="background:#5F6368;"></span>Your UPI app · now</div>
+        <div class="t">₹249 paid to Swiggy</div>
+      </div>
+      <div id="n2" class="notif ring abs" style="left: 14px; right: 14px; top: 64px; z-index: 4;">
+        <div class="app"><img src="icon-play.svg" alt="">Kahan Gaya Paisa · now</div>
+        <div class="x"><b>Transaction recorded:</b> ₹249 at Swiggy</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3: bank SMS -->
+<section class="scene" id="sc3">
+  <div class="h">
+    <div id="s3a">Bank SMS?</div>
+    <div id="s3b" class="gold">Decoded.</div>
+  </div>
+  <div id="sms" class="notif abs" style="left: 72px; right: 72px; top: 760px; background: #EEF0F3; transform-origin: center;">
+    <div class="app"><span class="sq" style="background:#5F6368;"></span>Messages · Your bank</div>
+    <div id="smsText" style="font-family: Consolas, 'Cascadia Mono', monospace; font-size: 29px; line-height: 1.4; margin-top: 12px; color: #4b4f57; min-height: 82px;"></div>
+  </div>
+  <div id="arrow" class="abs" style="left: 0; right: 0; top: 960px; text-align: center; font-size: 76px; line-height: 1; color: #FFD978;">↓</div>
+  <div id="decoded" class="notif ring abs" style="left: 72px; right: 72px; top: 1060px; padding: 30px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="who"><span class="ico" style="background:#795548; width:72px; height:72px; font-size:36px;">⛽</span><div><div style="font-size:36px; font-weight:800;">Indian Oil</div><div style="font-size:24px; color:#737780;">Fuel · Card swipe</div></div></div>
+      <div style="font-size:46px; font-weight:800; color:#C5544C;">−₹1,500</div>
+    </div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:22px;">
+      <span class="pill" id="p1">Card ••4521</span><span class="pill" id="p2">Balance ₹42,310</span><span class="pill" id="p3">8 Nov</span>
+    </div>
+  </div>
+  <div id="s3c" class="abs" style="left: 72px; right: 72px; top: 1370px; text-align: center; font-size: 34px; font-weight: 600; color: #E3F6F3;">40+ Indian banks · No SMS permission needed</div>
+</section>
+
+<!-- 4: categories -->
+<section class="scene" id="sc4">
+  <div class="h">
+    <div id="s4a">Sorted.</div>
+    <div id="s4b" class="gold">Automatically.</div>
+  </div>
+  <div id="panel" class="abs" style="left: 72px; right: 72px; top: 750px; background: #F6F7FA; color: #20242C; border-radius: 44px; padding: 32px; box-shadow: 0 30px 60px rgba(0,0,0,.3);">
+    <div class="label" style="font-size: 24px; padding: 0 6px;">WHERE IT WENT · NOVEMBER</div>
+    <div id="cats"></div>
+  </div>
+  <div id="s4c" class="abs" style="left: 72px; right: 72px; top: 1430px; text-align: center; font-size: 34px; font-weight: 600; color: #E3F6F3;">Fix one once. It learns.</div>
+</section>
+
+<!-- 5: privacy -->
+<section class="scene" id="sc5">
+  <div class="h">
+    <div id="s5a">Your money.</div>
+    <div id="s5b" class="gold">Your phone.</div>
+    <div id="s5c">Nobody else.</div>
+  </div>
+  <div id="ticks" class="abs" style="left: 72px; right: 72px; top: 900px; display: grid; gap: 40px;"></div>
+</section>
+
+<!-- 6: end card -->
+<section class="scene" id="sc6">
+  <div class="abs" style="left: 0; right: 0; top: 380px; text-align: center;">
+    <img id="bigIcon" src="icon-play.svg" alt="" style="width: 300px; height: 300px; border-radius: 72px; box-shadow: 0 30px 60px rgba(0,0,0,.35);">
+    <div id="e1" style="font-size: 96px; font-weight: 800; letter-spacing: -2px; margin-top: 50px;">Kahan Gaya Paisa</div>
+    <div id="e2" style="font-size: 30px; font-weight: 700; color: #FFD978; letter-spacing: 3px; margin-top: 8px;">AUTO EXPENSE TRACKER</div>
+    <div id="e3" style="margin: 70px auto 0; width: 860px; background: #fff; color: #20242C; border-radius: 999px; padding: 30px 44px; display: flex; align-items: center; gap: 26px; box-shadow: 0 20px 44px rgba(0,0,0,.3); text-align: left;">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>
+      <span id="typed" style="font-size: 44px; font-weight: 600;"></span><span id="caret" style="width: 4px; height: 50px; background: #00897B; margin-left: -20px;"></span>
+    </div>
+    <div id="e4" style="font-size: 38px; font-weight: 700; color: #E3F6F3; margin-top: 30px;">Free on Google Play</div>
+    <div id="e5" style="display: flex; justify-content: center; gap: 14px; margin-top: 50px;">
+      <span class="chip">No ads</span><span class="chip">100% offline</span><span class="chip">Android 8+</span>
+    </div>
+  </div>
+</section>
+
+<script>
+  const T = 22;  // seconds
+  const $ = id => document.getElementById(id);
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const prog = (t, s, d) => clamp((t - s) / d);
+  const easeOut = x => 1 - Math.pow(1 - x, 3);
+  const back = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+  const inr = n => '₹' + Math.round(n).toLocaleString('en-IN');
+
+  function set(el, o, { x = 0, y = 0, s = 1, r = 0 } = {}) {
+    el.style.opacity = o;
+    el.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`;
+  }
+  // Slide up into place from `dist` below.
+  function rise(el, t, s, dist = 50, r = 0) { const k = easeOut(prog(t, s, .5)); set(el, k, { y: (1 - k) * dist, r }); }
+  // Grow in with a slight overshoot.
+  function pop(el, t, s, r = 0) { const k = prog(t, s, .5); set(el, clamp(k * 3), { s: k === 0 ? .5 : .5 + .5 * back(k), r }); }
+
+  // ---- build repeated elements ----
+  const coins = Array.from({ length: 12 }, (_, i) => {
+    const el = document.createElement('div');
+    el.className = 'abs';
+    el.textContent = '₹';
+    el.style.cssText = `left:520px; top:1180px; font-size:${70 + (i % 3) * 22}px; font-weight:800; color:${i % 2 ? '#FFD978' : '#fff'};`;
+    $('coins').appendChild(el);
+    return el;
+  });
+
+  const payments = [
+    ['🍔', '#E0785F', 'Swiggy', 'Food & Drink · UPI', 249],
+    ['☕', '#E0785F', 'Chai Point', 'Food & Drink · UPI', 20],
+    ['🛺', '#F5A623', 'Rapido', 'Transport · UPI', 46],
+    ['🛒', '#00897B', 'Zepto', 'Groceries · UPI', 89],
+  ];
+  const rowEls = payments.map(([ico, bg, name, sub, amt], i) => {
+    const el = document.createElement('div');
+    el.className = 'row abs';
+    el.style.cssText = `left:0; right:0; top:${i * 104}px;`;
+    el.innerHTML = `<div class="who"><span class="ico" style="background:${bg};">${ico}</span><div><b>${name}</b><small>${sub}</small></div></div><span class="amt">−₹${amt}</span>`;
+    $('rows').appendChild(el);
+    return el;
+  });
+  const rowTimes = [5.0, 5.7, 6.3, 6.9];
+
+  const SMS = 'Rs.1500.00 spent on Debit Card XX4521 at INDIAN OIL on 08-Nov-26. Avl Bal Rs.42,310.00. Not you? Call …';
+
+  const cats = [['🍔', '#E0785F', 'Food & Drink', 6260], ['🛒', '#00897B', 'Groceries', 4410], ['🛍️', '#F5A623', 'Shopping', 3320], ['⛽', '#795548', 'Fuel', 2210]];
+  const catEls = cats.map(([ico, bg, name, amt]) => {
+    const el = document.createElement('div');
+    el.className = 'row';
+    el.style.cssText = 'display:block; margin-top:14px;';
+    el.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;"><div class="who"><span class="ico" style="background:${bg};">${ico}</span><b>${name}</b></div><span class="amt" style="color:#20242C;">₹0</span></div><div class="bar"><i style="width:0; background:${bg};"></i></div>`;
+    $('cats').appendChild(el);
+    return { el, amtEl: el.querySelector('.amt'), barEl: el.querySelector('.bar i'), amt };
+  });
+
+  const tickSvg = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00473E" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"/></svg>';
+  const tickEls = ['No account, no bank login', 'Works fully offline', 'No ads, no tracking', 'Delete everything, any time'].map(text => {
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.innerHTML = `<span class="tick">${tickSvg}</span>${text}`;
+    $('ticks').appendChild(el);
+    return el;
+  });
+
+  const scenes = [['sc1', -1, 3.2], ['sc2', 3.2, 8.0], ['sc3', 8.0, 11.8], ['sc4', 11.8, 15.4], ['sc5', 15.4, 18.6], ['sc6', 18.6, 99]];
+
+  // ---- the timeline: everything on screen is a function of t ----
+  function renderAt(t) {
+    for (const [id, s, e] of scenes) {
+      const a = Math.min(prog(t, s, .3), 1 - prog(t, e - .25, .25));
+      $(id).style.opacity = a;
+      $(id).style.display = a > 0 ? 'block' : 'none';
+    }
+    $('brand').style.opacity = 1 - prog(t, 18.35, .25);
+
+    // 1: hook. The first frame already shows the question, so it works as a cover.
+    set($('s1a'), 1);
+    set($('s1b'), 1, { s: 1 + .04 * Math.sin(prog(t, .2, .5) * Math.PI) });
+    pop($('wallet'), t, .5);
+    coins.forEach((el, i) => {
+      const k = prog(t, 1.0 + i * .1, 1.5);
+      const ang = (-160 + i * 140 / 11) * Math.PI / 180;
+      const dist = easeOut(k) * (360 + (i % 4) * 50);
+      set(el, k === 0 ? 0 : (1 - k * k), { x: Math.cos(ang) * dist, y: Math.sin(ang) * dist * .5 - k * 60, r: (i % 2 ? 1 : -1) * k * 220 });
+    });
+    const wob = Math.sin(t * 22) * 6 * (prog(t, 1.0, .2) - prog(t, 2.4, .2));
+    if (t > 1.0) $('wallet').style.transform = `rotate(${wob}deg)`;
+    rise($('s1c'), t, 1.6);
+
+    // 2: capture
+    rise($('s2a'), t, 3.3);
+    rise($('s2b'), t, 4.6);
+    const n1 = easeOut(prog(t, 3.7, .45)) - easeOut(prog(t, 4.45, .3));
+    set($('n1'), clamp(n1 * 2), { y: (1 - easeOut(prog(t, 3.7, .45))) * -180 });
+    const n2in = easeOut(prog(t, 4.4, .4)), n2out = easeOut(prog(t, 5.6, .35));
+    set($('n2'), clamp(n2in * 2) * (1 - n2out), { y: (1 - n2in) * -180 - n2out * 180 });
+    let total = 0;
+    rowEls.forEach((el, i) => {
+      const k = easeOut(prog(t, rowTimes[i], .45));
+      set(el, k, { y: (1 - k) * -40, s: .94 + .06 * k });
+      total += payments[i][4] * k;
+    });
+    $('total').textContent = inr(total);
+
+    // 3: bank SMS
+    rise($('s3a'), t, 8.1);
+    rise($('s3b'), t, 9.9);
+    rise($('sms'), t, 8.2, 60, -1.5);
+    const chars = Math.round(SMS.length * prog(t, 8.5, 1.1));
+    $('smsText').textContent = SMS.slice(0, chars);
+    pop($('arrow'), t, 9.7);
+    pop($('decoded'), t, 9.9, 1);
+    ['p1', 'p2', 'p3'].forEach((id, i) => pop($(id), t, 10.4 + i * .15));
+    rise($('s3c'), t, 10.8);
+
+    // 4: categories
+    rise($('s4a'), t, 11.9);
+    rise($('s4b'), t, 12.5);
+    rise($('panel'), t, 12.0, 80);
+    catEls.forEach((c, i) => {
+      const k = easeOut(prog(t, 12.4 + i * .2, 1.0));
+      c.amtEl.textContent = inr(c.amt * k);
+      c.barEl.style.width = (c.amt / cats[0][3] * 100 * k) + '%';
+    });
+    rise($('s4c'), t, 14.0);
+
+    // 5: privacy
+    rise($('s5a'), t, 15.5);
+    rise($('s5b'), t, 15.9);
+    rise($('s5c'), t, 16.3);
+    tickEls.forEach((el, i) => {
+      rise(el, t, 16.7 + i * .3, 40);
+      pop(el.querySelector('.tick'), t, 16.7 + i * .3);
+    });
+
+    // 6: end card
+    pop($('bigIcon'), t, 18.7);
+    rise($('e1'), t, 19.0);
+    rise($('e2'), t, 19.2);
+    rise($('e3'), t, 19.4);
+    const name = 'Kahan Gaya Paisa';
+    $('typed').textContent = name.slice(0, Math.round(name.length * prog(t, 19.8, .9)));
+    $('caret').style.opacity = t > 19.4 && Math.floor(t * 2.5) % 2 === 0 ? 1 : 0;
+    rise($('e4'), t, 20.5);
+    rise($('e5'), t, 20.8);
+  }
+  window.renderAt = renderAt;
+  window.REEL_SECONDS = T;
+
+  // Preview: loop in real time, or hold one moment with #t=<seconds>. The renderer drives renderAt itself.
+  const held = /t=([\d.]+)/.exec(location.hash);
+  if (held) renderAt(parseFloat(held[1]));
+  else if (!/render/.test(location.search)) {
+    const t0 = performance.now();
+    (function loop() { renderAt(((performance.now() - t0) / 1000) % T); requestAnimationFrame(loop); })();
+  } else renderAt(0);
+</script>
+</body>
+</html>

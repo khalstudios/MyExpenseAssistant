@@ -1,0 +1,305 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Kahan Gaya Paisa 2026 reel</title>
+<!--
+  Year-in-review / New Year Reel, 1080x1920, 22.5 seconds. Open in a browser to preview it looping;
+  add #t=5.2 to hold one moment. Render with: node render-reel.js reel-2026.
+  Key content keeps inside y 220–1560 and x 60–940. Sample figures only.
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; }
+  body {
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    color: #fff; position: relative;
+    background:
+      radial-gradient(ellipse 900px 600px at 50% -8%, rgba(255, 217, 120, .16), transparent 70%),
+      linear-gradient(170deg, #005248 0%, #003832 50%, #001F1B 100%);
+  }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .abs { position: absolute; }
+
+  .brand { position: absolute; left: 72px; top: 236px; display: flex; align-items: center; gap: 20px; z-index: 5; }
+  .brand img { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 10px 24px rgba(0, 0, 0, .28); }
+  .brand .name { font-size: 38px; font-weight: 800; letter-spacing: -.3px; }
+  .brand .kicker { font-size: 20px; font-weight: 700; color: #FFD978; letter-spacing: 1.5px; margin-top: 2px; }
+
+  .h { position: absolute; left: 72px; right: 72px; top: 400px; }
+  .h div { font-size: 112px; line-height: 1.02; font-weight: 800; letter-spacing: -2.5px; }
+  .gold { color: #FFD978; }
+  .year {
+    font-size: 330px; font-weight: 900; letter-spacing: -12px; line-height: .9;
+    background: linear-gradient(180deg, #FFE9A8 0%, #FFD978 45%, #E0A93A 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 12px 30px rgba(0, 0, 0, .35));
+  }
+
+  .panel { position: absolute; left: 72px; right: 72px; background: #F6F7FA; color: #20242C; border-radius: 44px; padding: 34px 36px; box-shadow: 0 30px 60px rgba(0, 0, 0, .35); z-index: 2; }
+  .label { font-size: 22px; color: #737780; font-weight: 700; letter-spacing: .5px; }
+  .row { display: flex; justify-content: space-between; align-items: center; background: #fff; border-radius: 26px; padding: 16px 22px; }
+  .who { display: flex; align-items: center; gap: 16px; }
+  .ico { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font-size: 27px; color: #fff; flex: none; }
+  .row b { font-size: 26px; }
+  .row small { display: block; font-size: 21px; color: #737780; margin-top: 2px; }
+  .amt { font-size: 26px; font-weight: 800; color: #20242C; }
+  .bar { height: 16px; border-radius: 8px; background: #E7EAEE; overflow: hidden; margin-top: 12px; display: flex; }
+  .bar i { display: block; height: 100%; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 24px 20px; margin-top: 26px; }
+  .stats .k { font-size: 21px; font-weight: 800; letter-spacing: .8px; }
+  .stats .v { font-size: 50px; font-weight: 800; margin-top: 2px; }
+  .stats .r { text-align: right; }
+  .pill { display: inline-block; padding: 8px 20px; border-radius: 999px; font-size: 24px; font-weight: 700; }
+
+  .p { position: absolute; width: 26px; height: 7px; border-radius: 4px; left: 0; top: 0; }
+</style>
+</head>
+<body>
+
+<div id="fw" class="abs" style="inset: 0; z-index: 0;"></div>
+
+<div class="brand" id="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+
+<!-- 1: hook -->
+<section class="scene" id="sc1">
+  <div id="yr" class="abs year" style="left: 60px; top: 400px; transform-origin: left bottom;">2026</div>
+  <div class="h" style="top: 760px;">
+    <div id="s1a" style="font-size: 92px;">Saal khatam.</div>
+    <div id="s1b" class="gold" style="font-size: 136px; margin-top: 10px;">“Paisa kahan<br>gaya?”</div>
+  </div>
+</section>
+
+<!-- 2: the year in numbers -->
+<section class="scene" id="sc2">
+  <div class="h">
+    <div id="s2a">Your 2026,</div>
+    <div id="s2b" class="gold">in numbers.</div>
+  </div>
+  <div id="sum" class="panel" style="top: 760px;">
+    <div class="label">INCOME &amp; EXPENDITURE · CURRENT YEAR</div>
+    <div class="bar" style="height: 14px; margin-top: 18px;"><i id="seg1" style="background:#EF6C6C;"></i><i id="seg2" style="background:#C9A227;"></i><i id="seg3" style="background:#4DD0A7;"></i></div>
+    <div class="stats">
+      <div><div class="k" style="color:#1E9E78;">INCOME</div><div class="v" id="vInc">₹0</div></div>
+      <div class="r"><div class="k" style="color:#D9534F;">EXPENDITURE</div><div class="v" id="vExp">₹0</div></div>
+      <div><div class="k" style="color:#A67C00;">INVESTED</div><div class="v" id="vInv" style="color:#A67C00;">₹0</div></div>
+      <div class="r"><div class="k" style="color:#00897B;">LEFT</div><div class="v" id="vLeft" style="color:#00897B;">₹0</div></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#EAF0EF; border-radius:24px; padding:20px 26px; margin-top:26px;">
+      <div><div style="font-size:27px; color:#3a3f47;">Net Savings</div><div id="vPct" style="font-size:22px; color:#737780; margin-top:2px;">0% of income</div></div>
+      <div id="vNet" style="font-size:44px; font-weight:800; color:#1E9E78;">₹0</div>
+    </div>
+  </div>
+</section>
+
+<!-- 3: where it went -->
+<section class="scene" id="sc3">
+  <div class="h">
+    <div id="s3a">Where it</div>
+    <div id="s3b" class="gold">all went.</div>
+  </div>
+  <div id="catPanel" class="panel" style="top: 760px; padding: 30px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding: 0 6px;">
+      <div class="label">INSIGHTS · 2026</div>
+      <span id="cmp" class="pill" style="background:#FDECEC; color:#C5544C; font-size:21px;">▲ 12% vs the previous year</span>
+    </div>
+    <div id="cats"></div>
+  </div>
+</section>
+
+<!-- 4: top merchant -->
+<section class="scene" id="sc4">
+  <div class="h">
+    <div id="s4a" style="font-size: 92px;">Your top merchant:</div>
+    <div id="s4b" class="gold">Swiggy. 186×</div>
+  </div>
+  <div id="merPanel" class="panel" style="top: 760px; padding: 30px;">
+    <div class="label" style="padding: 0 6px;">MERCHANTS · MOST-PAID FIRST</div>
+    <div id="mers"></div>
+  </div>
+</section>
+
+<!-- 5: new year, new budget -->
+<section class="scene" id="sc5">
+  <div class="h">
+    <div id="s5a">New year.</div>
+    <div id="s5b" class="gold">New budget.</div>
+  </div>
+  <div id="budget" class="panel" style="top: 780px; padding: 40px;">
+    <div class="label" style="font-size: 24px;">JANUARY 2027 · OVERALL</div>
+    <div style="display:flex; align-items:baseline; gap:16px; margin-top:6px;"><div style="font-size:80px; font-weight:800;">₹0</div><div style="font-size:32px; color:#737780;">of <span id="bAmt">₹0</span></div></div>
+    <div class="bar" style="height:28px; border-radius:14px;"><i style="width:0;"></i></div>
+    <div id="bLeft" style="font-size:28px; color:#1E9E78; font-weight:700; margin-top:16px;">₹40,000 left for January ✨</div>
+    <div style="display:flex; gap:12px; margin-top:26px;">
+      <span class="pill" style="background:#EAF0EF;">Daily</span><span class="pill" style="background:#00897B; color:#fff;">Monthly</span><span class="pill" style="background:#EAF0EF;">Yearly</span>
+    </div>
+  </div>
+</section>
+
+<!-- 6: end card -->
+<section class="scene" id="sc6">
+  <div class="abs" style="left: 0; right: 0; top: 330px; text-align: center;">
+    <div id="e0" style="font-size: 60px; font-weight: 800; color: #FFD978;">Happy New Year! 🎆</div>
+    <img id="bigIcon" src="icon-play.svg" alt="" style="width: 240px; height: 240px; border-radius: 60px; box-shadow: 0 30px 60px rgba(0,0,0,.4); margin-top: 50px;">
+    <div id="e1" style="font-size: 92px; font-weight: 800; letter-spacing: -2px; margin-top: 40px;">Kahan Gaya Paisa</div>
+    <div id="e2" style="font-size: 40px; font-weight: 600; color: #E3F6F3; margin-top: 14px;">Start 2027 knowing where it goes.</div>
+    <div id="e3" style="margin: 56px auto 0; width: 860px; background: #fff; color: #20242C; border-radius: 999px; padding: 30px 44px; display: flex; align-items: center; gap: 26px; box-shadow: 0 20px 44px rgba(0,0,0,.3); text-align: left;">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>
+      <span id="typed" style="font-size: 44px; font-weight: 600;"></span><span id="caret" style="width: 4px; height: 50px; background: #00897B; margin-left: -20px;"></span>
+    </div>
+    <div id="e4" style="font-size: 38px; font-weight: 700; color: #E3F6F3; margin-top: 30px;">Free on Google Play</div>
+  </div>
+</section>
+
+<script>
+  const T = 22.5;  // seconds
+  const $ = id => document.getElementById(id);
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const prog = (t, s, d) => clamp((t - s) / d);
+  const easeOut = x => 1 - Math.pow(1 - x, 3);
+  const back = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+  const inr = n => '₹' + Math.round(n).toLocaleString('en-IN');
+  function set(el, o, { x = 0, y = 0, s = 1, r = 0 } = {}) {
+    el.style.opacity = o;
+    el.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`;
+  }
+  function rise(el, t, s, dist = 50) { const k = easeOut(prog(t, s, .5)); set(el, k, { y: (1 - k) * dist }); }
+  function pop(el, t, s, r = 0) { const k = prog(t, s, .5); set(el, clamp(k * 3), { s: k === 0 ? .5 : .5 + .5 * back(k), r }); }
+
+  // ---- fireworks: each burst repeats on its own period; every particle is a function of t ----
+  const FW_COLORS = ['#FFD978', '#E0785F', '#FFF3C4', '#4DD0A7', '#F5A623'];
+  const bursts = [
+    [270, 330, 0.3, 3.1], [820, 260, 0.9, 3.4], [560, 420, 1.6, 3.7], [150, 640, 2.4, 4.1],
+    [930, 600, 2.9, 3.9], [540, 1420, 0.6, 3.0], [860, 1300, 1.4, 3.3], [220, 1480, 2.1, 3.6],
+  ];
+  const N = 30;
+  const particles = bursts.map(([cx, cy, start, period], b) => Array.from({ length: N }, (_, i) => {
+    const el = document.createElement('div');
+    el.className = 'p';
+    const c = FW_COLORS[(b + (i % 2)) % FW_COLORS.length];
+    el.style.background = c; el.style.boxShadow = `0 0 14px ${c}`;
+    $('fw').appendChild(el);
+    const ang = (i / N) * Math.PI * 2 + b, speed = (i % 3 === 0 ? 90 : 170) + ((i * 37 + b * 11) % 70);
+    return { el, cx, cy, start, period, ang: ang * 180 / Math.PI, dx: Math.cos(ang) * speed, dy: Math.sin(ang) * speed };
+  }));
+  function renderFireworks(t, level) {
+    particles.forEach(group => group.forEach(p => {
+      const local = t - p.start;
+      if (local < 0) { p.el.style.opacity = 0; return; }
+      const k = (local % p.period) / 1.5;
+      if (k > 1) { p.el.style.opacity = 0; return; }
+      const e = easeOut(k);
+      const x = p.cx + p.dx * e, y = p.cy + p.dy * e + k * k * 70;
+      p.el.style.opacity = level * (1 - k) * (k < .05 ? k * 20 : 1);
+      p.el.style.transform = `translate(${x - 13}px, ${y - 3}px) rotate(${p.ang}deg) scale(${1.2 - .7 * k}, ${1 - .5 * k})`;
+    }));
+  }
+
+  // ---- scene content ----
+  const INC = 900000, EXP = 546800, INV = 180000, NET = INC - EXP, LEFT = NET - INV;
+
+  const cats = [['🏠', '#8D6E63', 'Rent', 180000], ['🍔', '#E0785F', 'Food & Drink', 96400], ['🛍️', '#F5A623', 'Shopping', 72300], ['🛒', '#00897B', 'Groceries', 61200]];
+  const catEls = cats.map(([ico, bg, name, amt]) => {
+    const el = document.createElement('div');
+    el.className = 'row';
+    el.style.cssText = 'display:block; margin-top:14px;';
+    el.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;"><div class="who"><span class="ico" style="background:${bg};">${ico}</span><b>${name}</b></div><span class="amt">₹0</span></div><div class="bar"><i style="width:0; background:${bg}; border-radius:8px;"></i></div>`;
+    $('cats').appendChild(el);
+    return { amtEl: el.querySelector('.amt'), barEl: el.querySelector('.bar i'), amt };
+  });
+
+  const mers = [['🍔', '#E0785F', 'Swiggy', 186, 48320], ['🛒', '#00897B', 'Zepto', 142, 31870], ['🚕', '#F5A623', 'Uber', 98, 19640]];
+  const merEls = mers.map(([ico, bg, name, n, amt], i) => {
+    const el = document.createElement('div');
+    el.className = 'row';
+    el.style.cssText = 'margin-top:14px;' + (i === 0 ? ' box-shadow: 0 0 0 4px #FFD978;' : '');
+    el.innerHTML = `<div class="who"><span class="ico" style="background:${bg};">${ico}</span><div><b>${name}</b><small>0 payments · ₹0</small></div></div><span style="font-size:30px; font-weight:800; color:${i === 0 ? '#A67C00' : '#9aa0a8'};">#${i + 1}</span>`;
+    $('mers').appendChild(el);
+    return { el, sub: el.querySelector('small'), n, amt };
+  });
+
+  const scenes = [['sc1', -1, 3.5], ['sc2', 3.5, 8.0], ['sc3', 8.0, 12.5], ['sc4', 12.5, 16.0], ['sc5', 16.0, 19.0], ['sc6', 19.0, 99]];
+
+  // ---- the timeline: everything on screen is a function of t ----
+  function renderAt(t) {
+    for (const [id, s, e] of scenes) {
+      const a = Math.min(prog(t, s, .3), 1 - prog(t, e - .25, .25));
+      $(id).style.opacity = a;
+      $(id).style.display = a > 0 ? 'block' : 'none';
+    }
+    $('brand').style.opacity = 1 - prog(t, 18.75, .25);
+    // Full fireworks on the hook and end card, softer behind the data scenes.
+    const busy = prog(t, 3.2, .4) - prog(t, 18.8, .4);
+    renderFireworks(t, 1 - .65 * busy);
+
+    // 1: hook. The first frame already shows the question, so it works as a cover.
+    set($('yr'), 1, { s: 1 + .05 * Math.sin(prog(t, .1, .6) * Math.PI) });
+    set($('s1a'), 1);
+    set($('s1b'), 1, { s: 1 + .03 * Math.sin(prog(t, .9, .5) * Math.PI) });
+
+    // 2: the year in numbers
+    rise($('s2a'), t, 3.6);
+    rise($('s2b'), t, 3.9);
+    rise($('sum'), t, 3.8, 80);
+    const k2 = easeOut(prog(t, 4.3, 1.6));
+    $('vInc').textContent = inr(INC * k2);
+    $('vExp').textContent = inr(EXP * k2);
+    $('vInv').textContent = inr(INV * k2);
+    $('vLeft').textContent = '+' + inr(LEFT * k2);
+    $('vNet').textContent = '+' + inr(NET * k2);
+    $('vPct').textContent = Math.floor(NET / INC * 100 * k2) + '% of income';
+    $('seg1').style.width = (EXP / INC * 100 * k2) + '%';
+    $('seg2').style.width = (INV / INC * 100 * k2) + '%';
+    $('seg3').style.width = (LEFT / INC * 100 * k2) + '%';
+
+    // 3: where it went
+    rise($('s3a'), t, 8.1);
+    rise($('s3b'), t, 8.4);
+    rise($('catPanel'), t, 8.3, 80);
+    catEls.forEach((c, i) => {
+      const k = easeOut(prog(t, 8.8 + i * .2, 1.0));
+      c.amtEl.textContent = inr(c.amt * k);
+      c.barEl.style.width = (c.amt / cats[0][3] * 100 * k) + '%';
+    });
+    pop($('cmp'), t, 10.6);
+
+    // 4: top merchant
+    rise($('s4a'), t, 12.6);
+    pop($('s4b'), t, 13.0);
+    rise($('merPanel'), t, 12.8, 80);
+    merEls.forEach((m, i) => {
+      rise(m.el, t, 13.2 + i * .25, 30);
+      const k = easeOut(prog(t, 13.3 + i * .25, 1.0));
+      m.sub.textContent = `${Math.round(m.n * k)} payments · ${inr(m.amt * k)}`;
+    });
+
+    // 5: new budget
+    rise($('s5a'), t, 16.1);
+    rise($('s5b'), t, 16.4);
+    rise($('budget'), t, 16.3, 80);
+    $('bAmt').textContent = inr(40000 * easeOut(prog(t, 16.8, .8)));
+    rise($('bLeft'), t, 17.6, 20);
+
+    // 6: end card
+    pop($('e0'), t, 19.1);
+    pop($('bigIcon'), t, 19.3);
+    rise($('e1'), t, 19.6);
+    rise($('e2'), t, 19.8);
+    rise($('e3'), t, 20.0);
+    const name = 'Kahan Gaya Paisa';
+    $('typed').textContent = name.slice(0, Math.round(name.length * prog(t, 20.3, .9)));
+    $('caret').style.opacity = t > 20.0 && Math.floor(t * 2.5) % 2 === 0 ? 1 : 0;
+    rise($('e4'), t, 21.0);
+  }
+  window.renderAt = renderAt;
+  window.REEL_SECONDS = T;
+
+  const held = /t=([\d.]+)/.exec(location.hash);
+  if (held) renderAt(parseFloat(held[1]));
+  else if (!/render/.test(location.search)) {
+    const t0 = performance.now();
+    (function loop() { renderAt(((performance.now() - t0) / 1000) % T); requestAnimationFrame(loop); })();
+  } else renderAt(0);
+</script>
+</body>
+</html>

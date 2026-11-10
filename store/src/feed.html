@@ -1,0 +1,301 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Kahan Gaya Paisa feed posts</title>
+<!--
+  Instagram / Facebook feed posts, 1080x1350 (4:5). Open as feed.html#1 … feed.html#8; each hash
+  shows one slide. Rendered to store/feed/post-N.png. 1–4 are single posts, 5–8 one carousel.
+  Key content keeps 72px from the sides, which the 3:4 profile grid crops. Sample figures only.
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1080px; height: 1350px; overflow: hidden; }
+  body {
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    color: #fff;
+    background:
+      radial-gradient(circle at 94% 6%, rgba(255, 217, 120, .20) 0 180px, transparent 181px),
+      radial-gradient(circle at 0% 98%, rgba(224, 120, 95, .24) 0 250px, transparent 251px),
+      linear-gradient(160deg, #00897B 0%, #00695C 45%, #004D40 100%);
+  }
+  .slide { display: none; position: absolute; inset: 0; }
+  .slide.on { display: block; }
+
+  .brand { position: absolute; left: 72px; top: 64px; display: flex; align-items: center; gap: 20px; }
+  .brand img { width: 80px; height: 80px; border-radius: 22px; box-shadow: 0 10px 24px rgba(0, 0, 0, .28); }
+  .brand .name { font-size: 36px; font-weight: 800; letter-spacing: -.3px; }
+  .brand .kicker { font-size: 19px; font-weight: 700; color: #FFD978; letter-spacing: 1.5px; margin-top: 2px; }
+  .step-tag {
+    position: absolute; right: 72px; top: 82px; font-size: 24px; font-weight: 700;
+    padding: 10px 22px; border-radius: 999px; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .28);
+  }
+
+  .cta {
+    position: absolute; left: 72px; right: 72px; bottom: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: #00392F; border: 1px solid rgba(255, 255, 255, .22);
+    border-radius: 30px; padding: 22px 30px; box-shadow: 0 -10px 40px rgba(0, 0, 0, .25);
+  }
+  .cta .l1 { font-size: 30px; font-weight: 800; }
+  .cta .l2 { font-size: 22px; color: #CDEFEA; margin-top: 3px; }
+  .cta .btn {
+    background: #FFD978; color: #00473E; font-weight: 800; font-size: 26px;
+    padding: 16px 28px; border-radius: 999px; white-space: nowrap;
+  }
+
+  h1 { margin: 0; font-size: 92px; line-height: 1.0; font-weight: 800; letter-spacing: -2px; }
+  h1 em { font-style: normal; color: #FFD978; }
+  .headline { position: absolute; left: 72px; right: 72px; top: 200px; }
+  .sub { margin-top: 24px; font-size: 32px; line-height: 1.32; font-weight: 500; color: #E3F6F3; }
+  .chips { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+  .chip {
+    padding: 10px 22px; border-radius: 999px; font-size: 24px; font-weight: 600;
+    background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .28);
+  }
+
+  .panel {
+    position: absolute; left: 72px; right: 72px; background: #F6F7FA; color: #20242C;
+    border-radius: 40px; padding: 30px; box-shadow: 0 30px 60px rgba(0, 0, 0, .3);
+  }
+  .card { background: #fff; border-radius: 28px; padding: 26px; box-shadow: 0 3px 14px rgba(0, 0, 0, .06); color: #20242C; }
+  .label { font-size: 20px; color: #737780; font-weight: 700; letter-spacing: .5px; }
+  .big { font-size: 52px; font-weight: 800; margin-top: 4px; }
+  .row { display: flex; justify-content: space-between; align-items: center; background: #fff; border-radius: 24px; padding: 14px 20px; margin-top: 10px; }
+  .row .who { display: flex; align-items: center; gap: 16px; }
+  .ico { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-size: 25px; color: #fff; flex: none; }
+  .row b { font-size: 23px; }
+  .row small { display: block; font-size: 18px; color: #737780; margin-top: 2px; }
+  .amt { font-size: 24px; font-weight: 800; color: #C5544C; }
+
+  .notif {
+    background: #fff; color: #20242C; border-radius: 32px; padding: 24px 28px;
+    box-shadow: 0 20px 44px rgba(0, 0, 0, .28);
+  }
+  .notif .app { display: flex; align-items: center; gap: 12px; font-size: 21px; color: #6b7079; }
+  .notif .app img, .notif .app .sq { width: 30px; height: 30px; border-radius: 8px; }
+  .notif .t { font-size: 29px; font-weight: 800; margin-top: 8px; }
+  .notif .x { font-size: 25px; color: #3a3f47; margin-top: 4px; line-height: 1.35; }
+  .gold-ring { border: 4px solid #FFD978; }
+  .arrow { text-align: center; font-size: 58px; line-height: 1; margin: 16px 0; color: #FFD978; }
+
+  .bar { height: 16px; border-radius: 8px; background: #E7EAEE; overflow: hidden; margin-top: 12px; display: flex; }
+  .bar i { display: block; height: 100%; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 26px 20px; margin-top: 28px; }
+  .stats .k { font-size: 20px; font-weight: 800; letter-spacing: .8px; }
+  .stats .v { font-size: 46px; font-weight: 800; margin-top: 2px; }
+  .stats .r { text-align: right; }
+
+  .num {
+    width: 120px; height: 120px; border-radius: 50%; background: #FFD978; color: #00473E;
+    display: grid; place-items: center; font-size: 68px; font-weight: 800; box-shadow: 0 14px 30px rgba(0, 0, 0, .25);
+  }
+  .tick, .cross { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+  .tick { background: #FFD978; }
+  .cross { background: rgba(255, 255, 255, .14); }
+</style>
+</head>
+<body>
+
+<!-- 1: small payments add up -->
+<section class="slide" id="s1">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="headline">
+    <h1>₹20 here.<br><em>₹49 there.</em></h1>
+    <div class="sub">The small UPI payments are the ones you forget.<br>This app records every single one.</div>
+  </div>
+  <div class="panel" style="top: 600px; transform: rotate(-1.5deg);">
+    <div class="label" style="font-size:22px; padding: 0 6px;">TODAY · RECORDED AUTOMATICALLY</div>
+    <div class="row"><div class="who"><span class="ico" style="background:#E0785F;">☕</span><div><b>Chai Point</b><small>Food &amp; Drink · UPI · 8:42</small></div></div><span class="amt">−₹20</span></div>
+    <div class="row"><div class="who"><span class="ico" style="background:#F5A623;">🛺</span><div><b>Rapido</b><small>Transport · UPI · 9:05</small></div></div><span class="amt">−₹46</span></div>
+    <div class="row"><div class="who"><span class="ico" style="background:#00897B;">🛒</span><div><b>Zepto</b><small>Groceries · UPI · 13:17</small></div></div><span class="amt">−₹89</span></div>
+    <div class="row"><div class="who"><span class="ico" style="background:#E0785F;">🍔</span><div><b>Swiggy</b><small>Food &amp; Drink · UPI · 20:31</small></div></div><span class="amt">−₹249</span></div>
+    <div style="display:flex; justify-content:space-between; align-items:baseline; padding: 18px 8px 2px;">
+      <span style="font-size:26px; font-weight:700; color:#737780;">Spent today</span>
+      <span style="font-size:44px; font-weight:800;">₹404</span>
+    </div>
+  </div>
+  <div class="cta"><div><div class="l1">Catch every rupee</div><div class="l2">Free on Google Play</div></div><div class="btn">Get the app</div></div>
+</section>
+
+<!-- 2: investments are saved, not spent -->
+<section class="slide" id="s2">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="headline">
+    <h1>Your SIP isn’t<br><em>spending.</em></h1>
+    <div class="sub">Money you invest counts as saved, not spent.<br>See what came in, went out, and grew.</div>
+  </div>
+  <div class="panel" style="top: 590px; padding: 34px 36px;">
+    <div class="label" style="font-size:22px;">INCOME &amp; EXPENDITURE · NOVEMBER</div>
+    <div class="bar" style="height:14px; margin-top:18px;">
+      <i style="width:51.2%; background:#EF6C6C;"></i><i style="width:20%; background:#C9A227;"></i><i style="width:28.8%; background:#4DD0A7;"></i>
+    </div>
+    <div class="stats">
+      <div><div class="k" style="color:#1E9E78;">INCOME</div><div class="v">₹75,000</div></div>
+      <div class="r"><div class="k" style="color:#D9534F;">EXPENDITURE</div><div class="v">₹38,400</div></div>
+      <div><div class="k" style="color:#A67C00;">INVESTED</div><div class="v" style="color:#A67C00;">₹15,000</div></div>
+      <div class="r"><div class="k" style="color:#00897B;">LEFT</div><div class="v" style="color:#00897B;">+₹21,600</div></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#EAF0EF; border-radius:24px; padding:20px 26px; margin-top:28px;">
+      <div><div style="font-size:26px; color:#3a3f47;">Net Savings</div><div style="font-size:21px; color:#737780; margin-top:2px;">48% of income</div></div>
+      <div style="font-size:40px; font-weight:800; color:#1E9E78;">+₹36,600</div>
+    </div>
+  </div>
+  <div class="cta"><div><div class="l1">Know what you really saved</div><div class="l2">Free on Google Play</div></div><div class="btn">Get the app</div></div>
+</section>
+
+<!-- 3: bank SMS decoded -->
+<section class="slide" id="s3">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="headline">
+    <h1>Bank SMS,<br><em>decoded.</em></h1>
+    <div class="sub">Alerts from 40+ Indian banks and card issuers, turned into clean, sorted entries.</div>
+  </div>
+  <div style="position:absolute; left:72px; right:72px; top:575px;">
+    <div class="notif" style="transform: rotate(-1.5deg); opacity:.94; background:#EEF0F3;">
+      <div class="app"><span class="sq" style="background:#5F6368;"></span>Messages · Your bank</div>
+      <div class="x" style="font-family: Consolas, 'Cascadia Mono', monospace; font-size:22px; margin-top:10px; color:#4b4f57;">Rs.1500.00 spent on Debit Card XX4521 at INDIAN OIL on 08-Nov-26. Avl Bal Rs.42,310.00. Not you? Call …</div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="notif gold-ring" style="transform: rotate(1deg);">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="who" style="display:flex; align-items:center; gap:18px;"><span class="ico" style="background:#795548; width:62px; height:62px; font-size:30px;">⛽</span><div><div class="t" style="margin:0;">Indian Oil</div><div style="font-size:21px; color:#737780;">Fuel · Card swipe</div></div></div>
+        <div style="font-size:38px; font-weight:800; color:#C5544C;">−₹1,500</div>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:18px;">
+        <span style="background:#EAF0EF; border-radius:999px; padding:8px 18px; font-size:21px; font-weight:600;">Card ••4521</span>
+        <span style="background:#EAF0EF; border-radius:999px; padding:8px 18px; font-size:21px; font-weight:600;">Balance ₹42,310</span>
+        <span style="background:#EAF0EF; border-radius:999px; padding:8px 18px; font-size:21px; font-weight:600;">8 Nov</span>
+      </div>
+    </div>
+  </div>
+  <div class="cta"><div><div class="l1">No SMS permission asked</div><div class="l2">Reads alerts from notifications only</div></div><div class="btn">Get the app</div></div>
+</section>
+
+<!-- 4: not another manual expense app -->
+<section class="slide" id="s4">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="headline">
+    <h1>Gave up on<br><em>expense apps?</em></h1>
+    <div class="sub">Most give up on you first: the day<br>you forget to type a payment in.</div>
+  </div>
+  <div class="panel" style="top: 560px; padding: 12px 34px; background:#00392F; color:#fff; border:1px solid rgba(255,255,255,.22);">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; font-size:22px; font-weight:800; letter-spacing:1px; padding:22px 0 14px; border-bottom:1px solid rgba(255,255,255,.18);">
+      <span style="color:#A9C9C3;">THE USUAL WAY</span><span style="color:#FFD978;">KAHAN GAYA PAISA</span>
+    </div>
+    <div id="cmp"></div>
+  </div>
+  <div class="cta"><div><div class="l1">Set up once. Done.</div><div class="l2">Free on Google Play</div></div><div class="btn">Get the app</div></div>
+</section>
+
+<!-- 5: carousel cover -->
+<section class="slide" id="s5">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="headline" style="top: 260px;">
+    <h1 style="font-size:104px;">Track every<br>rupee in<br><em>3 steps.</em></h1>
+    <div class="sub">Two minutes to set up. Nothing to type after that.</div>
+  </div>
+  <div style="position:absolute; left:72px; right:72px; top:790px; display:grid; gap:26px;">
+    <div style="display:flex; align-items:center; gap:24px; font-size:34px; font-weight:700;"><span class="num" style="width:76px; height:76px; font-size:40px;">1</span>Install and turn on access</div>
+    <div style="display:flex; align-items:center; gap:24px; font-size:34px; font-weight:700;"><span class="num" style="width:76px; height:76px; font-size:40px;">2</span>Pay the way you always do</div>
+    <div style="display:flex; align-items:center; gap:24px; font-size:34px; font-weight:700;"><span class="num" style="width:76px; height:76px; font-size:40px;">3</span>See where it all went</div>
+  </div>
+  <div style="position:absolute; right:72px; bottom:72px; font-size:32px; font-weight:800; color:#FFD978;">Swipe →</div>
+</section>
+
+<!-- 6: step 1 -->
+<section class="slide" id="s6">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="step-tag">1 / 3</div>
+  <div class="headline">
+    <div class="num">1</div>
+    <h1 style="margin-top:36px; font-size:84px;">Install. Turn on<br><em>notification access.</em></h1>
+    <div class="sub">The app explains exactly what it reads before you switch it on. Turn it off any time.</div>
+  </div>
+  <div class="panel" style="top: 800px; padding: 28px 34px;">
+    <div class="label" style="font-size:21px;">ANDROID SETTINGS · NOTIFICATION ACCESS</div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:20px; background:#fff; border-radius:24px; padding:20px 24px;">
+      <div style="display:flex; align-items:center; gap:18px;"><img src="icon-play.svg" alt="" style="width:60px; height:60px; border-radius:16px;"><div><div style="font-size:28px; font-weight:800;">Kahan Gaya Paisa</div><div style="font-size:20px; color:#737780;">Allowed</div></div></div>
+      <div style="width:92px; height:52px; border-radius:26px; background:#00897B; position:relative;"><span style="position:absolute; right:6px; top:6px; width:40px; height:40px; border-radius:50%; background:#fff;"></span></div>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:20px;">
+      <span style="background:#EAF0EF; border-radius:999px; padding:8px 18px; font-size:21px; font-weight:600;">No SMS permission</span>
+      <span style="background:#EAF0EF; border-radius:999px; padding:8px 18px; font-size:21px; font-weight:600;">No bank login</span>
+      <span style="background:#EAF0EF; border-radius:999px; padding:8px 18px; font-size:21px; font-weight:600;">No account</span>
+    </div>
+  </div>
+  <div style="position:absolute; right:72px; bottom:72px; font-size:30px; font-weight:800; color:#FFD978;">Swipe →</div>
+</section>
+
+<!-- 7: step 2 -->
+<section class="slide" id="s7">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="step-tag">2 / 3</div>
+  <div class="headline">
+    <div class="num">2</div>
+    <h1 style="margin-top:36px; font-size:84px;">Pay the way<br><em>you always do.</em></h1>
+    <div class="sub">UPI, card, ATM or auto-debit. Each one is recorded and sorted the moment it happens.</div>
+  </div>
+  <div style="position:absolute; left:72px; right:72px; top:810px;">
+    <div class="notif" style="transform: rotate(-1.5deg); opacity:.94;">
+      <div class="app"><span class="sq" style="background:#5F6368;"></span>Your UPI app · now</div>
+      <div class="t">₹612 paid to Blinkit</div>
+    </div>
+    <div class="arrow" style="margin:12px 0;">↓</div>
+    <div class="notif gold-ring" style="transform: rotate(1deg);">
+      <div class="app"><img src="icon-play.svg" alt="">Kahan Gaya Paisa · now</div>
+      <div class="x" style="margin-top:8px;"><b>Transaction recorded:</b> ₹612 at Blinkit · <b style="color:#00897B;">Groceries</b></div>
+    </div>
+  </div>
+  <div style="position:absolute; right:72px; bottom:72px; font-size:30px; font-weight:800; color:#FFD978;">Swipe →</div>
+</section>
+
+<!-- 8: step 3 + call to action -->
+<section class="slide" id="s8">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="step-tag">3 / 3</div>
+  <div class="headline">
+    <div class="num">3</div>
+    <h1 style="margin-top:36px; font-size:84px;">Open it.<br><em>See where it went.</em></h1>
+  </div>
+  <div class="panel" style="top: 640px; padding: 28px 30px;">
+    <div class="label" style="font-size:21px; padding:0 4px;">WHERE IT WENT · NOVEMBER</div>
+    <div class="row" style="display:block;">
+      <div style="display:flex; justify-content:space-between; align-items:center;"><div class="who"><span class="ico" style="background:#E0785F;">🍔</span><b>Food &amp; Drink</b></div><span class="amt" style="color:#20242C;">₹6,260</span></div>
+      <div class="bar"><i style="width:100%; background:#E0785F;"></i></div>
+    </div>
+    <div class="row" style="display:block;">
+      <div style="display:flex; justify-content:space-between; align-items:center;"><div class="who"><span class="ico" style="background:#00897B;">🛒</span><b>Groceries</b></div><span class="amt" style="color:#20242C;">₹4,410</span></div>
+      <div class="bar"><i style="width:70%; background:#00897B;"></i></div>
+    </div>
+    <div class="row" style="display:block;">
+      <div style="display:flex; justify-content:space-between; align-items:center;"><div class="who"><span class="ico" style="background:#F5A623;">🛍️</span><b>Shopping</b></div><span class="amt" style="color:#20242C;">₹3,320</span></div>
+      <div class="bar"><i style="width:53%; background:#F5A623;"></i></div>
+    </div>
+  </div>
+  <div class="cta"><div><div class="l1">Search “Kahan Gaya Paisa”</div><div class="l2">Free on Google Play · Android 8+</div></div><div class="btn">Get the app</div></div>
+</section>
+
+<script>
+  // Comparison rows for slide 4, kept as data so the two columns stay aligned.
+  const cross = '<span class="cross"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#A9C9C3" stroke-width="3.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span>';
+  const tick = '<span class="tick"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00473E" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"/></svg></span>';
+  const rows = [
+    ['Type in every payment', 'Recorded on its own'],
+    ['Sort them yourself', 'Sorted, and learns from you'],
+    ['Sign up, link your bank', 'No account, no bank login'],
+    ['Data on someone’s server', 'Stays on your phone'],
+    ['Ads everywhere', 'No ads, no tracking'],
+  ];
+  document.getElementById('cmp').innerHTML = rows.map(([a, b], i) =>
+    `<div style="display:grid; grid-template-columns:1fr 1fr; align-items:center; padding:19px 0;${i < rows.length - 1 ? ' border-bottom:1px solid rgba(255,255,255,.12);' : ''}">
+       <div style="display:flex; align-items:center; gap:14px; font-size:25px; color:#A9C9C3;">${cross}${a}</div>
+       <div style="display:flex; align-items:center; gap:14px; font-size:25px; font-weight:700;">${tick}${b}</div>
+     </div>`).join('');
+
+  const n = (location.hash || '#1').slice(1);
+  (document.getElementById('s' + n) || document.getElementById('s1')).classList.add('on');
+</script>
+</body>
+</html>

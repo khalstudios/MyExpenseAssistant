@@ -1,0 +1,335 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Kahan Gaya Paisa Diwali reel</title>
+<!--
+  Diwali Instagram / Facebook Reel, 1080x1920, 19.5 seconds. Open in a browser to preview it
+  looping; add #t=5.2 to hold one moment. Render with: node render-reel.js reel-diwali.
+  Key content keeps inside y 220–1560 and x 60–940. Sample figures only.
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; }
+  body {
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    color: #fff; position: relative;
+    background:
+      radial-gradient(ellipse 900px 520px at 50% 108%, rgba(255, 170, 60, .30), transparent 70%),
+      radial-gradient(circle at 92% 14%, rgba(255, 217, 120, .14) 0 190px, transparent 191px),
+      linear-gradient(170deg, #00574D 0%, #003D36 50%, #00241F 100%);
+  }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .abs { position: absolute; }
+
+  .brand { position: absolute; left: 72px; top: 236px; display: flex; align-items: center; gap: 20px; z-index: 5; }
+  .brand img { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 10px 24px rgba(0, 0, 0, .28); }
+  .brand .name { font-size: 38px; font-weight: 800; letter-spacing: -.3px; }
+  .brand .kicker { font-size: 20px; font-weight: 700; color: #FFD978; letter-spacing: 1.5px; margin-top: 2px; }
+
+  .h { position: absolute; left: 72px; right: 72px; top: 400px; }
+  .h div { font-size: 118px; line-height: 1.02; font-weight: 800; letter-spacing: -2.5px; }
+  .gold { color: #FFD978; }
+  .words { display: flex; flex-wrap: wrap; column-gap: 28px; }
+  .words span { display: inline-block; }
+
+  .phone { position: absolute; left: 230px; top: 720px; width: 620px; height: 780px; border-radius: 76px; background: #0f1113; padding: 18px; box-shadow: 0 40px 80px rgba(0, 0, 0, .45); }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 60px; background: #F6F7FA; overflow: hidden; color: #20242C; }
+  .status { height: 56px; display: flex; justify-content: space-between; padding: 20px 40px 0; font-size: 22px; font-weight: 600; color: #4b4f57; }
+  .card { background: #fff; border-radius: 30px; padding: 24px 28px; box-shadow: 0 3px 14px rgba(0, 0, 0, .06); color: #20242C; }
+  .label { font-size: 21px; color: #737780; font-weight: 700; letter-spacing: .5px; }
+  .row { display: flex; justify-content: space-between; align-items: center; background: #fff; border-radius: 26px; padding: 16px 22px; }
+  .who { display: flex; align-items: center; gap: 16px; }
+  .ico { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font-size: 27px; color: #fff; flex: none; }
+  .row b { font-size: 25px; }
+  .row small { display: flex; align-items: center; gap: 8px; font-size: 19px; color: #737780; margin-top: 2px; }
+  .amt { font-size: 26px; font-weight: 800; color: #C5544C; }
+  .tag { background: #FFF1C9; color: #8A6500; border-radius: 999px; padding: 2px 12px; font-size: 18px; font-weight: 700; }
+
+  .notif { background: #fff; color: #20242C; border-radius: 30px; padding: 24px 28px; box-shadow: 0 20px 44px rgba(0, 0, 0, .3); }
+  .notif .app { display: flex; align-items: center; gap: 12px; font-size: 21px; color: #6b7079; }
+  .notif .app img { width: 30px; height: 30px; border-radius: 8px; }
+  .notif .t { font-size: 29px; font-weight: 800; margin-top: 8px; }
+  .notif .x { font-size: 25px; color: #3a3f47; margin-top: 4px; }
+  .ring { border: 4px solid #FFD978; }
+  .panel { position: absolute; left: 72px; right: 72px; background: #F6F7FA; color: #20242C; border-radius: 44px; padding: 32px; box-shadow: 0 30px 60px rgba(0, 0, 0, .35); }
+  .bar { height: 18px; border-radius: 9px; background: #E7EAEE; overflow: hidden; margin-top: 12px; }
+  .bar i { display: block; height: 100%; border-radius: 9px; }
+  .chip { padding: 12px 26px; border-radius: 999px; font-size: 28px; font-weight: 600; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .28); }
+
+  .diya { position: absolute; width: 150px; height: 150px; display: grid; place-items: center; }
+  .diya .glow { position: absolute; inset: -40px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 200, 90, .55), rgba(255, 170, 60, 0) 65%); }
+  .diya .e { position: relative; font-size: 104px; line-height: 1; }
+  .spark { position: absolute; width: 34px; height: 34px; }
+</style>
+</head>
+<body>
+
+<svg id="lights" class="abs" style="left:0; top:0; z-index:1;" width="1080" height="230" viewBox="0 0 1080 230"></svg>
+<div id="sparks"></div>
+
+<div class="brand" id="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+
+<!-- 1: hook -->
+<section class="scene" id="sc1">
+  <div class="h" style="top: 470px;">
+    <div style="font-size: 92px;">Diwali ke baad:</div>
+    <div id="s1b" class="gold" style="font-size: 140px; margin-top: 10px; transform-origin: left center;">“Paisa kahan<br>gaya?”</div>
+  </div>
+  <div id="gift" class="abs" style="left: 440px; top: 1110px; font-size: 200px; line-height: 1;">🎁</div>
+  <div id="coins"></div>
+  <div id="diyas1"></div>
+</section>
+
+<!-- 2: festive payments -->
+<section class="scene" id="sc2">
+  <div class="h">
+    <div class="words"><span id="w1">Mithai.</span><span id="w2">Kapde.</span></div>
+    <div class="words gold"><span id="w3">Gifts.</span><span id="w4">Patakhe.</span></div>
+  </div>
+  <div class="phone">
+    <div class="screen">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div style="padding: 16px 22px 0;">
+        <div class="card">
+          <div class="label">DIWALI WEEK · RECORDED AUTOMATICALLY</div>
+          <div id="total" style="font-size: 64px; font-weight: 800; margin-top: 2px;">₹0</div>
+        </div>
+        <div id="rows" style="position: relative; margin-top: 16px;"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3: the #diwali tag -->
+<section class="scene" id="sc3">
+  <div class="h">
+    <div id="s3a">Tag it</div>
+    <div id="s3b" class="gold">#diwali.</div>
+  </div>
+  <div id="tagPanel" class="panel" style="top: 740px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span style="background:#FFF1C9; color:#8A6500; border-radius:999px; padding:8px 22px; font-size:30px; font-weight:800;">#diwali</span>
+      <span style="font-size:24px; color:#737780; font-weight:600;">14 payments</span>
+    </div>
+    <div id="tagTotal" style="font-size:80px; font-weight:800; margin-top:14px;">₹0</div>
+    <div id="cats"></div>
+  </div>
+  <div id="s3c" class="abs" style="left: 72px; right: 72px; top: 1450px; text-align: center; font-size: 36px; font-weight: 600; color: #E3F6F3;">See what the festival really cost.</div>
+</section>
+
+<!-- 4: budget for next time -->
+<section class="scene" id="sc4">
+  <div class="h">
+    <div id="s4a">Next festival?</div>
+    <div id="s4b" class="gold">Set a budget.</div>
+  </div>
+  <div id="budget" class="card abs" style="left: 72px; right: 72px; top: 800px; border-radius: 44px; padding: 40px; box-shadow: 0 30px 60px rgba(0,0,0,.35);">
+    <div class="label" style="font-size: 24px;">SHOPPING · DECEMBER</div>
+    <div style="display:flex; align-items:baseline; gap:16px; margin-top:6px;"><div id="bSpent" style="font-size:80px; font-weight:800;">₹0</div><div style="font-size:32px; color:#737780;">of ₹10,000</div></div>
+    <div class="bar" style="height:28px; border-radius:14px;"><i id="bBar" style="width:0; background:#00897B; border-radius:14px;"></i></div>
+  </div>
+  <div id="bNotif" class="notif ring abs" style="left: 72px; right: 72px; top: 1120px;">
+    <div class="app"><img src="icon-play.svg" alt="">Kahan Gaya Paisa · now</div>
+    <div class="t">80% of your Shopping budget used</div>
+    <div class="x">₹2,000 left for December</div>
+  </div>
+</section>
+
+<!-- 5: end card -->
+<section class="scene" id="sc5">
+  <div class="abs" style="left: 0; right: 0; top: 330px; text-align: center;">
+    <img id="bigIcon" src="icon-play.svg" alt="" style="width: 260px; height: 260px; border-radius: 64px; box-shadow: 0 30px 60px rgba(0,0,0,.4);">
+    <div id="e1" style="font-size: 92px; font-weight: 800; letter-spacing: -2px; margin-top: 44px;">Kahan Gaya Paisa</div>
+    <div id="e2" style="font-size: 40px; font-weight: 600; color: #FFD978; margin-top: 14px;">Next Diwali, know where it all went.</div>
+    <div id="e3" style="margin: 60px auto 0; width: 860px; background: #fff; color: #20242C; border-radius: 999px; padding: 30px 44px; display: flex; align-items: center; gap: 26px; box-shadow: 0 20px 44px rgba(0,0,0,.3); text-align: left;">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>
+      <span id="typed" style="font-size: 44px; font-weight: 600;"></span><span id="caret" style="width: 4px; height: 50px; background: #00897B; margin-left: -20px;"></span>
+    </div>
+    <div id="e4" style="font-size: 38px; font-weight: 700; color: #E3F6F3; margin-top: 30px;">Free on Google Play</div>
+  </div>
+  <div id="diyas5"></div>
+</section>
+
+<script>
+  const T = 19.5;  // seconds
+  const $ = id => document.getElementById(id);
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const prog = (t, s, d) => clamp((t - s) / d);
+  const easeOut = x => 1 - Math.pow(1 - x, 3);
+  const back = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+  const inr = n => '₹' + Math.round(n).toLocaleString('en-IN');
+  function set(el, o, { x = 0, y = 0, s = 1, r = 0 } = {}) {
+    el.style.opacity = o;
+    el.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`;
+  }
+  function rise(el, t, s, dist = 50) { const k = easeOut(prog(t, s, .5)); set(el, k, { y: (1 - k) * dist }); }
+  function pop(el, t, s, r = 0) { const k = prog(t, s, .5); set(el, clamp(k * 3), { s: k === 0 ? .5 : .5 + .5 * back(k), r }); }
+
+  // ---- festive decoration: string lights, sparkles, diyas ----
+  const BULB = ['#FFD978', '#E0785F', '#FFF3C4', '#F5A623'];
+  const svg = $('lights');
+  const pt = (u, p0, p1, p2) => (1 - u) * (1 - u) * p0 + 2 * (1 - u) * u * p1 + u * u * p2;
+  const bulbs = [];
+  [[-20, 60, 270, 200, 560, 70], [520, 70, 810, 210, 1100, 50]].forEach(([x0, y0, cx, cy, x1, y1]) => {
+    const wire = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    wire.setAttribute('d', `M${x0} ${y0} Q ${cx} ${cy} ${x1} ${y1}`);
+    wire.setAttribute('stroke', 'rgba(0,0,0,.35)'); wire.setAttribute('stroke-width', '3'); wire.setAttribute('fill', 'none');
+    svg.appendChild(wire);
+    for (let i = 1; i < 10; i++) {
+      const u = i / 10, c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', pt(u, x0, cx, x1)); c.setAttribute('cy', pt(u, y0, cy, y1) + 10); c.setAttribute('r', 10);
+      c.setAttribute('fill', BULB[(bulbs.length) % 4]);
+      c.style.filter = `drop-shadow(0 0 10px ${BULB[bulbs.length % 4]})`;
+      svg.appendChild(c); bulbs.push(c);
+    }
+  });
+
+  const STAR = '<svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M12 0C13 8 16 11 24 12 16 13 13 16 12 24 11 16 8 13 0 12 8 11 11 8 12 0z" fill="#FFE7A3"/></svg>';
+  const sparkSpots = [[120, 1250], [930, 1180], [980, 700], [60, 760], [860, 1500], [200, 1580], [540, 360], [990, 380]];
+  const sparks = sparkSpots.map(([x, y], i) => {
+    const el = document.createElement('div');
+    el.className = 'spark'; el.style.left = x + 'px'; el.style.top = y + 'px'; el.innerHTML = STAR;
+    $('sparks').appendChild(el); return el;
+  });
+
+  function diyaRow(host, top) {
+    return [130, 330, 540, 750, 950].map((cx, i) => {
+      const el = document.createElement('div');
+      el.className = 'diya'; el.style.left = (cx - 75) + 'px'; el.style.top = top + (i % 2 ? 24 : 0) + 'px';
+      el.innerHTML = '<div class="glow"></div><div class="e">🪔</div>';
+      $(host).appendChild(el); return el;
+    });
+  }
+  const diyas1 = diyaRow('diyas1', 1400), diyas5 = diyaRow('diyas5', 1420);
+  function lightDiyas(list, t, start) {
+    list.forEach((el, i) => {
+      const k = prog(t, start + i * .18, .4);
+      el.style.opacity = k;
+      const g = el.querySelector('.glow');
+      g.style.opacity = k * (.75 + .25 * Math.sin(t * 9 + i * 1.7));
+      g.style.transform = `scale(${.9 + .1 * Math.sin(t * 7 + i)})`;
+    });
+  }
+
+  // ---- scene content ----
+  const coins = Array.from({ length: 12 }, (_, i) => {
+    const el = document.createElement('div');
+    el.className = 'abs';
+    el.textContent = i % 4 === 3 ? '✨' : '₹';
+    el.style.cssText = `left:520px; top:1160px; font-size:${70 + (i % 3) * 22}px; font-weight:800; color:${i % 2 ? '#FFD978' : '#fff'};`;
+    $('coins').appendChild(el); return el;
+  });
+
+  const payments = [
+    ['🍬', '#E0785F', 'Haldiram’s', 'Food & Drink', 1240],
+    ['👗', '#F5A623', 'Myntra', 'Shopping', 3499],
+    ['🎁', '#F5A623', 'Amazon', 'Shopping', 2150],
+    ['🎆', '#F5A623', 'Fireworks stall', 'Shopping', 1800],
+  ];
+  const rowEls = payments.map(([ico, bg, name, cat, amt], i) => {
+    const el = document.createElement('div');
+    el.className = 'row abs';
+    el.style.cssText = `left:0; right:0; top:${i * 104}px;`;
+    el.innerHTML = `<div class="who"><span class="ico" style="background:${bg};">${ico}</span><div><b>${name}</b><small>${cat}<span class="tag">#diwali</span></small></div></div><span class="amt">−${inr(amt)}</span>`;
+    $('rows').appendChild(el); return el;
+  });
+  const rowTimes = [5.0, 5.6, 6.2, 6.8];
+
+  const cats = [['🛍️', '#F5A623', 'Shopping', 9850], ['🍬', '#E0785F', 'Food & Drink', 4210], ['✈️', '#5C6BC0', 'Travel', 3100], ['🛒', '#00897B', 'Groceries', 1480]];
+  const catEls = cats.map(([ico, bg, name, amt]) => {
+    const el = document.createElement('div');
+    el.className = 'row';
+    el.style.cssText = 'display:block; margin-top:12px; padding:14px 22px;';
+    el.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;"><div class="who"><span class="ico" style="background:${bg}; width:48px; height:48px; font-size:23px;">${ico}</span><b>${name}</b></div><span class="amt" style="color:#20242C;">₹0</span></div><div class="bar" style="height:14px; margin-top:10px;"><i style="width:0; background:${bg};"></i></div>`;
+    $('cats').appendChild(el);
+    return { amtEl: el.querySelector('.amt'), barEl: el.querySelector('.bar i'), amt };
+  });
+  const TAG_TOTAL = cats.reduce((s, c) => s + c[3], 0);
+
+  const scenes = [['sc1', -1, 3.5], ['sc2', 3.5, 8.5], ['sc3', 8.5, 13.0], ['sc4', 13.0, 16.0], ['sc5', 16.0, 99]];
+
+  // ---- the timeline: everything on screen is a function of t ----
+  function renderAt(t) {
+    for (const [id, s, e] of scenes) {
+      const a = Math.min(prog(t, s, .3), 1 - prog(t, e - .25, .25));
+      $(id).style.opacity = a;
+      $(id).style.display = a > 0 ? 'block' : 'none';
+    }
+    $('brand').style.opacity = 1 - prog(t, 15.75, .25);
+    bulbs.forEach((b, i) => { b.style.opacity = .55 + .45 * Math.abs(Math.sin(t * 2.2 + i * .9)); });
+    sparks.forEach((el, i) => {
+      const w = Math.max(0, Math.sin(t * 2.6 + i * 1.3));
+      el.style.opacity = w * .9;
+      el.style.transform = `scale(${.4 + .8 * w}) rotate(${t * 40 + i * 30}deg)`;
+    });
+
+    // 1: hook. The first frame already shows the question, so it works as a cover.
+    set($('s1b'), 1, { s: 1 + .04 * Math.sin(prog(t, .2, .5) * Math.PI) });
+    pop($('gift'), t, .4);
+    coins.forEach((el, i) => {
+      const k = prog(t, 1.0 + i * .1, 1.5);
+      const ang = (-165 + i * 150 / 11) * Math.PI / 180;
+      const dist = easeOut(k) * (360 + (i % 4) * 50);
+      set(el, k === 0 ? 0 : (1 - k * k), { x: Math.cos(ang) * dist, y: Math.sin(ang) * dist * .5 - k * 60, r: (i % 2 ? 1 : -1) * k * 220 });
+    });
+    const wob = Math.sin(t * 22) * 6 * (prog(t, 1.0, .2) - prog(t, 2.4, .2));
+    if (t > .9) $('gift').style.transform = `rotate(${wob}deg)`;
+    lightDiyas(diyas1, t, .2);
+
+    // 2: festive payments
+    ['w1', 'w2', 'w3', 'w4'].forEach((id, i) => pop($(id), t, 3.6 + i * .3));
+    let total = 0;
+    rowEls.forEach((el, i) => {
+      const k = easeOut(prog(t, rowTimes[i], .45));
+      set(el, k, { y: (1 - k) * -40, s: .94 + .06 * k });
+      total += payments[i][4] * k;
+    });
+    $('total').textContent = inr(total);
+
+    // 3: the #diwali tag
+    rise($('s3a'), t, 8.6);
+    pop($('s3b'), t, 8.9);
+    rise($('tagPanel'), t, 8.8, 80);
+    const tk = easeOut(prog(t, 9.3, 1.4));
+    $('tagTotal').textContent = inr(TAG_TOTAL * tk);
+    catEls.forEach((c, i) => {
+      const k = easeOut(prog(t, 9.3 + i * .2, 1.0));
+      c.amtEl.textContent = inr(c.amt * k);
+      c.barEl.style.width = (c.amt / cats[0][3] * 100 * k) + '%';
+    });
+    rise($('s3c'), t, 11.2);
+
+    // 4: budget
+    rise($('s4a'), t, 13.1);
+    rise($('s4b'), t, 13.4);
+    rise($('budget'), t, 13.3, 80);
+    const bk = easeOut(prog(t, 13.7, 1.0));
+    $('bSpent').textContent = inr(8000 * bk);
+    $('bBar').style.width = (80 * bk) + '%';
+    $('bBar').style.background = bk > .95 ? '#EF6C00' : '#00897B';
+    pop($('bNotif'), t, 14.8, -1);
+
+    // 5: end card
+    pop($('bigIcon'), t, 16.1);
+    rise($('e1'), t, 16.4);
+    rise($('e2'), t, 16.6);
+    rise($('e3'), t, 16.8);
+    const name = 'Kahan Gaya Paisa';
+    $('typed').textContent = name.slice(0, Math.round(name.length * prog(t, 17.1, .9)));
+    $('caret').style.opacity = t > 16.8 && Math.floor(t * 2.5) % 2 === 0 ? 1 : 0;
+    rise($('e4'), t, 17.9);
+    lightDiyas(diyas5, t, 16.4);
+  }
+  window.renderAt = renderAt;
+  window.REEL_SECONDS = T;
+
+  const held = /t=([\d.]+)/.exec(location.hash);
+  if (held) renderAt(parseFloat(held[1]));
+  else if (!/render/.test(location.search)) {
+    const t0 = performance.now();
+    (function loop() { renderAt(((performance.now() - t0) / 1000) % T); requestAnimationFrame(loop); })();
+  } else renderAt(0);
+</script>
+</body>
+</html>
