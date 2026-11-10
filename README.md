@@ -109,7 +109,7 @@ Everything gated lives behind [ProLock.kt](app/src/main/java/com/khaltech/expens
 
 ## Privacy
 
-The full privacy policy is [docs/privacy-policy/index.md](docs/privacy-policy/index.md), published by GitHub Pages (source: the `docs/` folder) at https://khalstudios.github.io/MyExpenseAssistant/privacy-policy/. That URL is the one to give Play Console, and the in-app Privacy dialog links to it.
+The full privacy policy is [docs/privacy-policy/index.md](docs/privacy-policy/index.md), published by GitHub Pages (source: the `docs/` folder) on the custom domain in [docs/CNAME](docs/CNAME), at https://kahangayapaisa.in/privacy-policy/. The older https://khalstudios.github.io/MyExpenseAssistant/privacy-policy/, which the in-app Privacy dialog and Play Console still use, redirects there, so both keep working. Move them to the new address once it serves over HTTPS, and keep the `/privacy-policy/` path unchanged so links already shared don't break.
 
 - The `INTERNET` permission is merged in by the Play Billing library (via its `transport-backend-cct` dependency), not declared by the app, and no app code opens a network connection. Data leaves the device only when you explicitly save a backup or CSV through Android's document picker, such as to Google Drive.
 - Only packages listed in [PaymentApps.kt](app/src/main/java/com/khaltech/expenseassistant/parser/PaymentApps.kt) are read; every other notification is discarded before parsing.
