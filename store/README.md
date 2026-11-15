@@ -17,6 +17,8 @@
 | `reel/reel-diwali.mp4`, `reel/cover-diwali.jpg` | Diwali Reel (from `src/reel-diwali.html`) and its cover | 1080 × 1920, 19.5 s, 30 fps, H.264 |
 | `reel/reel-2026.mp4`, `reel/cover-2026.jpg` | Year-in-review / New Year Reel (from `src/reel-2026.html`) and its cover | 1080 × 1920, 22.5 s, 30 fps, H.264 |
 | `reel/reel-christmas.mp4`, `reel/cover-christmas.jpg` | Christmas Reel (from `src/reel-christmas.html`) and its cover | 1080 × 1920, 19.5 s, 30 fps, H.264 |
+| `feed/pro-500.png` | "Pro free for the first 500 users" feed post (from `src/feed-pro.html`) | 1080 × 1350 (4:5) |
+| `reel/reel-pro.mp4`, `reel/cover-pro.jpg` | "Pro free for the first 500 users" Reel (from `src/reel-pro.html`) and its cover | 1080 × 1920, 18 s, 30 fps, H.264 |
 | `social-posts.md` | Captions, hashtags and alt text for the feed posts and reel | |
 
 `src/feed.html` lays out the feed posts; open `feed.html#1` … `#8` to see each one. Render each
@@ -33,6 +35,7 @@ NODE_PATH=~/reel-tools/node_modules node src/render-reel.js               # reel
 NODE_PATH=~/reel-tools/node_modules node src/render-reel.js reel-diwali   # reel-diwali.html
 NODE_PATH=~/reel-tools/node_modules node src/render-reel.js reel-2026     # reel-2026.html
 NODE_PATH=~/reel-tools/node_modules node src/render-reel.js reel-christmas # reel-christmas.html
+NODE_PATH=~/reel-tools/node_modules node src/render-reel.js reel-pro      # reel-pro.html
 ```
 
 Take the cover from the finished video with

@@ -237,6 +237,115 @@ sorted automatically (8–12.5 s); "Gift budget? Checked twice." with an 80% bud
 
 ---
 
+# Pro free for the first 500 users
+
+A launch offer: the first 500 people who ask get Pro for life. The app has no server and can't
+count users, so the offer runs on Google Play promo codes for `pro_lifetime`, handed out by DM.
+Everyone who claims gets a one-time code. When the last one has gone, the offer ends.
+
+## Before you post
+
+1. In Play Console, create a promotion for `pro_lifetime` with **500 one-time codes** and download
+   the CSV. Play limits how many one-time codes an app can make each quarter (500 when last checked),
+   so 500 may use up the whole quarter. Keep a few spare for typos and lost codes, or hand out 490.
+   Set the end date at least two months away.
+2. Keep a sheet with three columns: handle, code, date sent. It's how you keep to one code per
+   person, and how you know when you've run out.
+3. Answering 500 DMs by hand is a lot. Instagram's saved replies make it quicker. A comment-to-DM
+   tool such as ManyChat can send the code automatically, but it can't hand out a different code
+   to each person by itself, so most people send codes by hand or in batches.
+4. On **Facebook**, posts that ask for a particular word in the comments ("Comment PRO") can get
+   less reach as engagement bait. Ask people to **send the Page a message** there instead. The
+   Facebook caption below does that.
+
+## Offer post: `feed/pro-500.png`
+
+**Instagram:**
+
+> 🎉 Kahan Gaya Paisa Pro is FREE. For life. For our first 500 users. 🎉
+>
+> No subscription, no catch. Just a thank-you for trying an expense tracker that does the work for you.
+>
+> Pro gets you:
+> ✅ Unlimited categories of your own
+> ✅ As many tags as you like, all charted
+> ✅ Recurring payments spotted for you
+> ✅ Automatic backups on your schedule
+> ✅ Compare spending with your last six periods
+>
+> How to claim 👇
+> 1️⃣ Install Kahan Gaya Paisa from Google Play (link in bio)
+> 2️⃣ Comment **PRO** below
+> 3️⃣ We'll DM you a Google Play code. Redeem it and Pro unlocks.
+>
+> One code per person, only 500 codes. When they're gone, they're gone. ⏳
+>
+> We'll only DM you from @[your handle] and never ask for money, an OTP or bank details.
+>
+> #KahanGayaPaisa #FreeForLife #LimitedOffer #ExpenseTracker #MoneyManagement #PersonalFinance #FinanceIndia #UPI
+
+**Facebook:**
+
+> 🎉 Kahan Gaya Paisa Pro is FREE for life for our first 500 users!
+>
+> Unlimited categories, unlimited tags, recurring payments, automatic backups and six-period comparisons, all free, forever. No subscription.
+>
+> To claim: install Kahan Gaya Paisa from Google Play 👉 https://play.google.com/store/apps/details?id=com.khaltech.expenseassistant and send us a message saying "PRO". We'll reply with your Google Play code.
+>
+> One code per person, 500 codes only. We'll never ask for money, an OTP or bank details.
+>
+> #KahanGayaPaisa #ExpenseTracker
+
+**Alt text:** "Kahan Gaya Paisa Pro is free. For life." A gold "First 500 users" badge, and a Pro Lifetime card priced ₹0 listing unlimited categories, unlimited tags, recurring payments, automatic backups and comparing with the last six periods. Below: Comment "PRO" to claim yours, and we'll DM you a Google Play code.
+
+## Offer reel: `reel/reel-pro.mp4`
+
+18 seconds, 1080 × 1920. Silent, so add an upbeat track from the Instagram or Facebook music
+library. Cover: `reel/cover-pro.jpg`.
+
+Scenes: "Pro. FREE. For life." with a lock popping open, confetti and the "First 500 users" badge
+(0–3.5 s); the five Pro features ticking in (3.5–8 s); "Only 500 codes." with a masked Google Play
+code priced ₹0 (8–11.5 s); how to claim in three steps (11.5–14.8 s); and an end card with "Comment
+'PRO' to claim" (14.8–18 s).
+
+Use the Instagram caption above, or this shorter one:
+
+> Pro. FREE. For life. 🔓 But only for the first 500. ⏳
+>
+> Install Kahan Gaya Paisa from Google Play (link in bio), comment **PRO**, and we'll DM you a code. Redeem it, reopen the app, and Pro is yours forever.
+>
+> Unlimited categories · unlimited tags · recurring payments · auto backups · six-period comparisons
+>
+> One code per person. We'll never ask for money or an OTP.
+>
+> #KahanGayaPaisa #FreeForLife #LimitedOffer #ExpenseTracker #PersonalFinance #FinanceIndia #ReelsIndia
+
+**Alt text:** An animated reel: "Pro. FREE. For life." appears as a padlock pops open in a burst of confetti beside a "First 500 users" badge. Five Pro features tick in one by one, then "Only 500 codes." over a Pro Lifetime card with a masked Google Play code priced ₹0. Three steps follow: install from Google Play, comment "PRO", redeem the code on the Play Store. It ends on the Kahan Gaya Paisa app icon and "Comment 'PRO' to claim".
+
+## Reply with the code (DM)
+
+> Hi [name]! 🎉 Thanks for joining Kahan Gaya Paisa early. Here's your Pro (lifetime) code: **[CODE]**
+>
+> To redeem it, tap this link on your Android phone: https://play.google.com/redeem?code=[CODE]
+> Or open the Play Store → your profile picture → Payments & subscriptions → Redeem code.
+>
+> Then open Kahan Gaya Paisa and Pro unlocks by itself. The code works until [code end date].
+>
+> It's one code per person, so please don't share it. We'll never ask you for a payment, OTP or bank details. Happy tracking! 🙌
+
+## When the codes run out
+
+Edit the caption's first line to "❌ ALL 500 CODES CLAIMED. Thank you!", pin this comment, and post it
+as a story:
+
+> 🙏 All 500 Pro codes are gone, in [N] days! Thank you, everyone.
+>
+> Missed it? Kahan Gaya Paisa is still free on Google Play, and everything except Pro stays free forever. Follow us so you catch the next one. 💚
+
+Reply to late comments with: "Sorry, all 500 codes have gone! 🙏 Follow us for the next offer."
+
+---
+
 # Giveaways: win Pro for life
 
 Use these in place of a seasonal reel's normal caption. The prize is a Google Play promo code for

@@ -1,0 +1,254 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Kahan Gaya Paisa status images</title>
+<!--
+  WhatsApp / Instagram status images, 1080x1920. Open as status.html#1 … status.html#6; each hash
+  shows one slide. Rendered to store/status/status-N.png. Key content stays clear of the top 220px
+  and bottom 250px, where story apps draw their own controls. Sample figures only.
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; }
+  body {
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    color: #fff;
+    background:
+      radial-gradient(circle at 92% 8%, rgba(255, 217, 120, .20) 0 210px, transparent 211px),
+      radial-gradient(circle at 0% 96%, rgba(224, 120, 95, .24) 0 300px, transparent 301px),
+      linear-gradient(160deg, #00897B 0%, #00695C 45%, #004D40 100%);
+  }
+  .slide { display: none; position: absolute; inset: 0; }
+  .slide.on { display: block; }
+
+  /* brand bar and call to action shared by every slide */
+  .brand { position: absolute; left: 80px; top: 230px; display: flex; align-items: center; gap: 22px; }
+  .brand img { width: 92px; height: 92px; border-radius: 24px; box-shadow: 0 10px 24px rgba(0, 0, 0, .28); }
+  .brand .name { font-size: 40px; font-weight: 800; letter-spacing: -.3px; }
+  .brand .kicker { font-size: 21px; font-weight: 700; color: #FFD978; letter-spacing: 1.5px; margin-top: 2px; }
+  .cta {
+    position: absolute; left: 80px; right: 80px; bottom: 270px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: #00392F; border: 1px solid rgba(255, 255, 255, .22); z-index: 3;
+    border-radius: 32px; padding: 26px 34px; box-shadow: 0 -10px 40px rgba(0, 0, 0, .25);
+  }
+  .cta .l1 { font-size: 34px; font-weight: 800; }
+  .cta .l2 { font-size: 24px; color: #CDEFEA; margin-top: 4px; }
+  .cta .btn {
+    background: #FFD978; color: #00473E; font-weight: 800; font-size: 28px;
+    padding: 18px 30px; border-radius: 999px; white-space: nowrap;
+  }
+
+  h1 { margin: 0; font-size: 104px; line-height: 1.0; font-weight: 800; letter-spacing: -2px; }
+  h1 em { font-style: normal; color: #FFD978; }
+  .headline { position: absolute; left: 80px; right: 80px; top: 400px; }
+  .sub { margin-top: 28px; font-size: 38px; line-height: 1.3; font-weight: 500; color: #E3F6F3; }
+  .chips { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 30px; }
+  .chip {
+    padding: 12px 24px; border-radius: 999px; font-size: 27px; font-weight: 600;
+    background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .28);
+  }
+
+  /* phone mock-up */
+  .phone {
+    position: absolute; width: 560px; height: 1080px; border-radius: 72px;
+    background: #0f1113; padding: 20px; box-shadow: 0 40px 80px rgba(0, 0, 0, .38);
+  }
+  .screen {
+    width: 100%; height: 100%; border-radius: 54px; background: #F6F7FA;
+    overflow: hidden; color: #20242C; position: relative;
+  }
+  .status { height: 54px; display: flex; justify-content: space-between; padding: 18px 36px 0; font-size: 21px; font-weight: 600; color: #4b4f57; }
+  .content { padding: 20px 26px 0; }
+  .card { background: #fff; border-radius: 32px; padding: 28px; box-shadow: 0 3px 14px rgba(0, 0, 0, .06); }
+  .label { font-size: 20px; color: #737780; font-weight: 700; letter-spacing: .5px; }
+  .big { font-size: 52px; font-weight: 800; margin-top: 4px; }
+  .rows { margin-top: 16px; }
+  .row { display: flex; justify-content: space-between; align-items: center; background: #fff; border-radius: 26px; padding: 18px 22px; margin-top: 12px; }
+  .row .who { display: flex; align-items: center; gap: 16px; }
+  .ico { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; font-weight: 800; color: #fff; flex: none; }
+  .row b { font-size: 23px; }
+  .row small { display: block; font-size: 18px; color: #737780; margin-top: 2px; }
+  .amt { font-size: 24px; font-weight: 800; color: #C5544C; }
+  .amt.in { color: #1E9E78; }
+
+  /* notification cards */
+  .notif {
+    background: #fff; color: #20242C; border-radius: 34px; padding: 26px 30px;
+    box-shadow: 0 20px 44px rgba(0, 0, 0, .28);
+  }
+  .notif .app { display: flex; align-items: center; gap: 12px; font-size: 22px; color: #6b7079; }
+  .notif .app img, .notif .app .sq { width: 30px; height: 30px; border-radius: 8px; }
+  .notif .t { font-size: 30px; font-weight: 800; margin-top: 10px; }
+  .notif .x { font-size: 27px; color: #3a3f47; margin-top: 4px; }
+
+  .bar { height: 18px; border-radius: 9px; background: #E7EAEE; overflow: hidden; margin-top: 14px; }
+  .bar i { display: block; height: 100%; border-radius: 9px; }
+
+  .list { margin-top: 40px; display: grid; gap: 22px; }
+  .item { display: flex; align-items: center; gap: 26px; font-size: 38px; font-weight: 600; }
+  .tick { width: 66px; height: 66px; border-radius: 50%; background: #FFD978; display: grid; place-items: center; flex: none; }
+</style>
+</head>
+<body>
+
+<!-- 1: the hook -->
+<section class="slide" id="s1">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="headline">
+    <h1 style="font-size: 90px;">Mahine ke end mein:<br><em>“Paisa kahan<br>gaya?”</em></h1>
+    <div class="sub">Every month, the same question.<br>Now an app answers it, automatically.</div>
+    <div class="chips"><span class="chip" style="background:#FFD978; color:#00473E; border-color:#FFD978; font-weight:800;">Free on Google Play</span><span class="chip">Android 8+</span></div>
+  </div>
+  <div class="phone" style="left: 260px; top: 1000px; transform: rotate(-4deg);">
+    <div class="screen">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="content">
+        <div class="card">
+          <div class="label">SPENT THIS MONTH</div>
+          <div class="big">₹18,420</div>
+          <div style="display:flex; align-items:center; gap:26px; margin-top:18px;">
+            <div style="width:150px; height:150px; border-radius:50%; flex:none;
+              background: conic-gradient(#E0785F 0 34%, #00897B 34% 58%, #F5A623 58% 76%, #795548 76% 88%, #B2DFDB 88% 100%);
+              -webkit-mask: radial-gradient(circle, transparent 44px, #000 45px); mask: radial-gradient(circle, transparent 44px, #000 45px);"></div>
+            <div style="font-size:21px; line-height:1.75; color:#3a3f47;">
+              <div><span class="ico" style="display:inline-block; width:14px; height:14px; background:#E0785F; margin-right:10px;"></span>Food &amp; Drink</div>
+              <div><span class="ico" style="display:inline-block; width:14px; height:14px; background:#00897B; margin-right:10px;"></span>Groceries</div>
+              <div><span class="ico" style="display:inline-block; width:14px; height:14px; background:#F5A623; margin-right:10px;"></span>Shopping</div>
+              <div><span class="ico" style="display:inline-block; width:14px; height:14px; background:#795548; margin-right:10px;"></span>Fuel</div>
+            </div>
+          </div>
+        </div>
+        <div class="rows">
+          <div class="row"><div class="who"><span class="ico" style="background:#E0785F;">🍔</span><div><b>Swiggy</b><small>Food &amp; Drink · UPI</small></div></div><span class="amt">−₹249</span></div>
+          <div class="row"><div class="who"><span class="ico" style="background:#00897B;">🛒</span><div><b>Blinkit</b><small>Groceries · UPI</small></div></div><span class="amt">−₹612</span></div>
+          <div class="row"><div class="who"><span class="ico" style="background:#795548;">⛽</span><div><b>Indian Oil</b><small>Fuel · Card</small></div></div><span class="amt">−₹1,500</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2: automatic capture -->
+<section class="slide" id="s2">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="headline">
+    <h1>You pay.<br><em>It’s recorded.</em></h1>
+    <div class="sub">No typing every payment in. No spreadsheets.<br>No linking your bank account.</div>
+    <div class="chips">
+      <span class="chip">Google Pay</span><span class="chip">PhonePe</span><span class="chip">Paytm</span>
+      <span class="chip">BHIM</span><span class="chip">40+ bank SMS alerts</span>
+    </div>
+  </div>
+  <div style="position:absolute; left:80px; right:80px; top:1010px;">
+    <div class="notif" style="transform: rotate(-2deg); opacity:.92;">
+      <div class="app"><span class="sq" style="background:#5F6368;"></span>Your UPI app · now</div>
+      <div class="t">₹249 paid to Swiggy</div>
+      <div class="x">UPI Ref 4182 9367 1150</div>
+    </div>
+    <div style="text-align:center; font-size:64px; line-height:1; margin:22px 0; color:#FFD978;">↓</div>
+    <div class="notif" style="transform: rotate(1.5deg); border: 4px solid #FFD978;">
+      <div class="app"><img src="icon-play.svg" alt="">Kahan Gaya Paisa · now</div>
+      <div class="t">Transaction recorded</div>
+      <div class="x">₹249 at Swiggy · <b style="color:#E0785F;">Food &amp; Drink</b></div>
+    </div>
+  </div>
+  <div class="cta"><div><div class="l1">Set up once. Done.</div><div class="l2">Free on Google Play</div></div><div class="btn">Get the app</div></div>
+</section>
+
+<!-- 3: smart categories -->
+<section class="slide" id="s3">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="headline">
+    <h1>It sorts.<br><em>It learns.</em></h1>
+    <div class="sub">Payments land in the right category on their own. Fix one once, and the next ones follow.</div>
+  </div>
+  <div style="position:absolute; left:80px; right:80px; top:820px; background:#F6F7FA; color:#20242C; border-radius:44px; padding:34px; box-shadow:0 30px 60px rgba(0,0,0,.3);">
+    <div class="label" style="font-size:24px;">WHERE IT WENT · OCTOBER</div>
+    <div class="rows" style="margin-top:10px;">
+      <div class="row" style="display:block;">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><div class="who"><span class="ico" style="background:#E0785F;">🍔</span><b>Food &amp; Drink</b></div><span class="amt" style="color:#20242C;">₹6,260</span></div>
+        <div class="bar"><i style="width:100%; background:#E0785F;"></i></div>
+      </div>
+      <div class="row" style="display:block;">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><div class="who"><span class="ico" style="background:#00897B;">🛒</span><b>Groceries</b></div><span class="amt" style="color:#20242C;">₹4,410</span></div>
+        <div class="bar"><i style="width:70%; background:#00897B;"></i></div>
+      </div>
+      <div class="row" style="display:block;">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><div class="who"><span class="ico" style="background:#F5A623;">🛍️</span><b>Shopping</b></div><span class="amt" style="color:#20242C;">₹3,320</span></div>
+        <div class="bar"><i style="width:53%; background:#F5A623;"></i></div>
+      </div>
+      <div class="row" style="display:block;">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><div class="who"><span class="ico" style="background:#795548;">⛽</span><b>Fuel</b></div><span class="amt" style="color:#20242C;">₹2,210</span></div>
+        <div class="bar"><i style="width:35%; background:#795548;"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="cta"><div><div class="l1">See where it all went</div><div class="l2">Free on Google Play</div></div><div class="btn">Get the app</div></div>
+</section>
+
+<!-- 4: budgets -->
+<section class="slide" id="s4">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="headline">
+    <h1>Budget set.<br><em>Day on track.</em></h1>
+    <div class="sub">Daily, monthly or yearly budgets, with a heads-up at 80% and when you go over.</div>
+  </div>
+  <div style="position:absolute; left:80px; right:80px; top:930px;">
+    <div class="card" style="border-radius:44px; padding:40px; box-shadow:0 30px 60px rgba(0,0,0,.3); color:#20242C;">
+      <div class="label" style="font-size:24px;">TODAY</div>
+      <div style="display:flex; align-items:baseline; gap:16px;"><div class="big" style="font-size:80px;">₹640</div><div style="font-size:30px; color:#737780;">of ₹1,000</div></div>
+      <div class="bar" style="height:28px; border-radius:14px;"><i style="width:64%; background:#00897B; border-radius:14px;"></i></div>
+      <div style="font-size:26px; color:#1E9E78; font-weight:700; margin-top:16px;">₹360 left for today</div>
+    </div>
+    <div class="notif" style="margin-top:44px; transform: rotate(-1.5deg); border: 4px solid #FFD978;">
+      <div class="app"><img src="icon-play.svg" alt="">Kahan Gaya Paisa · now</div>
+      <div class="t">80% of your Food &amp; Drink budget used</div>
+      <div class="x">₹1,600 left for October</div>
+    </div>
+  </div>
+  <div class="cta"><div><div class="l1">Spend with a plan</div><div class="l2">Free on Google Play</div></div><div class="btn">Get the app</div></div>
+</section>
+
+<!-- 5: privacy -->
+<section class="slide" id="s5">
+  <div class="brand"><img src="icon-play.svg" alt=""><div><div class="name">Kahan Gaya Paisa</div><div class="kicker">AUTO EXPENSE TRACKER</div></div></div>
+  <div class="headline">
+    <h1>Your money.<br><em>Your phone.</em><br>Nobody else.</h1>
+    <div class="list" style="margin-top:60px;">
+      <div class="item"><span class="tick"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#00473E" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"/></svg></span>No account, no server</div>
+      <div class="item"><span class="tick"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#00473E" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"/></svg></span>Works fully offline</div>
+      <div class="item"><span class="tick"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#00473E" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"/></svg></span>No ads, no tracking</div>
+      <div class="item"><span class="tick"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#00473E" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"/></svg></span>No SMS permission asked</div>
+      <div class="item"><span class="tick"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#00473E" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"/></svg></span>No bank login, ever</div>
+    </div>
+  </div>
+  <svg style="position:absolute; right:40px; top:1180px; opacity:.16;" width="360" height="420" viewBox="0 0 24 28" fill="#fff"><path d="M12 1L2 5v8c0 6.6 4.3 12.4 10 14 5.7-1.6 10-7.4 10-14V5L12 1zm0 7a3 3 0 013 3v2h1v7H8v-7h1v-2a3 3 0 013-3zm0 2a1 1 0 00-1 1v2h2v-2a1 1 0 00-1-1z"/></svg>
+  <div class="cta"><div><div class="l1">Private by design</div><div class="l2">Free on Google Play</div></div><div class="btn">Get the app</div></div>
+</section>
+
+<!-- 6: call to action -->
+<section class="slide" id="s6">
+  <div style="position:absolute; left:0; right:0; top:400px; text-align:center;">
+    <img src="icon-play.svg" alt="" style="width:300px; height:300px; border-radius:72px; box-shadow:0 30px 60px rgba(0,0,0,.35);">
+    <div style="font-size:96px; font-weight:800; letter-spacing:-2px; margin-top:56px;">Kahan Gaya Paisa</div>
+    <div style="font-size:30px; font-weight:700; color:#FFD978; letter-spacing:3px; margin-top:8px;">AUTO EXPENSE TRACKER</div>
+    <div class="sub" style="margin:44px auto 0; width:860px;">Every UPI payment and bank SMS, recorded and sorted for you. 100% offline.</div>
+    <div style="margin:80px auto 0; width:860px; background:#fff; color:#20242C; border-radius:999px; padding:30px 44px; display:flex; align-items:center; gap:26px; box-shadow:0 20px 44px rgba(0,0,0,.3);">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>
+      <span style="font-size:42px; font-weight:600;">Kahan Gaya Paisa</span>
+    </div>
+    <div style="font-size:34px; font-weight:600; color:#E3F6F3; margin-top:30px;">Search it on Google Play</div>
+    <div class="chips" style="justify-content:center; margin-top:60px;">
+      <span class="chip">Free</span><span class="chip">No ads</span><span class="chip">Android 8+</span><span class="chip">40+ banks</span>
+    </div>
+  </div>
+</section>
+
+<script>
+  const n = (location.hash || '#1').slice(1);
+  (document.getElementById('s' + n) || document.getElementById('s1')).classList.add('on');
+</script>
+</body>
+</html>
