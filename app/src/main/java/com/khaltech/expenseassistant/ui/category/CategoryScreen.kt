@@ -157,7 +157,7 @@ fun CategoryScreen(
 }
 
 @Composable
-private fun CategoryTotalsCard(
+internal fun CategoryTotalsCard(
     spentMinor: Long,
     incomeMinor: Long,
     count: Int,

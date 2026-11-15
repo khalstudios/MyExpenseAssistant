@@ -49,7 +49,7 @@ Renaming a captured payment keeps the name it arrived with: its learned rules ke
 
 ### Investments
 
-Money filed under the built-in **Investments** category is saved, not spent. It is left out of expenditure everywhere: the Home summary, Spent today, Insights totals, averages and trends, the overall budget and its alerts. A budget set on the Investments category itself still tracks it. The Home summary shows **Income**, **Expenditure** and **Invested**, plus **Left** (income less expenditure and investments) and **Net Savings** (income less expenditure, so investments count as saved, with its share of income). Investment amounts are shown in gold.
+Money filed under the built-in **Investments** category is saved, not spent. It is left out of expenditure everywhere: the Home summary, Spent today, Insights totals, averages and trends, the overall budget and its alerts. A budget set on the Investments category itself still tracks it. Money received under Investments (a redemption, maturity or payout) is netted off the invested total instead of counting as income; the Investments list opened from Home shows spending, income and net balance like a category page. The Home summary shows **Income**, **Expenditure** and **Invested**, plus **Left** (income less expenditure and investments) and **Net Savings** (income less expenditure, so investments count as saved, with its share of income); neither goes below zero. Day totals in activity lists count spending only. On Insights, a **Savings & investments** card, kept apart from Spending by category, shows the period's invested total against the previous period, savings (income left after spending and investing) with its share of income, and which merchants the investments went to; each merchant opens its investments with spending, income and net balance. Investment amounts are shown in gold.
 
 ## Build
 
@@ -68,7 +68,7 @@ gradle wrapper --gradle-version 8.13
 1. Install and open the app.
 2. Tap **Set up automatic capture** on the welcome screen (or **Enable** next to *Notification access* on Home if you skipped it) → toggle "Kahan Gaya Paisa" in the system list.
 3. Back in the app, allow notifications when asked, so each recorded payment and budget alert can pop up (Android 13+). This is asked once capture is on, or when you set your first budget if you skipped capture, not at first launch.
-4. Make a UPI payment. It appears within a second or two.
+4. An **All set** message confirms capture is on (shown whenever access is turned on). Make a UPI payment. It appears within a second or two.
 
 First launch shows only a short welcome; the full walkthrough is under **Help › Tutorial**. There is no daily budget prompt; set or change today's limit from **Set budget** on the Spent today card. Instead of the walkthrough, a new install shows a one-off hint the first time each feature has something to show: editing a payment once the first one is on Home, and what the Insights and Budget tabs are for on first visit.
 

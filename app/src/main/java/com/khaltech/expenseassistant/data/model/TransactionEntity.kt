@@ -85,3 +85,23 @@ val TransactionEntity.isInvestment: Boolean
 /** Money out that counts as spending: every debit except an investment. */
 val TransactionEntity.isSpending: Boolean
     get() = direction == Direction.DEBIT && !isInvestment
+
+/**
+ * Money back from the built-in Investments category: a redemption, maturity or payout. It nets off
+ * what was invested rather than counting as income, so the same money is not counted twice.
+ */
+val TransactionEntity.isInvestmentReturn: Boolean
+    get() = direction == Direction.CREDIT && category == Category.INVESTMENTS && customCategoryName == null
+
+/** Money in that counts as income: every credit except an investment return. */
+val TransactionEntity.isIncome: Boolean
+    get() = direction == Direction.CREDIT && !isInvestmentReturn
+
+/** Net money invested: what went into Investments less what came back out of it. */
+fun Iterable<TransactionEntity>.netInvestedMinor(): Long = sumOf {
+    when {
+        it.isInvestment -> it.amountMinor
+        it.isInvestmentReturn -> -it.amountMinor
+        else -> 0L
+    }
+}

@@ -17,6 +17,13 @@ data class BudgetProgress(
     val isAheadOfPace: Boolean get() = !isOverBudget && fraction > paceFraction
 }
 
+/** Money invested with one merchant over the period, for the savings card's "where it went" rows. */
+data class InvestmentShare(
+    val merchant: String,
+    val amountMinor: Long,
+    val transactionCount: Int,
+)
+
 data class AnalyticsUiState(
     val selection: PeriodSelection = PeriodSelection.now(AnalyticsRange.MONTH),
     val transactions: List<TransactionEntity> = emptyList(),
@@ -29,6 +36,10 @@ data class AnalyticsUiState(
     val totalSpendMinor: Long = 0,
     val totalIncomeMinor: Long = 0,
     val previousTotalSpendMinor: Long = 0,
+    /** Investments are saved, not spent, so they are kept apart from every spending figure. */
+    val totalInvestedMinor: Long = 0,
+    val previousTotalInvestedMinor: Long = 0,
+    val investments: List<InvestmentShare> = emptyList(),
     val dailyAverageMinor: Long = 0,
     val projectedTotalMinor: Long = 0,
     val transactionCount: Int = 0,
@@ -51,4 +62,12 @@ data class AnalyticsUiState(
         else (((totalSpendMinor - previousTotalSpendMinor).toDouble() / previousTotalSpendMinor) * 100).toInt()
 
     val hasBudgets: Boolean get() = overallBudget != null || categoryBudgets.isNotEmpty()
+
+    /** Income left after spending and investing, never below zero; investments are shown on their own. */
+    val savingsMinor: Long
+        get() = (totalIncomeMinor - totalSpendMinor - totalInvestedMinor).coerceAtLeast(0)
+
+    /** Share of income saved, or null with no income to measure it against. */
+    val savingsRatePercent: Int?
+        get() = if (totalIncomeMinor <= 0) null else (savingsMinor * 100 / totalIncomeMinor).toInt()
 }

@@ -12,7 +12,10 @@ import com.khaltech.expenseassistant.data.model.Category
 import com.khaltech.expenseassistant.data.model.Direction
 import com.khaltech.expenseassistant.data.model.PaymentMode
 import com.khaltech.expenseassistant.data.model.TransactionEntity
+import com.khaltech.expenseassistant.data.model.isIncome
 import com.khaltech.expenseassistant.data.model.isInvestment
+import com.khaltech.expenseassistant.data.model.isInvestmentReturn
+import com.khaltech.expenseassistant.data.model.netInvestedMinor
 import com.khaltech.expenseassistant.data.model.isSpending
 import com.khaltech.expenseassistant.data.repo.MerchantSuggestion
 import com.khaltech.expenseassistant.data.repo.NoteSuggestion
@@ -28,6 +31,7 @@ import com.khaltech.expenseassistant.ui.detail.TransactionEdits
 import com.khaltech.expenseassistant.ui.insights.AnalyticsRange
 import com.khaltech.expenseassistant.ui.insights.AnalyticsUiState
 import com.khaltech.expenseassistant.ui.insights.BudgetProgress
+import com.khaltech.expenseassistant.ui.insights.InvestmentShare
 import com.khaltech.expenseassistant.ui.insights.PeriodSelection
 import com.khaltech.expenseassistant.ui.insights.Periods
 import com.khaltech.expenseassistant.ui.insights.PieSlice
@@ -82,9 +86,9 @@ enum class SummaryFlow(val title: String, val emptyText: String) {
     ;
 
     fun includes(transaction: TransactionEntity): Boolean = when (this) {
-        INCOME -> transaction.direction == Direction.CREDIT
+        INCOME -> transaction.isIncome
         SPENDING -> transaction.isSpending
-        INVESTED -> transaction.isInvestment
+        INVESTED -> transaction.isInvestment || transaction.isInvestmentReturn
     }
 }
 
@@ -383,8 +387,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         return HomeUiState(
             transactions = current,
             spendMinor = debits.sumOf { it.amountMinor },
-            incomeMinor = current.filter { it.direction == Direction.CREDIT }.sumOf { it.amountMinor },
-            investedMinor = current.filter { it.isInvestment }.sumOf { it.amountMinor },
+            incomeMinor = current.filter { it.isIncome }.sumOf { it.amountMinor },
+            investedMinor = current.netInvestedMinor(),
             spendByCategory = debits.groupBy { it.category }
                 .map { (category, items) -> category to items.sumOf { it.amountMinor } }
                 .sortedByDescending { it.second },
@@ -400,8 +404,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         return HomeUiState(
             transactions = this,
             spendMinor = debits.sumOf { it.amountMinor },
-            incomeMinor = filter { it.direction == Direction.CREDIT }.sumOf { it.amountMinor },
-            investedMinor = filter { it.isInvestment }.sumOf { it.amountMinor },
+            incomeMinor = filter { it.isIncome }.sumOf { it.amountMinor },
+            investedMinor = netInvestedMinor(),
             spendByCategory = debits.groupBy { it.category }
                 .map { (category, items) -> category to items.sumOf { it.amountMinor } }
                 .sortedByDescending { it.second },
@@ -426,6 +430,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val previousSpend = transactions
             .filter { it.occurredAt in previousStart until start && it.isSpending }
             .sumOf { it.amountMinor }
+        val previousInvested = transactions
+            .filter { it.occurredAt in previousStart until start }
+            .netInvestedMinor()
+        val invested = current.filter { it.isInvestment || it.isInvestmentReturn }
 
         // Spending leaves investments out; a budget set on the Investments category itself still
         // tracks them, so category budgets measure every debit.
@@ -462,8 +470,21 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 .sortedByDescending { it.amountMinor },
             totalSpendMinor = totalSpend,
-            totalIncomeMinor = current.filter { it.direction == Direction.CREDIT }.sumOf { it.amountMinor },
+            totalIncomeMinor = current.filter { it.isIncome }.sumOf { it.amountMinor },
             previousTotalSpendMinor = previousSpend,
+            totalInvestedMinor = invested.netInvestedMinor(),
+            previousTotalInvestedMinor = previousInvested,
+            investments = invested.groupBy { it.merchant }
+                .map { (merchant, items) ->
+                    InvestmentShare(
+                        merchant = merchant,
+                        amountMinor = items.netInvestedMinor(),
+                        transactionCount = items.size,
+                    )
+                }
+                // A merchant fully withdrawn from has nothing left invested to draw a bar for.
+                .filter { it.amountMinor > 0 }
+                .sortedByDescending { it.amountMinor },
             dailyAverageMinor = dailyAverage,
             projectedTotalMinor = dailyAverage * totalDays,
             transactionCount = current.size,

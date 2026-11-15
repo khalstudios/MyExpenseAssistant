@@ -96,11 +96,14 @@ import com.khaltech.expenseassistant.ui.recurring.AddRecurringScreen
 import com.khaltech.expenseassistant.ui.tag.TagScreen
 import com.khaltech.expenseassistant.ui.category.CategoriesScreen
 import com.khaltech.expenseassistant.ui.category.CategoryScreen
+import com.khaltech.expenseassistant.ui.category.CategoryTotalsCard
 import com.khaltech.expenseassistant.ui.tag.TagsScreen
 import com.khaltech.expenseassistant.ui.merchant.MerchantScreen
 import com.khaltech.expenseassistant.ui.merchant.MerchantsScreen
 import com.khaltech.expenseassistant.data.repo.merchantKey
 import com.khaltech.expenseassistant.data.model.Direction
+import com.khaltech.expenseassistant.data.model.isInvestment
+import com.khaltech.expenseassistant.data.model.isInvestmentReturn
 import com.khaltech.expenseassistant.ui.category.CustomCategoryActions
 import com.khaltech.expenseassistant.ui.category.LocalCategoriesInUse
 import com.khaltech.expenseassistant.ui.category.LocalCategoryColorOverrides
@@ -194,6 +197,8 @@ private sealed interface Route {
     data object AllTransactions : Route
     /** The home summary's income or expenditure, over the scope it showed when tapped. */
     data class SummaryTransactions(val flow: SummaryFlow, val scope: SummaryScope) : Route
+    /** One merchant's investments, money in and out, over the period Insights is showing. */
+    data class InvestmentMerchant(val merchant: String) : Route
     data object Categories : Route
     data object Tags : Route
     data object Merchants : Route
@@ -314,11 +319,26 @@ private fun AppContent(
     // then a Home card if days go by without a single SMS notification arriving.
     var showSmsPrompt by remember { mutableStateOf(false) }
     var showSmsNotice by remember { mutableStateOf(false) }
+
+    // Each time access is turned on, after any prompts that follow it, an "all set" note tells the
+    // user capture is working. Only a grant seen in this session leads to it, so a budget's
+    // permission request does not.
+    var captureJustEnabled by remember { mutableStateOf(false) }
+    var showCaptureReady by remember { mutableStateOf(false) }
+    fun offerCaptureReady() {
+        if (captureJustEnabled && PermissionStatus.isNotificationAccessGranted(context)) {
+            showCaptureReady = true
+        }
+        captureJustEnabled = false
+    }
+
     fun offerSmsPrompt() {
         if (PermissionStatus.isNotificationAccessGranted(context) &&
             !userPreferences.isSmsPromptSeen() && !userPreferences.isSmsNotificationSeen()
         ) {
             showSmsPrompt = true
+        } else {
+            offerCaptureReady()
         }
     }
 
@@ -349,6 +369,7 @@ private fun AppContent(
             val granted = PermissionStatus.isNotificationAccessGranted(context)
             if (granted) userPreferences.markCaptureConnected(System.currentTimeMillis())
             if (granted && !notificationAccess) {
+                captureJustEnabled = true
                 if (PermissionStatus.needsPostNotificationsPermission(context)) {
                     postNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                 } else {
@@ -366,7 +387,7 @@ private fun AppContent(
     var showBackupReminder by remember { mutableStateOf(false) }
     var openAutoBackupSetup by remember { mutableStateOf(false) }
 
-    val dialogOpen = showWelcome || showCaptureDisclosure || showTutorial || showSmsPrompt || showBackupReminder
+    val dialogOpen = showWelcome || showCaptureDisclosure || showTutorial || showSmsPrompt || showCaptureReady || showBackupReminder
 
     var tip by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(dialogOpen) {
@@ -650,18 +671,57 @@ private fun AppContent(
                     )
                 }
 
+                is Route.InvestmentMerchant -> {
+                    // analytics already holds the Insights period; it cannot change while this is open.
+                    val merchantInvestments = analytics.transactions.filter {
+                        it.merchant == current.merchant && (it.isInvestment || it.isInvestmentReturn)
+                    }
+                    AllTransactionsScreen(
+                        transactions = merchantInvestments,
+                        title = "${current.merchant} · ${analytics.periodLabel}",
+                        emptyText = SummaryFlow.INVESTED.emptyText,
+                        header = if (merchantInvestments.isNotEmpty()) {
+                            {
+                                CategoryTotalsCard(
+                                    spentMinor = merchantInvestments.filter { it.direction == Direction.DEBIT }.sumOf { it.amountMinor },
+                                    incomeMinor = merchantInvestments.filter { it.direction == Direction.CREDIT }.sumOf { it.amountMinor },
+                                    count = merchantInvestments.size,
+                                )
+                            }
+                        } else null,
+                        onBack = { goBack() },
+                        onOpenTransaction = { id -> navigate(Route.Detail(id)) },
+                        onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
+                        onCategoryChangeCustom = { id, name, colorHex, iconKey -> viewModel.recategorize(id, Category.OTHER, name, colorHex, iconKey) },
+                        customCategories = customCategories,
+                        onDelete = { id -> viewModel.delete(id) },
+                    )
+                }
+
                 is Route.SummaryTransactions -> {
                     val periodLabel = when (current.scope) {
                         SummaryScope.MONTH -> currentMonthYearName()
                         SummaryScope.YEAR -> yearToDateLabel()
                         SummaryScope.ALL -> current.scope.label
                     }
+                    // recentState already holds exactly the summary's scope; the card is not reachable
+                    // to change it while this screen is open.
+                    val flowTransactions = recentState.transactions.filter { current.flow.includes(it) }
                     AllTransactionsScreen(
-                        // recentState already holds exactly the summary's scope; the card is not reachable
-                        // to change it while this screen is open.
-                        transactions = recentState.transactions.filter { current.flow.includes(it) },
+                        transactions = flowTransactions,
                         title = "${current.flow.title} · $periodLabel",
                         emptyText = current.flow.emptyText,
+                        // Investments hold money going both ways, so their list gets the same totals
+                        // as a category: what went in, what came back, and the balance.
+                        header = if (current.flow == SummaryFlow.INVESTED && flowTransactions.isNotEmpty()) {
+                            {
+                                CategoryTotalsCard(
+                                    spentMinor = flowTransactions.filter { it.direction == Direction.DEBIT }.sumOf { it.amountMinor },
+                                    incomeMinor = flowTransactions.filter { it.direction == Direction.CREDIT }.sumOf { it.amountMinor },
+                                    count = flowTransactions.size,
+                                )
+                            }
+                        } else null,
                         onBack = { goBack() },
                         onOpenTransaction = { id -> navigate(Route.Detail(id)) },
                         onCategoryChange = { id, category -> viewModel.recategorize(id, category) },
@@ -809,6 +869,7 @@ private fun AppContent(
                     onOpenRecurring = { item -> navigate(Route.EditRecurring(item)) },
                     onOpenMerchant = { key -> navigate(Route.Merchant(key)) },
                     onOpenTransaction = { id -> navigate(Route.Detail(id)) },
+                    onOpenInvestmentMerchant = { merchant -> navigate(Route.InvestmentMerchant(merchant)) },
                     modifier = Modifier.padding(padding),
                 )
 
@@ -882,13 +943,19 @@ private fun AppContent(
             onOpenSettings = {
                 showSmsPrompt = false
                 userPreferences.markSmsPromptSeen()
+                offerCaptureReady()
                 runCatching { context.startActivity(PermissionStatus.smsNotificationSettingsIntent(context)) }
             },
             onDismiss = {
                 showSmsPrompt = false
                 userPreferences.markSmsPromptSeen()
+                offerCaptureReady()
             },
         )
+    }
+
+    if (showCaptureReady) {
+        CaptureReadyDialog(onDismiss = { showCaptureReady = false })
     }
 
     if (showWelcome) {

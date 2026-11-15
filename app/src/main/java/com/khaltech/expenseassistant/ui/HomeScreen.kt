@@ -602,9 +602,9 @@ fun DayGroupCard(
     onEditCategory: (TransactionEntity) -> Unit,
     onDelete: (Long) -> Unit,
 ) {
-    // The day's figure is what went out, investments included, so it adds up the rows listed under
-    // it; money received that day does not offset it.
-    val spentMinor = transactions.sumOf { if (it.direction == Direction.DEBIT) it.amountMinor else 0L }
+    // The day's figure is what was spent: money invested counts as saved, as on the summary card,
+    // and money received that day does not offset it.
+    val spentMinor = transactions.sumOf { if (it.isSpending) it.amountMinor else 0L }
     val ordered = transactions.sortedByDescending { it.occurredAt }
 
     Card(
@@ -695,10 +695,11 @@ private fun SummaryCard(
             }
             ScopeToggle(scope = scope, onScopeChange = onScopeChange, hero = hero)
             // Net savings is income less spending, so money invested counts as saved; Left is what
-            // remains in hand after investing too.
+            // remains in hand after investing too. Neither goes below zero: with no income, or money
+            // out beyond it, nothing was saved and nothing is left.
             val hasIncome = state.incomeMinor > 0
-            val savedMinor = state.incomeMinor - state.spendMinor
-            val inHandMinor = savedMinor - state.investedMinor
+            val savedMinor = (state.incomeMinor - state.spendMinor).coerceAtLeast(0)
+            val inHandMinor = (savedMinor - state.investedMinor).coerceAtLeast(0)
             val investColor = investColor()
 
             // Where the income went: spent, invested, and what is left. When money out passes income
@@ -707,7 +708,7 @@ private fun SummaryCard(
             val segments = listOf(
                 SpendColor to state.spendMinor,
                 investColor to state.investedMinor,
-                IncomeColor to inHandMinor.coerceAtLeast(0),
+                IncomeColor to inHandMinor,
             ).filter { (_, amount) -> amount > 0 }
             Row(
                 Modifier
@@ -751,18 +752,11 @@ private fun SummaryCard(
                     onClickLabel = "See investments",
                     onClick = { onOpenTransactions(SummaryFlow.INVESTED) },
                 )
-                // Without income these figures would just be spending with a minus sign.
                 SummaryStat(
                     label = "LEFT",
                     labelColor = MaterialTheme.colorScheme.primary,
-                    amount = if (hasIncome) signedWhole(inHandMinor) else "—",
-                    amountColor = when {
-                        !hasIncome -> hero.onGradient
-                        inHandMinor < 0 -> SpendColor
-                        else -> MaterialTheme.colorScheme.primary
-                    },
-                    note = if (hasIncome) null else "Add income to see this",
-                    noteColor = hero.onGradientMuted,
+                    amount = formatMinorWhole(inHandMinor),
+                    amountColor = if (inHandMinor > 0) MaterialTheme.colorScheme.primary else hero.onGradient,
                     alignEnd = true,
                 )
             }
@@ -786,14 +780,10 @@ private fun SummaryCard(
                     }
                 }
                 Text(
-                    if (hasIncome) signedWhole(savedMinor) else "—",
+                    formatMinorWhole(savedMinor),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = when {
-                        !hasIncome -> hero.onGradientMuted
-                        savedMinor < 0 -> SpendColor
-                        else -> IncomeColor
-                    },
+                    color = if (savedMinor > 0) IncomeColor else hero.onGradientMuted,
                 )
             }
             if (state.needsReviewCount > 0) {
@@ -824,9 +814,6 @@ private fun SummaryCard(
     }
 }
 
-/** A whole-rupee amount with a leading minus when negative. */
-private fun signedWhole(amountMinor: Long): String =
-    (if (amountMinor < 0) "-" else "") + formatMinorWhole(kotlin.math.abs(amountMinor))
 
 /**
  * One figure on the summary card: a coloured caption over the amount. Half the row each, so a

@@ -79,6 +79,7 @@ fun InsightsScreen(
     onOpenRecurring: (RecurringExpense) -> Unit = {},
     onOpenMerchant: (String) -> Unit = {},
     onOpenTransaction: (Long) -> Unit = {},
+    onOpenInvestmentMerchant: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // Read here rather than inside the list: a LazyColumn's content block is not a composable scope.
@@ -106,6 +107,9 @@ fun InsightsScreen(
         item { StatGrid(state) }
         item { ComparisonCard(state) }
         item { SpendByCategoryCard(state, onOpenCategory) }
+        if (state.hasSavingsToShow) {
+            item { SavingsCard(state, onOpenCategory, onOpenInvestmentMerchant) }
+        }
         if (state.tagUsage.isNotEmpty()) {
             item { TagsCard(state.tagUsage, onOpenTag) }
         }

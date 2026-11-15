@@ -43,6 +43,8 @@ fun AllTransactionsScreen(
     onDelete: (Long) -> Unit = {},
     title: String = "All transactions",
     emptyText: String = "No transactions recorded yet.",
+    /** Shown above the list, such as a totals card for a filtered list. */
+    header: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var editing by remember { mutableStateOf<TransactionEntity?>(null) }
@@ -70,6 +72,8 @@ fun AllTransactionsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            header?.let { item { it() } }
+
             if (days.isEmpty()) {
                 item {
                     Text(
