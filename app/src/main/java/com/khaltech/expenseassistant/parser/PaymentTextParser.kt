@@ -88,6 +88,22 @@ object PaymentTextParser {
         Regex("""\bon\s+([A-Za-z][A-Za-z0-9&'@._\- ]{1,59}?)$MERCHANT_END""", RegexOption.IGNORE_CASE),
     )
 
+    // Money coming to the user, written with a debit verb: "X paid you ₹1,000" (Google Pay),
+    // "X has sent ₹350 to your bank account" (PhonePe). Checked before the hint order decides.
+    private val INCOMING = Regex(
+        """(?<![a-z])(?:paid|sent|transferred)\s+you\b|\bto\s+your\s+(?:[a-z]+\s+){0,2}(?:account|a/c|acct)\b""",
+    )
+
+    // The payer named in front of those phrases, after the notification title separator if any.
+    private val PAYER = Regex(
+        """(?:^|[—·:]\s*)(?:(?:mr|mrs|ms|miss|dr)\.?\s+)?([A-Za-z][A-Za-z0-9&'.\- ]{1,60}?)\s+(?:has\s+)?(?:paid|sent|transferred)\s+(?:you\b|(?:₹|rs\.?|inr)\s*[0-9,.]+\s+to\s+your\b)""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    // A summary of several payments ("3 new completed transaction updates ... + 1 more") names no
+    // single amount and direction; each payment is captured on its own or from the bank alert.
+    private val AGGREGATE = Regex("""\b\d+\s+new\b[^—]{0,40}\bupdates?\b|\+\s*\d+\s+more\b""")
+
     private val REFERENCE = Regex(
         """(?:upi\s*(?:ref|txn)?\s*(?:id|no\.?)?|utr|ref(?:erence)?\s*(?:no\.?|id)?|txn\s*id)\s*[:# ]\s*([A-Za-z0-9]{6,25})""",
         RegexOption.IGNORE_CASE,
@@ -127,13 +143,15 @@ object PaymentTextParser {
 
         val lower = normalized.lowercase()
         if (FAILURE_HINTS.any { lower.contains(it) }) return null
+        if (AGGREGATE.containsMatchIn(lower)) return null
         if (!SUCCESS_PATTERN.containsMatchIn(lower)) return null
 
         val amountMinor = extractAmountMinor(normalized) ?: return null
         if (amountMinor <= 0) return null
 
         val direction = extractDirection(lower) ?: return null
-        val merchant = extractMerchant(normalized)
+        val merchant = if (direction == Direction.CREDIT) extractPayer(normalized) ?: extractMerchant(normalized)
+        else extractMerchant(normalized)
 
         return ParsedPayment(
             amountMinor = amountMinor,
@@ -244,6 +262,7 @@ object PaymentTextParser {
     }
 
     private fun extractDirection(lowerText: String): Direction? {
+        if (INCOMING.containsMatchIn(lowerText)) return Direction.CREDIT
         val creditAt = CREDIT_PATTERN.find(lowerText)?.range?.first
         val debitAt = DEBIT_PATTERN.find(lowerText)?.range?.first
         return when {
@@ -252,6 +271,9 @@ object PaymentTextParser {
             else -> null
         }
     }
+
+    private fun extractPayer(text: String): String? =
+        PAYER.find(text)?.groupValues?.get(1)?.trim()?.trim('-', '.', ',')?.takeIf { isPlausibleMerchant(it) }
 
     private fun extractMerchant(text: String): String? {
         UPI_PATH.find(text)?.groupValues?.get(2)?.trim()

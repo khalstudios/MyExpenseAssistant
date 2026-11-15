@@ -62,6 +62,44 @@ class PaymentTextParserTest {
     }
 
     @Test
+    fun `reads gpay paid you as money received from the payer`() {
+        for (text in listOf(
+            "PRASANNA SUHAS PATIL paid you ₹1,000.00 — Tap to view.",
+            "Payment received — PRASANNA SUHAS PATIL paid you ₹1,000.00 to view.",
+        )) {
+            val result = PaymentTextParser.parse(text, gpay)
+            assertNotNull(text, result)
+            assertEquals(100000L, result!!.amountMinor)
+            assertEquals(Direction.CREDIT, result.direction)
+            assertEquals("PRASANNA SUHAS PATIL", result.merchantRaw)
+        }
+    }
+
+    @Test
+    fun `reads phonepe has sent to your bank account as money received`() {
+        val text = "Mr ROHAN RANJIT ADAKE1 has sent ₹350 to your bank account ICICI Bank-XX45"
+        val result = PaymentTextParser.parse(text, "com.phonepe.app")
+        assertNotNull(result)
+        assertEquals(35000L, result!!.amountMinor)
+        assertEquals(Direction.CREDIT, result.direction)
+        assertEquals("ROHAN RANJIT ADAKE1", result.merchantRaw)
+    }
+
+    @Test
+    fun `still reads phonepe has been sent to a payee as spent`() {
+        val result = PaymentTextParser.parse("₹10 has been sent to Vyapar.171813546007@hdfcbank", "com.phonepe.app")
+        assertNotNull(result)
+        assertEquals(Direction.DEBIT, result!!.direction)
+    }
+
+    @Test
+    fun `ignores a summary notification of several payments`() {
+        val text = "3 new completed transaction updates — · Mr ROHAN RANJIT ADAKE1 has sent ₹350 to your bank " +
+            "account ICICI Bank-XX45 · ₹10 has been sent to Vyapar.171813546007@hdfcbank + 1 more"
+        assertNull(PaymentTextParser.parse(text, "com.phonepe.app"))
+    }
+
+    @Test
     fun `does not read sent inside another word as a payment`() {
         assertNull(PaymentTextParser.parse("Presenting our new menu, mains from ₹250", gpay))
     }
